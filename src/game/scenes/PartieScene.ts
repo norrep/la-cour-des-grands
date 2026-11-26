@@ -47,7 +47,7 @@ import {
   positionLieu,
   type Lieu,
 } from '../disposition';
-import { dernieresLignes, nomGouter } from '../journal';
+import { nomGouter, phraseEvenement } from '../journal';
 import { aide, tonFun, tutoPasse } from '../ton';
 import { FUN } from '../../data/textesFun';
 import { creerBadge } from '../ui/badge';
@@ -68,12 +68,13 @@ const TAILLE_BADGE = 70;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
 const DIAMETRE_PASTILLE = 92;
 const RAYON_DEPOT = 75;
-const Y_JOURNAL = 935 + DESCENTE;
 const Y_ACTIONS = 1040 + DESCENTE;
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
 const DUREE_FIN_DE_TOUR = 900;
 /** Annonce d'une arrivée : l'élève se ramasse en l'air avant de tomber (ms). */
 const ANNONCE = 130;
+/** Vol d'une carte du portail jusqu'au rang (ms). */
+const DUREE_ARRIVEE_CARTE = 650;
 
 type Texte = Phaser.GameObjects.Text;
 
@@ -90,7 +91,16 @@ export class PartieScene extends Phaser.Scene {
   private surbrillances: Phaser.GameObjects.GameObject[] = [];
   private departToboggan: string | null = null;
   /** Fiche d'information affichée à la place du journal (élève ou îlot touché). */
-  private fiche: { titre: string; texte: string } | null = null;
+  private fiche: { titre: string; texte: string; ancre?: Point } | null = null;
+  /** Rang de la bande qui joue, juste avant son coup : les nouveaux venus y entrent en volant. */
+  /** Rang avant le dernier coup, et d'où arrivent les nouveaux venus (portail par défaut). */
+  private rangAvant: {
+    bande: Bande;
+    ids: Set<string>;
+    origines: Map<string, Point>;
+    /** Quand les cartes partent (après l’arrivée de l’élève qui a déclenché l’appel), en ms. */
+    debut: number;
+  } | null = null;
   private aideOuverte = false;
   /** Conseils pour débuter : actifs ou non, et déjà vus par chaque joueur. */
   private conseilsActifs = true;
@@ -101,6 +111,7 @@ export class PartieScene extends Phaser.Scene {
   private animations = true;
   /** Un coup vient de finir : on montre son effet avant l'écran « Passe le téléphone ». */
   private entreDeuxTours = false;
+  private finDeTour: Phaser.Time.TimerEvent | null = null;
   /** Cinématiques en attente, jouées l'une après l'autre. */
   private cinematiques: Cinematique[] = [];
   private cinematiqueEnCours: Phaser.GameObjects.Container | null = null;
@@ -178,21 +189,27 @@ export class PartieScene extends Phaser.Scene {
       const objet = o as unknown as { y: number };
       objet.y += MONTEE;
     }
-    this.dessinerJournal();
-    if (this.ctrl.phase === 'jeu') this.dessinerPupitre();
-    if (this.ctrl.phase === 'jeu') this.dessinerActions();
-    if (this.ctrl.phase === 'jeu' && !this.attenteHorsRang()) this.dessinerRang();
+    // Plus de zone de notes : le rang reste toujours visible, et les explications viennent en
+    // bulles près de ce qu'elles décrivent (demande de Clément).
+    if (this.ctrl.phase === 'jeu') {
+      this.dessinerPupitre();
+      this.dessinerActions();
+      // Pendant un choix hors du rang, le rang reste visible mais ne se glisse pas.
+      this.dessinerRang(this.bandeActive, !this.attenteHorsRang());
+      this.bulleConsigne();
+    }
     if (this.ctrl.phase === 'passe') {
       if (this.entreDeuxTours) this.dessinerFinDeTour();
       else this.dessinerPasse();
     }
     if (this.ctrl.phase === 'fin') this.dessinerFin();
+    if (this.fiche) this.dessinerFiche(this.fiche.titre, this.fiche.texte, this.fiche.ancre);
     if (this.aideOuverte) this.dessinerAide();
     else this.dessinerConseil();
   }
 
-  private montrerFiche(titre: string, texte: string): void {
-    this.fiche = { titre, texte };
+  private montrerFiche(titre: string, texte: string, ancre?: Point): void {
+    this.fiche = ancre ? { titre, texte, ancre } : { titre, texte };
     this.rafraichir(true);
   }
 
@@ -375,7 +392,6 @@ export class PartieScene extends Phaser.Scene {
     for (const poser of etiquettes) poser();
     this.dessinerSurveillante();
     if (!this.zonesTactiles()) this.zonesInformation();
-    this.bulleEffet();
   }
 
   /** Étiquette de papier au trait noir, centrée en x, posée sous le point donné. */
@@ -418,6 +434,7 @@ export class PartieScene extends Phaser.Scene {
         this.montrerFiche(
           TEXTES.surveillante,
           TEXTES.fiche.surveillante(nomGouter(this.cour, garde)),
+          { x: m.x, y: m.y - 30 },
         ),
       );
     }
@@ -435,6 +452,7 @@ export class PartieScene extends Phaser.Scene {
           prise
             ? TEXTES.regionPrise(prise, r.bonsPoints)
             : `${TEXTES.region(r.bonsPoints, noms)}${gardé ? ` ${TEXTES.fiche.garde}` : ''}`,
+          c,
         );
       });
     }
@@ -445,7 +463,7 @@ export class PartieScene extends Phaser.Scene {
     if (!n) return;
     const F = TEXTES.fiche;
     if (n.type === 'cabane' && n.bande) {
-      this.montrerFiche(TEXTES.bandesTitre[n.bande], F.cabane(n.bande));
+      this.montrerFiche(TEXTES.bandesTitre[n.bande], F.cabane(n.bande), this.pos(id));
       return;
     }
     const morceaux: string[] = [];
@@ -459,24 +477,7 @@ export class PartieScene extends Phaser.Scene {
         : F.pile(pile.map((el) => F.elevePile(el.role, el.bande, valeur(el.role)))),
     );
     const special = this.etat.equipements && n.equipement;
-    this.montrerFiche(special ? n.nom : TEXTES.fiche.titreIlot, morceaux.join(' '));
-  }
-
-  /** Bulle « Pouvoir ! » au-dessus de l'îlot qui déclenche le choix en cours. */
-  private bulleEffet(): void {
-    const a = this.ctrl.phase === 'jeu' ? this.etat.attente : null;
-    if (!a) return;
-    const p = this.pos(a.effet.ilot);
-    const titre =
-      a.effet.type === 'pouvoir'
-        ? `${TEXTES.rolesCourts[a.effet.role]} : ${TEXTES.choix.bulle}`
-        : `★ ${TEXTES.equipements[a.effet.equipement]}`;
-    const t = this.texte(p.x, p.y - RAYON_ILOT - 26, titre, 18, COULEURS.texteSombre, {
-      fontStyle: 'bold',
-      backgroundColor: '#ffe066',
-      padding: { x: 8, y: 4 },
-    }).setOrigin(0.5);
-    this.tweens.add({ targets: t, y: t.y - 6, duration: 400, yoyo: true, repeat: -1 });
+    this.montrerFiche(special ? n.nom : TEXTES.fiche.titreIlot, morceaux.join(' '), this.pos(id));
   }
 
   private dessinerCabane(id: string, bande: Bande): void {
@@ -560,7 +561,11 @@ export class PartieScene extends Phaser.Scene {
     const j = this.etat.joueurs[bande];
     const n = j.couloir.length;
     const c = this.panneauLieu(bande, 'portail', TEXTES.lieux.portail, () =>
-      this.montrerFiche(TEXTES.lieux.fichePortail(bande), TEXTES.lieux.texteCouloir(n)),
+      this.montrerFiche(
+        TEXTES.lieux.fichePortail(bande),
+        TEXTES.lieux.texteCouloir(n),
+        positionLieu(this.cour, bande, 'portail'),
+      ),
     );
     const g = this.add.graphics();
     // Grille du portail : deux piliers et des barreaux.
@@ -619,7 +624,11 @@ export class PartieScene extends Phaser.Scene {
   private dessinerBureauCpe(bande: Bande): void {
     const punis = this.etat.joueurs[bande].cpe;
     const c = this.panneauLieu(bande, 'cpe', TEXTES.lieux.cpe, () =>
-      this.montrerFiche(TEXTES.lieux.ficheCpe(bande), TEXTES.lieux.texteCpe(punis.length)),
+      this.montrerFiche(
+        TEXTES.lieux.ficheCpe(bande),
+        TEXTES.lieux.texteCpe(punis.length),
+        positionLieu(this.cour, bande, 'cpe'),
+      ),
     );
     const g = this.add.graphics();
     // Porte vitrée du bureau.
@@ -1018,14 +1027,28 @@ export class PartieScene extends Phaser.Scene {
    */
   private agir(action: () => boolean, grandsFreres = false): boolean {
     const avant = this.etat.journal.length;
+    const bande = this.bandeActive;
+    const rangAvant = new Set(this.etat.joueurs[bande].rang.map((el) => el.id));
     if (!action()) return false;
     const nouveaux = this.etat.journal.slice(avant);
+    const origines = new Map<string, Point>();
+    for (const ev of nouveaux) {
+      if (ev.type === 'rappel') origines.set(ev.eleveId, this.pos(ev.ilot));
+      if (ev.type === 'repechage')
+        origines.set(ev.eleveId, positionLieu(this.cour, ev.bande, 'cpe'));
+    }
+    const arrivees = planAnimations(nouveaux).filter(({ ev }) =>
+      ['appel', 'pioche', 'rappel', 'repechage'].includes(ev.type),
+    );
+    const debut = arrivees.length > 0 ? Math.min(...arrivees.map((a) => a.debut)) : 0;
+    this.rangAvant = { bande, ids: rangAvant, origines, debut };
     const duree = this.animations ? dureeAnimations(nouveaux) : 0;
     if (this.ctrl.phase === 'passe' && this.animations) {
       // Coup terminé : le temps de voir l'élève atterrir et ses conséquences, puis on passe le
       // téléphone.
       this.entreDeuxTours = true;
-      this.time.delayedCall(Math.max(DUREE_FIN_DE_TOUR, duree + 250), () => {
+      this.finDeTour?.remove();
+      this.finDeTour = this.time.delayedCall(Math.max(DUREE_FIN_DE_TOUR, duree + 250), () => {
         this.entreDeuxTours = false;
         this.rafraichir();
       });
@@ -1038,6 +1061,7 @@ export class PartieScene extends Phaser.Scene {
     }
     this.rafraichir();
     this.gouterEnVol = { rouge: 0, bleu: 0 };
+    this.rangAvant = null;
     this.animer(nouveaux, grandsFreres, duree);
     return true;
   }
@@ -1199,64 +1223,97 @@ export class PartieScene extends Phaser.Scene {
     this.tourHorloge = tour;
   }
 
-  private dessinerJournal(): void {
-    if (this.fiche) {
-      this.dessinerFiche(this.fiche.titre, this.fiche.texte);
-      return;
-    }
-    const attente = this.ctrl.phase === 'jeu' ? this.etat.attente : null;
-    const g = this.ajouter(this.add.graphics());
-    panneau(g, 16, Y_JOURNAL - 14, LARGEUR - 32, 84, {
-      remplissage: attente ? COULEURS.jaune : COULEURS.papier,
-    });
-    if (attente) {
-      this.texte(LARGEUR / 2, Y_JOURNAL + 28, this.consigne(), 19, COULEURS.texteSombre, {
-        fontStyle: '600',
-        align: 'center',
-        wordWrap: { width: LARGEUR - 64 },
-      }).setOrigin(0.5);
-      return;
-    }
-    // On garde les lignes les plus récentes qui tiennent dans le cadre (avec retour à la ligne).
-    const lignes = dernieresLignes(this.etat.journal, this.cour, 2, tonFun());
-    const t = this.texte(32, Y_JOURNAL + 62, '', 19, COULEURS.texteSombre, {
-      wordWrap: { width: LARGEUR - 64 },
-      lineSpacing: 1,
-      fontStyle: '500',
-    }).setOrigin(0, 1);
-    while (lignes.length > 0) {
-      t.setText(lignes.join('\n'));
-      if (t.height <= 72 || lignes.length === 1) break;
-      lignes.shift();
-    }
-  }
-
-  /** Fiche dans le cadre du journal : un titre jaune et une explication. */
-  private dessinerFiche(titre: string, texte: string): Phaser.GameObjects.Container {
-    const fond = this.add.graphics();
-    panneau(fond, 16, Y_JOURNAL - 14, LARGEUR - 32, 84);
-    const t1 = this.add.text(32, Y_JOURNAL - 26, titre, {
+  /**
+   * Une bulle de papier qui pointe vers `ancre` (au-dessus si la place le permet, sinon
+   * dessous). Sans ancre, elle se pose juste au-dessus du pupitre.
+   */
+  private bulle(
+    titre: string | null,
+    texte: string,
+    ancre?: Point,
+    fond: number = COULEURS.papier,
+  ): Phaser.GameObjects.Container {
+    const largeurMax = 400;
+    const marge = 16;
+    const corps = this.add.text(0, 0, texte, {
       fontFamily: POLICE,
       fontSize: '18px',
       color: COULEURS.texteSombre,
-      fontStyle: '700',
-    });
-    const etiquette = this.add.graphics();
-    forme(etiquette, contourRect(22, Y_JOURNAL - 30, t1.width + 22, 30, 12, 13), {
-      remplissage: COULEURS.jaune,
-      trait: 3,
-      ombre: 3,
-    });
-    const t2 = this.add.text(32, Y_JOURNAL + 8, texte, {
-      fontFamily: POLICE,
-      fontSize: '16px',
-      color: COULEURS.texteSombre,
       fontStyle: '500',
-      wordWrap: { width: LARGEUR - 64 },
+      wordWrap: { width: largeurMax - 2 * marge },
     });
-    const c = this.add.container(0, 0, [fond, etiquette, t1, t2]);
+    const enTete = titre
+      ? this.add.text(0, 0, titre, {
+          fontFamily: POLICE,
+          fontSize: '18px',
+          color: COULEURS.texteSombre,
+          fontStyle: '700',
+          wordWrap: { width: largeurMax - 2 * marge },
+        })
+      : null;
+    const l = Math.min(largeurMax, Math.max(corps.width, enTete?.width ?? 0) + 2 * marge);
+    const h = corps.height + (enTete ? enTete.height + 4 : 0) + 2 * marge - 4;
+    const cible = ancre ?? { x: LARGEUR / 2, y: Y_ACTIONS - 60 };
+    const dessus = !ancre || cible.y - h - 30 > 130 + MONTEE;
+    const x0 = Phaser.Math.Clamp(cible.x - l / 2, GAUCHE + 12, DROITE - 12 - l);
+    const y0 = ancre ? (dessus ? cible.y - 26 - h : cible.y + 26) : cible.y - h;
+    const g = this.add.graphics();
+    forme(g, contourRect(x0, y0, l, h, 16, graineDe(x0, y0), 0.8), {
+      remplissage: fond,
+      trait: 3,
+      ombre: 4,
+    });
+    if (ancre) {
+      // La pointe de la bulle, vers ce qu'elle décrit.
+      const px = Phaser.Math.Clamp(cible.x, x0 + 24, x0 + l - 24);
+      const by = dessus ? y0 + h - 2 : y0 + 2;
+      const pointe = dessus ? cible.y - 6 : cible.y + 6;
+      g.fillStyle(fond, 1);
+      g.lineStyle(3, COULEURS.encre, 1);
+      g.fillTriangle(px - 12, by, px + 12, by, px, pointe);
+      g.lineBetween(px - 12, by, px, pointe);
+      g.lineBetween(px + 12, by, px, pointe);
+    }
+    const enfants: Phaser.GameObjects.GameObject[] = [g];
+    let y = y0 + marge - 2;
+    if (enTete) {
+      enTete.setPosition(x0 + marge, y);
+      enfants.push(enTete);
+      y += enTete.height + 4;
+    }
+    corps.setPosition(x0 + marge, y);
+    enfants.push(corps);
+    const c = this.add.container(0, 0, enfants);
     this.ajouter(c);
     return c;
+  }
+
+  /** Fiche d'un élève, d'un îlot ou d'un lieu : une bulle qui pointe vers lui. */
+  private dessinerFiche(titre: string, texte: string, ancre?: Point): Phaser.GameObjects.Container {
+    const c = this.bulle(titre, texte, ancre);
+    // Toucher ailleurs ferme la bulle.
+    const fermer = this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 0.001);
+    fermer.setOrigin(0, 0).setInteractive();
+    fermer.on('pointerup', () => this.rafraichir());
+    this.dyn.addAt(fermer, this.dyn.getIndex(c));
+    if (this.ctrl.phase !== 'jeu') fermer.destroy();
+    return c;
+  }
+
+  /** Pendant un choix, la consigne est une bulle au-dessus de l'élève ou de l'îlot qui le déclenche. */
+  private bulleConsigne(): void {
+    const a = this.etat.attente;
+    if (!a || this.fiche) return;
+    const p = this.pos(a.effet.ilot);
+    const c = this.bulle(null, this.consigne(), { x: p.x, y: p.y - RAYON_ILOT }, COULEURS.jaune);
+    this.tweens.add({
+      targets: c,
+      y: -5,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   /** Les consignes des choix, didactiques ou pour rire selon le ton. */
@@ -1432,12 +1489,15 @@ export class PartieScene extends Phaser.Scene {
   // Le rang et le glisser-déposer
   // -------------------------------------------------------------------------
 
-  private dessinerRang(): void {
+  /**
+   * Le rang d'une bande, en bas. `interactif` : ses cartes se touchent et se glissent ; sinon il
+   * reste juste visible (pendant un choix hors du rang, ou le temps de voir la fin de son coup).
+   */
+  private dessinerRang(bande: Bande, interactif: boolean): void {
     const e = this.etat;
-    const bande = e.courant;
     const j = e.joueurs[bande];
     // Le couloir et la CPE sont dessinés autour de la cour (portail, bureau) : plus de compteurs ici.
-    if (j.rang.length > 0) {
+    if (j.rang.length > 0 && interactif) {
       this.texte(
         LARGEUR - 30,
         RANG.y - RANG.hauteurCarte / 2 - 28,
@@ -1447,7 +1507,7 @@ export class PartieScene extends Phaser.Scene {
         { fontStyle: '500' },
       ).setOrigin(1, 0);
     }
-    if (j.rang.length === 0) {
+    if (j.rang.length === 0 && interactif) {
       this.texte(
         LARGEUR / 2,
         RANG.y,
@@ -1458,21 +1518,68 @@ export class PartieScene extends Phaser.Scene {
       ).setOrigin(0.5);
       return;
     }
-    const attente = e.attente;
+    const attente = interactif ? e.attente : null;
     const optionsChouchou =
       attente?.options.filter((o): o is Extract<Option, { type: 'poser' }> => o.type === 'poser') ??
       null;
 
+    // Les nouveaux venus volent jusqu'à leur place : copains appelés depuis le portail, élève
+    // rappelé depuis son îlot, élève repêché depuis le bureau de la CPE.
+    const avant = this.rangAvant?.bande === bande ? this.rangAvant : null;
+    const portailBande = positionLieu(this.cour, bande, 'portail');
+    let nouveaux = 0;
     j.rang.forEach((el, i) => {
       const malade = j.infirmerie.includes(el.id);
-      const cibles = optionsChouchou
-        ? optionsChouchou.filter((o) => o.eleveId === el.id).map((o) => o.cible)
-        : malade
-          ? []
-          : ciblesPossibles(e, el.id);
-      const carte = this.carte(el, xCarteRang(i, j.rang.length), RANG.y, malade, cibles.length > 0);
-      this.rendreTouchable(carte, el, malade, cibles.length > 0);
-      if (cibles.length > 0) this.rendreDeplacable(carte, el, cibles, optionsChouchou !== null);
+      const cibles = !interactif
+        ? []
+        : optionsChouchou
+          ? optionsChouchou.filter((o) => o.eleveId === el.id).map((o) => o.cible)
+          : malade
+            ? []
+            : ciblesPossibles(e, el.id);
+      const x = xCarteRang(i, j.rang.length);
+      const carte = this.carte(el, x, RANG.y, malade, !interactif || cibles.length > 0);
+      if (interactif) {
+        this.rendreTouchable(carte, el, malade, cibles.length > 0);
+        if (cibles.length > 0) this.rendreDeplacable(carte, el, cibles, optionsChouchou !== null);
+      }
+      if (avant && !avant.ids.has(el.id) && this.animations) {
+        const portail = avant.origines.get(el.id) ?? portailBande;
+        const delai = avant.debut + DUREE_ARRIVEE_CARTE * 0.25 * nouveaux++;
+        const angle = carte.rotation;
+        carte.setPosition(portail.x, portail.y).setScale(0.4).setAngle(-30).setAlpha(0);
+        this.tweens.add({
+          targets: carte,
+          alpha: 1,
+          duration: 80,
+          delay: delai,
+        });
+        this.tweens.addCounter({
+          from: 0,
+          to: 1,
+          delay: delai,
+          duration: DUREE_ARRIVEE_CARTE,
+          ease: 'Sine.easeInOut',
+          onUpdate: (tw) => {
+            const v = tw.getValue() ?? 0;
+            carte.setPosition(
+              portail.x + (x - portail.x) * v,
+              portail.y + (RANG.y - portail.y) * v - Math.sin(v * Math.PI) * 140,
+            );
+            carte.setScale(0.4 + 0.6 * v);
+            carte.setRotation(angle + (1 - v) * -0.5);
+          },
+          onComplete: () => {
+            this.tweens.add({
+              targets: carte,
+              scaleY: 0.85,
+              scaleX: 1.12,
+              duration: 70,
+              yoyo: true,
+            });
+          },
+        });
+      }
     });
   }
 
@@ -1563,6 +1670,7 @@ export class PartieScene extends Phaser.Scene {
       this.montrerFiche(
         TEXTES.fiche.eleve(el.role, valeur(el.role)),
         this.texteFicheEleve(el, malade, jouable),
+        { x: carte.x, y: carte.y - RANG.hauteurCarte / 2 },
       );
     });
   }
@@ -1622,7 +1730,8 @@ export class PartieScene extends Phaser.Scene {
     };
 
     carte.on('dragstart', (p: Phaser.Input.Pointer) => {
-      ficheGlisse = this.dessinerFiche(
+      // Pendant le glisser, la fiche est une simple bulle (rien à toucher pour la fermer).
+      ficheGlisse = this.bulle(
         TEXTES.fiche.eleve(el.role, valeur(el.role)),
         this.texteFicheEleve(el, false, true),
       );
@@ -1775,11 +1884,16 @@ export class PartieScene extends Phaser.Scene {
    * puis vient l'écran « Passe le téléphone ».
    */
   private dessinerFinDeTour(): void {
+    // La bande qui vient de jouer voit encore son rang (le téléphone est toujours dans ses mains) :
+    // les copains appelés y arrivent.
+    this.dessinerPupitre();
+    const joueur: Bande = this.etat.courant === 'rouge' ? 'bleu' : 'rouge';
+    this.dessinerRang(joueur, false);
     this.texte(
       LARGEUR / 2,
-      RANG.y,
+      Y_ACTIONS,
       TEXTES.passe.bientot(this.etat.courant),
-      26,
+      24,
       COULEURS.texteSombre,
       {
         fontStyle: '700',
@@ -1797,6 +1911,30 @@ export class PartieScene extends Phaser.Scene {
     );
     v.setOrigin(0, 0);
     v.setInteractive();
+  }
+
+  /** Ce que l'adversaire vient de faire (remplace l'ancien journal en bas de l'écran). */
+  private resumeCoupAdverse(cx: number, y: number): void {
+    const journal = this.etat.journal;
+    const dernier = journal.at(-1);
+    if (!dernier) return;
+    const lignes: string[] = [];
+    for (let i = journal.length - 1; i >= 0; i--) {
+      const ev = journal[i] as Evenement;
+      if (ev.tour !== dernier.tour) break;
+      const p = phraseEvenement(ev, this.cour, tonFun(), i);
+      if (p) lignes.unshift(p);
+    }
+    if (lignes.length === 0) return;
+    this.texte(cx, y, TEXTES.passe.resume, 22, COULEURS.texteSombre, {
+      fontStyle: '700',
+    }).setOrigin(0.5);
+    this.texte(cx, y + 24, lignes.slice(-3).join('\n'), 21, COULEURS.texteSombre, {
+      fontStyle: '500',
+      align: 'center',
+      lineSpacing: 6,
+      wordWrap: { width: LARGEUR - 170 },
+    }).setOrigin(0.5, 0);
   }
 
   private dessinerPasse(): void {
@@ -1823,23 +1961,24 @@ export class PartieScene extends Phaser.Scene {
       },
     ).setOrigin(0.5);
     // Un élève de la bande qui attend, tout content.
-    const eleve = skinActif().eleve(this, b, b === 'rouge' ? 'grand' : 'petit', 120);
-    eleve.setPosition(cx, 610);
+    const eleve = skinActif().eleve(this, b, b === 'rouge' ? 'grand' : 'petit', 100);
+    eleve.setPosition(cx, 540);
     this.ajouter(eleve);
     this.tweens.add({
       targets: eleve,
-      y: 596,
+      y: 528,
       angle: { from: -3, to: 3 },
       duration: 600,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
+    this.resumeCoupAdverse(cx, 690);
     this.texte(
       cx,
-      790,
+      840,
       aide(TEXTES.passe.cache, FUN.passe.cache, this.etat.tour),
-      22,
+      20,
       COULEURS.texteSombre,
       {
         fontStyle: '500',
@@ -1851,7 +1990,7 @@ export class PartieScene extends Phaser.Scene {
       creerBouton(
         this,
         cx,
-        910,
+        925,
         TEXTES.boutons.pret(b),
         () => {
           this.ctrl.reprendre();
@@ -2079,7 +2218,7 @@ export class PartieScene extends Phaser.Scene {
       case 'appel':
       case 'pioche':
         jouerSon('pioche');
-        this.copainsArrivent(ev.bande, ev.nombre);
+        this.copainsArrivent(ev.bande);
         break;
       case 'cpe':
         this.volerVersLieu(this.pos(ev.ilot), ev.bande, ev.role, ev.bande, 'cpe');
@@ -2088,10 +2227,9 @@ export class PartieScene extends Phaser.Scene {
         this.eternuement(origine, ev.bande);
         break;
       case 'rappel':
-        this.volerVersRang(this.pos(ev.ilot), ev.bande);
-        break;
       case 'repechage':
-        this.volerVersRang(positionLieu(this.cour, ev.bande, 'cpe'), ev.bande);
+        // La carte de l'élève vole elle-même jusqu'au rang (voir dessinerRang).
+        jouerSon('pioche');
         break;
       case 'surveillante':
         this.marcheSurveillante(ev.position, ev.pas);
@@ -2322,38 +2460,9 @@ export class PartieScene extends Phaser.Scene {
     );
   }
 
-  /** Des copains sortent du portail et courent jusqu'au rang. */
-  private copainsArrivent(bande: Bande, n: number): void {
-    const portail = positionLieu(this.cour, bande, 'portail');
+  /** Les copains appelés : le portail s'ouvre (leurs cartes volent jusqu'au rang). */
+  private copainsArrivent(bande: Bande): void {
     this.rebondLieu(bande, 'portail');
-    for (let k = 0; k < n; k++) {
-      const tete = this.ajouter(this.add.graphics());
-      forme(tete, contourRond(0, 0, 16, graineDe(k, n) + 9), {
-        remplissage: bande === 'rouge' ? 0xffc2b6 : 0xc3ccff,
-        trait: 3,
-      });
-      tete.setVisible(false);
-      this.time.delayedCall(k * 160, () => {
-        tete.setVisible(true);
-        this.volerEnCloche(
-          tete,
-          portail,
-          { x: LARGEUR / 2 + (k - (n - 1) / 2) * 70, y: RANG.y },
-          620,
-        );
-      });
-    }
-  }
-
-  /** Un élève rentre dans le rang (banc, porte de la vie scolaire). */
-  private volerVersRang(depuis: Point, bande: Bande): void {
-    jouerSon('pioche');
-    const tete = this.ajouter(this.add.graphics());
-    forme(tete, contourRond(0, 0, 18, graineDe(depuis.x, depuis.y)), {
-      remplissage: bande === 'rouge' ? 0xffc2b6 : 0xc3ccff,
-      trait: 3,
-    });
-    this.volerEnCloche(tete, depuis, { x: LARGEUR / 2, y: RANG.y }, 600);
   }
 
   /** Atchoum : un nuage de microbes part de l'élève vers le portail de la bande adverse. */

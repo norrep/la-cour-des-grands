@@ -226,6 +226,7 @@ export const TEXTES = {
     titre: 'Passe le téléphone',
     a: (b: Bande) => `à la ${BANDES[b]}`,
     cache: 'Ne regarde pas le rang de l’adversaire !',
+    resume: 'Au tour d’avant :',
   },
   fin: {
     titre: 'DRIIIIING !',
