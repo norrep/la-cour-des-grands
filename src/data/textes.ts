@@ -121,7 +121,7 @@ export const TEXTES = {
     rapporteuse: 'Rapporteuse : touche l’adversaire qui tremble pour l’envoyer chez la CPE.',
     contagieux:
       'Contagieux : touche le portail d’en face, un adversaire au hasard rate son prochain tour.',
-    delegue: 'Délégué : touche Mme Josiane, elle file 1 ou 2 goûters plus loin.',
+    delegue: 'Délégué : touche Mme Josiane pour qu’elle file 1 ou 2 goûters plus loin, ou passe.',
     banc: '★ Banc : touche un de tes élèves pour le reprendre dans ton rang.',
     cabanePerchee: '★ Cabane perchée : touche ton portail pour piocher 1 élève.',
     porteVieScolaire: '★ Vie scolaire : touche l’élève à faire sortir de chez la CPE.',

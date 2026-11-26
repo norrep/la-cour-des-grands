@@ -1396,13 +1396,18 @@ export class PartieScene extends Phaser.Scene {
     const options: { texte: string; action: () => void; couleur?: number }[] = [];
     const lignes: (typeof options)[] = [];
     for (let i = 0; i < options.length; i += 4) lignes.push(options.slice(i, i + 4));
-    // « Passer » ne sert presque jamais (demande de Clément) : on le garde seulement pour le banc,
-    // où reprendre un de ses propres élèves est un vrai choix. Ailleurs, on touche la cible.
+    // « Passer » ne sert presque jamais (demande de Clément) : on le garde pour le banc, où
+    // reprendre un de ses propres élèves est un vrai choix, et pour le Délégué. Ailleurs, on touche
+    // la cible.
     // Filet de sécurité : sans surveillante à toucher, le mot d'excuse se passe aussi.
     const sansCible =
       attente.options.every((o) => o.type === 'surveillante') && !gouterSurveille(this.etat);
+    // Le mot d'excuse du Délégué peut aussi se garder (demande de Clément) : éloigner Mme Josiane
+    // n'arrange pas toujours.
     const passerUtile =
-      (attente.effet.type === 'equipement' && attente.effet.equipement === 'banc') || sansCible;
+      (attente.effet.type === 'equipement' && attente.effet.equipement === 'banc') ||
+      (attente.effet.type === 'pouvoir' && attente.effet.role === 'delegue') ||
+      sansCible;
     const fin = passerUtile
       ? [
           {
