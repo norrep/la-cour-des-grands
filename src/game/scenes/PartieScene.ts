@@ -14,8 +14,12 @@ import {
   type CourData,
   type Eleve,
   type Evenement,
+  type Action,
   type Option,
+  type RoleId,
 } from '../../engine/index';
+import { apercu } from '../apercu';
+import { dureeAnimations, planAnimations } from '../sequence';
 import {
   BAS,
   COULEURS,
@@ -40,6 +44,8 @@ import {
   type Point,
   DESCENTE,
   MONTEE,
+  positionLieu,
+  type Lieu,
 } from '../disposition';
 import { dernieresLignes, nomGouter } from '../journal';
 import { aide, tonFun, tutoPasse } from '../ton';
@@ -65,6 +71,8 @@ const Y_JOURNAL = 935 + DESCENTE;
 const Y_ACTIONS = 1040 + DESCENTE;
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
 const DUREE_FIN_DE_TOUR = 900;
+/** Annonce d'une arrivée : l'élève se ramasse en l'air avant de tomber (ms). */
+const ANNONCE = 130;
 
 type Texte = Phaser.GameObjects.Text;
 
@@ -96,6 +104,16 @@ export class PartieScene extends Phaser.Scene {
   private cinematiques: Cinematique[] = [];
   private cinematiqueEnCours: Phaser.GameObjects.Container | null = null;
   private tweensCinematique = new Set<Phaser.Tweens.Tween>();
+  /** Cases des cartables (pour y faire voler les goûters ramassés). */
+  private cartables: Record<Bande, Point[]> = { rouge: [], bleu: [] };
+  /** Tour affiché par la pendule (pour faire avancer l'aiguille quand il change). */
+  private tourHorloge = 0;
+  /** Mme Josiane, pour la faire marcher d'un goûter à l'autre. */
+  private josiane: Phaser.GameObjects.Container | null = null;
+  /** Panneau de chaque lieu (portail, CPE), pour le faire rebondir quand un élève y arrive. */
+  private panneauxLieux = new Map<string, Phaser.GameObjects.Container>();
+  /** Goûters en train de voler vers le cartable (leurs cases restent vides jusqu'à l'arrivée). */
+  private gouterEnVol: Record<Bande, number> = { rouge: 0, bleu: 0 };
 
   constructor() {
     super('partie');
@@ -117,6 +135,7 @@ export class PartieScene extends Phaser.Scene {
     this.cinematiques = [];
     this.cinematiqueEnCours = null;
     this.entreDeuxTours = false;
+    this.tourHorloge = 0;
     this.animations = !(window as unknown as { __sansAnimations?: boolean }).__sansAnimations;
     activerSons(lireSons());
     // Accès de débogage, utilisé aussi par les tests automatisés de l'écran.
@@ -277,6 +296,11 @@ export class PartieScene extends Phaser.Scene {
 
     for (const b of ['rouge', 'bleu'] as const) {
       for (const id of this.cour.cabanes[b]) this.dessinerCabane(id, b);
+    }
+    this.panneauxLieux.clear();
+    for (const b of ['rouge', 'bleu'] as const) {
+      this.dessinerPortail(b);
+      this.dessinerBureauCpe(b);
     }
 
     // Îlots : des pastilles molles au trait noir, avec leur nom sur une étiquette.
@@ -489,6 +513,146 @@ export class PartieScene extends Phaser.Scene {
     });
   }
 
+  /** Panneau de papier d'un lieu, avec son titre sur une étiquette ; toucher ouvre sa fiche. */
+  private panneauLieu(
+    bande: Bande,
+    lieu: Lieu,
+    titre: string,
+    fiche: () => void,
+  ): Phaser.GameObjects.Container {
+    const p = positionLieu(this.cour, bande, lieu);
+    const c = this.add.container(p.x, p.y);
+    const g = this.add.graphics();
+    const graine = graineDe(p.x, p.y);
+    forme(g, contourRect(-62, -34, 124, 76, 14, graine), {
+      remplissage: COULEURS.papier,
+      ombre: 5,
+      trait: 4,
+    });
+    const t = this.add
+      .text(0, -36, titre, {
+        fontFamily: POLICE,
+        fontSize: '16px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const e = this.add.graphics();
+    forme(e, contourRect(-t.width / 2 - 9, -48, t.width + 18, 24, 10, graine + 1, 0.6), {
+      remplissage: bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu,
+      trait: 3,
+    });
+    c.add([g, e, t]);
+    c.setRotation((bande === 'rouge' ? 1 : -1) * (lieu === 'portail' ? -0.04 : 0.04));
+    c.setSize(124, 90);
+    if (this.ctrl.phase === 'jeu') {
+      c.setInteractive({ useHandCursor: true });
+      c.on('pointerup', fiche);
+    }
+    this.ajouter(c);
+    this.panneauxLieux.set(`${bande}:${lieu}`, c);
+    return c;
+  }
+
+  /** Le portail : les copains du couloir y attendent qu'on les appelle. */
+  private dessinerPortail(bande: Bande): void {
+    const j = this.etat.joueurs[bande];
+    const n = j.couloir.length;
+    const c = this.panneauLieu(bande, 'portail', TEXTES.lieux.portail, () =>
+      this.montrerFiche(TEXTES.lieux.fichePortail(bande), TEXTES.lieux.texteCouloir(n)),
+    );
+    const g = this.add.graphics();
+    // Grille du portail : deux piliers et des barreaux.
+    g.fillStyle(0xbfb3a0, 1);
+    g.lineStyle(3, COULEURS.encre, 1);
+    g.fillRect(-52, -16, 10, 50);
+    g.strokeRect(-52, -16, 10, 50);
+    g.fillRect(-10, -16, 10, 50);
+    g.strokeRect(-10, -16, 10, 50);
+    g.lineStyle(3, COULEURS.encre, 1);
+    for (let x = -38; x <= -14; x += 8) g.lineBetween(x, -10, x, 32);
+    g.lineBetween(-42, -6, -10, -6);
+    g.lineBetween(-42, 24, -10, 24);
+    c.add(g);
+    // Les têtes des copains qui attendent derrière la grille (jusqu'à 3).
+    for (let k = 0; k < Math.min(3, n); k++) {
+      const t = this.add.graphics();
+      forme(t, contourRond(-36 + k * 11, 6 - (k % 2) * 4, 9, graineDe(k, n)), {
+        remplissage: bande === 'rouge' ? 0xffc2b6 : 0xc3ccff,
+        trait: 2,
+      });
+      c.addAt(t, 3);
+    }
+    const nombre = this.add
+      .text(30, 10, `×${n}`, {
+        fontFamily: POLICE,
+        fontSize: '26px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    c.add(nombre);
+    // Les enrhumés du rang : un mouchoir avec leur nombre, au coin du portail.
+    const malades = j.infirmerie.length;
+    if (malades > 0) {
+      const m = this.add.graphics();
+      forme(m, contourRond(52, -28, 17, graineDe(malades, 9)), { remplissage: 0xffffff, trait: 3 });
+      m.fillStyle(0xe0503f, 1);
+      m.fillRect(48, -39, 8, 22);
+      m.fillRect(41, -32, 22, 8);
+      const tm = this.add
+        .text(68, -12, `${malades}`, {
+          fontFamily: POLICE,
+          fontSize: '16px',
+          color: COULEURS.texteSombre,
+          fontStyle: '700',
+          backgroundColor: '#ffffff',
+          padding: { x: 3, y: 0 },
+        })
+        .setOrigin(0.5);
+      c.add([m, tm]);
+    }
+  }
+
+  /** Le bureau de la CPE : les élèves punis y sont assis, bras croisés. */
+  private dessinerBureauCpe(bande: Bande): void {
+    const punis = this.etat.joueurs[bande].cpe;
+    const c = this.panneauLieu(bande, 'cpe', TEXTES.lieux.cpe, () =>
+      this.montrerFiche(TEXTES.lieux.ficheCpe(bande), TEXTES.lieux.texteCpe(punis.length)),
+    );
+    const g = this.add.graphics();
+    // Porte vitrée du bureau.
+    forme(g, contourRect(-54, -18, 34, 52, 4, graineDe(bande.length, 3), 0.5), {
+      remplissage: 0x8a5a3b,
+      trait: 3,
+    });
+    forme(g, contourRect(-48, -12, 22, 16, 3, graineDe(bande.length, 4), 0.5), {
+      remplissage: 0xbfe4ff,
+      trait: 2,
+    });
+    g.fillStyle(COULEURS.jaune, 1);
+    g.fillCircle(-26, 12, 3);
+    c.add(g);
+    // Les punis, en petits badges (les 4 derniers arrivés), et leur nombre s'ils sont plus.
+    punis.slice(-4).forEach((el, k) => {
+      const b = creerBadge(this, el.bande, el.role, 24);
+      b.setPosition(-2 + (k % 2) * 26, -4 + Math.floor(k / 2) * 26);
+      c.add(b);
+    });
+    if (punis.length > 4 || punis.length === 0) {
+      c.add(
+        this.add
+          .text(40, 10, punis.length === 0 ? '0' : `×${punis.length}`, {
+            fontFamily: POLICE,
+            fontSize: '22px',
+            color: COULEURS.texteSombre,
+            fontStyle: '700',
+          })
+          .setOrigin(0.5),
+      );
+    }
+  }
+
   /** Centre d'une zone, légèrement décalé pour ne pas gêner les allées. */
   private positionGouter(regionId: string): Point {
     const r = this.cour.regions.find((x) => x.id === regionId);
@@ -521,6 +685,7 @@ export class PartieScene extends Phaser.Scene {
       });
       const josiane = this.add.container(x, y + 30, corps.objets).setAlpha(alpha);
       this.ajouter(josiane);
+      this.josiane = josiane;
       rendreVivant(this, corps, josiane, { hauteur, caractere: 'surveillante' });
       return;
     }
@@ -660,6 +825,7 @@ export class PartieScene extends Phaser.Scene {
   }
 
   private dessinerSurveillante(): void {
+    this.josiane = null;
     const garde = gouterSurveille(this.etat);
     if (!garde) return;
     const { x, y } = this.positionSurveillante(garde);
@@ -696,7 +862,129 @@ export class PartieScene extends Phaser.Scene {
       zone.setInteractive({ useHandCursor: true });
       zone.on('pointerup', action);
     }
+    this.ciblesDesPouvoirs();
     return true;
+  }
+
+  /**
+   * Les pouvoirs sans îlot à viser se jouent aussi sur la cour : on touche le lieu ou le
+   * personnage concerné. Piocher = son portail ; éternuer = le portail adverse ; mot d'excuse =
+   * Mme Josiane ; récupérer un puni = son badge, qui sort du bureau de la CPE.
+   */
+  private ciblesDesPouvoirs(): void {
+    const attente = this.etat.attente;
+    if (!attente) return;
+    const bande = this.bandeActive;
+    const adverse: Bande = bande === 'rouge' ? 'bleu' : 'rouge';
+    const source = this.pos(attente.effet.ilot);
+    const T = TEXTES.pouvoirsSurLaCour;
+    const repeches: Option[] = [];
+    for (const o of attente.options) {
+      if (o.type === 'piocher') {
+        this.cibleLieu(source, positionLieu(this.cour, bande, 'portail'), 72, T.piocher, () =>
+          this.choisir(o),
+        );
+      } else if (o.type === 'infirmerie') {
+        this.cibleLieu(source, positionLieu(this.cour, adverse, 'portail'), 72, T.eternuer, () =>
+          this.choisir(o),
+        );
+      } else if (o.type === 'surveillante') {
+        const garde = gouterSurveille(this.etat);
+        if (garde) {
+          const m = this.positionSurveillante(garde);
+          this.cibleLieu(source, { x: m.x, y: m.y - 6 }, 54, T.motExcuse, () => this.choisir(o));
+        }
+      } else if (o.type === 'repecher') {
+        repeches.push(o);
+      }
+    }
+    // Les punis qu'on peut récupérer sortent du bureau de la CPE, un badge par rôle.
+    if (repeches.length > 0) {
+      const cpe = positionLieu(this.cour, bande, 'cpe');
+      const punis = this.etat.joueurs[bande].cpe;
+      const vus = new Set<string>();
+      const choix: { role: RoleId; option: Option }[] = [];
+      for (const o of repeches) {
+        const el = o.type === 'repecher' ? punis.find((x) => x.id === o.eleveId) : undefined;
+        if (el && !vus.has(el.role)) {
+          vus.add(el.role);
+          choix.push({ role: el.role, option: o });
+        }
+      }
+      // Au-dessus du bureau pour la bande du bas, en dessous pour celle du haut.
+      const sens = bande === 'rouge' ? -1 : 1;
+      choix.forEach(({ role, option }, i) => {
+        const x = cpe.x + (i - (choix.length - 1) / 2) * 62;
+        const y = cpe.y + sens * 96;
+        const b = this.ajouter(creerBadge(this, bande, role, 46));
+        b.setPosition(x, y);
+        this.anneauCible({ x, y }, 32);
+        this.tweens.add({ targets: b, y: y - 6, duration: 380, yoyo: true, repeat: -1 });
+        const zone = this.ajouter(this.add.circle(x, y, 34, 0xffffff, 0.001));
+        zone.setInteractive({ useHandCursor: true });
+        zone.on('pointerup', () => this.choisir(option));
+      });
+      this.etiquetteVerbe(cpe.x, cpe.y + sens * 150, T.recuperer);
+    }
+  }
+
+  /** Une cible du pouvoir : anneau qui pulse, flèche depuis l'élève, verbe sur une étiquette. */
+  private cibleLieu(
+    depuis: Point,
+    p: Point,
+    rayon: number,
+    verbe: string,
+    action: () => void,
+  ): void {
+    this.flecheCraie(depuis, p, rayon);
+    this.anneauCible(p, rayon);
+    // Sous la cible quand elle est tout en haut de la cour (le bandeau la cacherait).
+    const dessus = p.y - rayon - 22 > 150 + MONTEE;
+    this.etiquetteVerbe(p.x, dessus ? p.y - rayon - 22 : p.y + rayon + 22, verbe);
+    const zone = this.ajouter(this.add.circle(p.x, p.y, rayon + 8, 0xffffff, 0.001));
+    zone.setInteractive({ useHandCursor: true });
+    zone.on('pointerup', action);
+  }
+
+  /** Flèche en pointillés jaunes, de l'élève qui a le pouvoir vers sa cible. */
+  private flecheCraie(a: Point, b: Point, marge: number): void {
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    if (d < marge + RAYON_ILOT + 20) return;
+    const ux = (b.x - a.x) / d;
+    const uy = (b.y - a.y) / d;
+    const debut = { x: a.x + ux * (RAYON_ILOT + 8), y: a.y + uy * (RAYON_ILOT + 8) };
+    const fin = { x: b.x - ux * (marge + 10), y: b.y - uy * (marge + 10) };
+    const g = this.ajouter(this.add.graphics());
+    g.lineStyle(10, COULEURS.encre, 0.55);
+    this.pointilles(g, debut, fin, 18, 12);
+    g.lineStyle(6, COULEURS.allume, 1);
+    this.pointilles(g, debut, fin, 18, 12);
+    // Pointe de la flèche.
+    const px = -uy;
+    const py = ux;
+    const pointe = [
+      { x: fin.x + ux * 16, y: fin.y + uy * 16 },
+      { x: fin.x - ux * 6 + px * 14, y: fin.y - uy * 6 + py * 14 },
+      { x: fin.x - ux * 6 - px * 14, y: fin.y - uy * 6 - py * 14 },
+    ];
+    forme(g, pointe, { remplissage: COULEURS.allume, trait: 3 });
+    this.tweens.add({ targets: g, alpha: 0.55, duration: 420, yoyo: true, repeat: -1 });
+  }
+
+  private etiquetteVerbe(x: number, y: number, verbe: string): void {
+    const t = this.texte(x, y, verbe, 20, COULEURS.texteSombre, { fontStyle: '700' }).setOrigin(
+      0.5,
+    );
+    const l = t.width + 22;
+    const g = this.add.graphics();
+    forme(g, contourRect(x - l / 2, y - 17, l, 34, 14, graineDe(x, y), 0.8), {
+      remplissage: COULEURS.jaune,
+      trait: 3,
+      ombre: 3,
+    });
+    this.dyn.addAt(g, this.dyn.getIndex(t));
+    const groupe = [g, t];
+    this.tweens.add({ targets: groupe, y: '-=5', duration: 420, yoyo: true, repeat: -1 });
   }
 
   private anneauCible(p: Point, rayon: number): Phaser.GameObjects.Arc {
@@ -738,16 +1026,25 @@ export class PartieScene extends Phaser.Scene {
     const avant = this.etat.journal.length;
     if (!action()) return false;
     const nouveaux = this.etat.journal.slice(avant);
+    const duree = this.animations ? dureeAnimations(nouveaux) : 0;
     if (this.ctrl.phase === 'passe' && this.animations) {
-      // Coup terminé : un court instant pour voir l'élève atterrir, puis on passe le téléphone.
+      // Coup terminé : le temps de voir l'élève atterrir et ses conséquences, puis on passe le
+      // téléphone.
       this.entreDeuxTours = true;
-      this.time.delayedCall(DUREE_FIN_DE_TOUR, () => {
+      this.time.delayedCall(Math.max(DUREE_FIN_DE_TOUR, duree + 250), () => {
         this.entreDeuxTours = false;
         this.rafraichir();
       });
     }
+    // Les goûters ramassés volent jusqu'au cartable : leurs cases se remplissent à l'arrivée.
+    if (this.animations) {
+      for (const ev of nouveaux) {
+        if (ev.type === 'region') this.gouterEnVol[ev.bande] += ev.bonsPoints;
+      }
+    }
     this.rafraichir();
-    this.animer(nouveaux, grandsFreres);
+    this.gouterEnVol = { rouge: 0, bleu: 0 };
+    this.animer(nouveaux, grandsFreres, duree);
     return true;
   }
 
@@ -768,54 +1065,144 @@ export class PartieScene extends Phaser.Scene {
       },
     );
 
-    const score = (b: Bande, x: number) => {
-      const badge = creerBadge(this, b, 'grand', 46);
-      badge.setPosition(x, 46);
-      (badge.list[1] as Texte).setText(`${e.joueurs[b].bonsPoints}`);
-      this.ajouter(badge);
-    };
-    score('rouge', 42);
-    score('bleu', LARGEUR - 42);
+    // Le cartable de chaque bande : une case par goûter à ramasser, remplie au fur et à mesure.
+    for (const b of ['rouge', 'bleu'] as const) {
+      const x = b === 'rouge' ? 112 : LARGEUR - 112;
+      this.dessinerCartable(b, x, 50, e.joueurs[b].bonsPoints - this.gouterEnVol[b]);
+    }
 
-    this.texte(
-      LARGEUR / 2,
-      20,
-      TEXTES.hud.seuil(this.cour.seuilBonsPoints),
-      19,
-      COULEURS.texteSombre,
-      {
-        fontStyle: '500',
-      },
-    ).setOrigin(0.5);
+    // La pendule de l'école : elle avance à chaque tour (la règle de la sonnerie ne change pas).
+    this.dessinerHorloge(LARGEUR / 2, 24, e.tour);
     if (this.ctrl.phase === 'jeu') {
       this.ajouter(
         creerBouton(
           this,
-          LARGEUR - 112,
-          46,
+          LARGEUR / 2 + 52,
+          26,
           TEXTES.hud.aide,
           () => {
             this.aideOuverte = true;
             this.rafraichir();
           },
-          { largeur: 46, hauteur: 42, taille: 26, couleur: COULEURS.jaune },
+          { largeur: 38, hauteur: 36, taille: 22, couleur: COULEURS.jaune },
         ),
       );
     }
     if (this.ctrl.phase !== 'fin') {
       const b = this.bandeActive;
-      const t = this.texte(LARGEUR / 2, 60, TEXTES.hud.tourDe(b), 24, COULEURS.texteSombre, {
+      const t = this.texte(LARGEUR / 2, 76, TEXTES.hud.tourDe(b), 21, COULEURS.texteSombre, {
         fontStyle: '700',
       }).setOrigin(0.5);
-      const l = t.width + 30;
+      const l = t.width + 28;
       const fond = this.add.graphics();
-      forme(fond, contourRect(LARGEUR / 2 - l / 2, 43, l, 36, 18, 11), {
+      forme(fond, contourRect(LARGEUR / 2 - l / 2, 60, l, 33, 16, 11), {
         remplissage: b === 'rouge' ? COULEURS.rouge : COULEURS.bleu,
         trait: 3,
         ombre: 3,
       });
       this.dyn.addAt(fond, this.dyn.getIndex(t));
     }
+  }
+
+  /** Cases du cartable d'une bande, en coordonnées d'écran (pour y faire voler les goûters). */
+  private casesCartable(bande: Bande, cx: number, cy: number): Point[] {
+    const n = Math.max(1, this.cour.seuilBonsPoints);
+    const ecart = 34;
+    // La bande rouge remplit de gauche à droite, la bleue de droite à gauche (vers le centre).
+    return Array.from({ length: n }, (_, i) => {
+      const k = bande === 'rouge' ? i : n - 1 - i;
+      return { x: cx + (k - (n - 1) / 2) * ecart, y: cy + 6 };
+    });
+  }
+
+  private dessinerCartable(bande: Bande, cx: number, cy: number, points: number): void {
+    const g = this.ajouter(this.add.graphics());
+    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const n = Math.max(1, this.cour.seuilBonsPoints);
+    const l = n * 34 + 34;
+    const graine = graineDe(cx, cy);
+    // Poignée, sac, rabat : un cartable d'écolier au trait noir.
+    g.lineStyle(5, COULEURS.encre, 1);
+    g.beginPath();
+    g.arc(cx, cy - 22, 15, Math.PI, 0);
+    g.strokePath();
+    forme(g, contourRect(cx - l / 2, cy - 24, l, 56, 14, graine), {
+      remplissage: couleur,
+      ombre: 4,
+      trait: 4,
+    });
+    forme(g, contourRect(cx - l / 2 + 6, cy - 24, l - 12, 14, 6, graine + 1, 0.6), {
+      remplissage: 0xffffff,
+      trait: 3,
+    });
+    const cases = this.casesCartable(bande, cx, cy);
+    cases.forEach((c, i) => {
+      const plein = i < points;
+      const f = this.ajouter(this.add.graphics());
+      const contour =
+        bande === 'rouge'
+          ? contourRond(c.x, c.y, 13, graine + 2 + i)
+          : contourRect(c.x - 13, c.y - 13, 26, 26, 5, graine + 2 + i, 0.5);
+      forme(f, contour, { remplissage: plein ? COULEURS.jaune : 0xfff4dc, trait: 3 });
+      if (plein) this.dessinerBiscuit(f, c.x, c.y, 8);
+    });
+    this.cartables[bande] = cases;
+  }
+
+  /** Un petit biscuit rond : la case pleine d'un cartable, ou le goûter qui vole vers lui. */
+  private dessinerBiscuit(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number): void {
+    g.fillStyle(0xd9a25a, 1);
+    g.lineStyle(2, COULEURS.encre, 1);
+    g.fillCircle(x, y, r);
+    g.strokeCircle(x, y, r);
+    g.fillStyle(0x7a4a22, 1);
+    g.fillCircle(x - r * 0.35, y - r * 0.2, r * 0.18);
+    g.fillCircle(x + r * 0.3, y + r * 0.3, r * 0.18);
+  }
+
+  /** La pendule de l'école. Elle prend cinq minutes de plus à chaque tour, à partir de 10 h. */
+  private dessinerHorloge(cx: number, cy: number, tour: number): void {
+    const g = this.ajouter(this.add.graphics());
+    const r = 21;
+    forme(g, contourRond(cx, cy, r, 77), { remplissage: 0xffffff, trait: 4, ombre: 3 });
+    g.lineStyle(2, COULEURS.encre, 1);
+    for (let h = 0; h < 12; h++) {
+      const a = (h / 12) * Math.PI * 2;
+      const r1 = h % 3 === 0 ? r - 7 : r - 4;
+      g.lineBetween(
+        cx + Math.sin(a) * r1,
+        cy - Math.cos(a) * r1,
+        cx + Math.sin(a) * (r - 2),
+        cy - Math.cos(a) * (r - 2),
+      );
+    }
+    const minutes = (tour - 1) * 5;
+    const angleMinute = (minutes / 60) * Math.PI * 2;
+    const angleHeure = ((10 + minutes / 60) / 12) * Math.PI * 2;
+    const aiguille = (
+      angle: number,
+      longueur: number,
+      epaisseur: number,
+    ): Phaser.GameObjects.Rectangle => {
+      const a = this.ajouter(this.add.rectangle(cx, cy, epaisseur, longueur, COULEURS.encre));
+      a.setOrigin(0.5, 1).setRotation(angle);
+      return a;
+    };
+    aiguille(angleHeure, r * 0.5, 4);
+    const grande = aiguille(angleMinute, r * 0.8, 3);
+    g.fillStyle(COULEURS.rouge, 1);
+    g.fillCircle(cx, cy, 3);
+    // Quand le tour change, la grande aiguille avance d'un coup sec, comme une vraie pendule.
+    if (this.animations && this.tourHorloge !== 0 && this.tourHorloge !== tour) {
+      grande.setRotation(angleMinute - Math.PI / 6);
+      this.tweens.add({
+        targets: grande,
+        rotation: angleMinute,
+        duration: 380,
+        ease: 'Back.easeOut',
+      });
+    }
+    this.tourHorloge = tour;
   }
 
   private dessinerJournal(): void {
@@ -837,8 +1224,8 @@ export class PartieScene extends Phaser.Scene {
       return;
     }
     // On garde les lignes les plus récentes qui tiennent dans le cadre (avec retour à la ligne).
-    const lignes = dernieresLignes(this.etat.journal, this.cour, 3, tonFun());
-    const t = this.texte(32, Y_JOURNAL + 62, '', 17, COULEURS.texteSombre, {
+    const lignes = dernieresLignes(this.etat.journal, this.cour, 2, tonFun());
+    const t = this.texte(32, Y_JOURNAL + 62, '', 19, COULEURS.texteSombre, {
       wordWrap: { width: LARGEUR - 64 },
       lineSpacing: 1,
       fontStyle: '500',
@@ -1010,37 +1397,31 @@ export class PartieScene extends Phaser.Scene {
       return;
     }
 
-    // Choix d'un pouvoir ou d'un équipement : options à boutons, puis « Passer ».
+    // Choix d'un pouvoir ou d'un équipement : il se joue en touchant sa cible sur la cour
+    // (voir `ciblesDesPouvoirs`) ; il ne reste ici que « Passer ».
     const options: { texte: string; action: () => void; couleur?: number }[] = [];
-    const vusRoles = new Set<string>();
-    for (const o of attente.options) {
-      if (o.type === 'piocher') {
-        options.push({ texte: TEXTES.boutons.piocher, action: () => this.choisir(o) });
-      } else if (o.type === 'infirmerie') {
-        options.push({ texte: TEXTES.boutons.infirmerie, action: () => this.choisir(o) });
-      } else if (o.type === 'surveillante') {
-        options.push({ texte: TEXTES.boutons.motExcuse, action: () => this.choisir(o) });
-      } else if (o.type === 'repecher') {
-        const el = this.etat.joueurs[this.etat.courant].cpe.find((x) => x.id === o.eleveId);
-        if (el && !vusRoles.has(el.role)) {
-          vusRoles.add(el.role);
-          options.push({ texte: TEXTES.rolesCourts[el.role], action: () => this.choisir(o) });
-        }
-      }
-    }
     const lignes: (typeof options)[] = [];
     for (let i = 0; i < options.length; i += 4) lignes.push(options.slice(i, i + 4));
-    const fin = [
-      {
-        texte: TEXTES.boutons.passer,
-        action: () => {
-          this.departToboggan = null;
-          this.agir(() => ctrl.passer());
-        },
-      },
-    ];
+    // « Passer » ne sert presque jamais (demande de Clément) : on le garde seulement pour le banc,
+    // où reprendre un de ses propres élèves est un vrai choix. Ailleurs, on touche la cible.
+    // Filet de sécurité : sans surveillante à toucher, le mot d'excuse se passe aussi.
+    const sansCible =
+      attente.options.every((o) => o.type === 'surveillante') && !gouterSurveille(this.etat);
+    const passerUtile =
+      (attente.effet.type === 'equipement' && attente.effet.equipement === 'banc') || sansCible;
+    const fin = passerUtile
+      ? [
+          {
+            texte: TEXTES.boutons.passer,
+            action: () => {
+              this.departToboggan = null;
+              this.agir(() => ctrl.passer());
+            },
+          },
+        ]
+      : [];
     if (this.attenteHorsRang()) {
-      lignes.push(fin);
+      if (fin.length > 0) lignes.push(fin);
       lignes.forEach((l, i) => this.rangeeBoutons(Y_ACTIONS + i * 72, l));
     } else {
       // Chouchou : on garde le rang visible pour y prendre le 2e élève.
@@ -1056,14 +1437,7 @@ export class PartieScene extends Phaser.Scene {
     const e = this.etat;
     const bande = e.courant;
     const j = e.joueurs[bande];
-    this.texte(
-      30,
-      RANG.y - RANG.hauteurCarte / 2 - 28,
-      `${TEXTES.hud.couloir(j.couloir.length)}   ·   ${TEXTES.hud.cpe(j.cpe.length)}`,
-      17,
-      COULEURS.texteSombre,
-      { fontStyle: '600' },
-    );
+    // Le couloir et la CPE sont dessinés autour de la cour (portail, bureau) : plus de compteurs ici.
     if (j.rang.length > 0) {
       this.texte(
         LARGEUR - 30,
@@ -1207,6 +1581,16 @@ export class PartieScene extends Phaser.Scene {
     let doigt = { x: carte.x, y: carte.y };
     // Pastille sous l'élève tenu : l'îlot où il tombera si on le lâche maintenant.
     let survol: Phaser.GameObjects.Arc | null = null;
+    // Aperçu du coup sous le doigt : plaquage, goûters, chemin, victoire.
+    let dernierVise: string | null = null;
+    let objetsApercu: Phaser.GameObjects.GameObject[] = [];
+    const effacerApercu = (): void => {
+      for (const o of objetsApercu) {
+        this.tweens.killTweensOf(o);
+        o.destroy();
+      }
+      objetsApercu = [];
+    };
     const animer = (_t: number, delta: number): void => {
       pantin?.suivre(doigt.x, doigt.y, Math.min(delta, 50) / 1000);
       const vise = noeudSous(this.cour, cibles, { x: doigt.x, y: doigt.y - VISEE }, RAYON_DEPOT);
@@ -1214,9 +1598,24 @@ export class PartieScene extends Phaser.Scene {
         survol.setVisible(vise !== null);
         if (vise) survol.setPosition(this.pos(vise).x, this.pos(vise).y);
       }
+      if (vise !== dernierVise) {
+        dernierVise = vise;
+        effacerApercu();
+        if (vise) {
+          objetsApercu = this.montrerApercu(
+            chouchou
+              ? { type: 'choisir', option: { type: 'poser', eleveId: el.id, cible: vise } }
+              : { type: 'envoyer', eleveId: el.id, cible: vise },
+            vise,
+          );
+          if (pantin) this.dyn.bringToTop(pantin.conteneur);
+        }
+      }
     };
     const lacher = (): void => {
       this.events.off('update', animer);
+      effacerApercu();
+      dernierVise = null;
       pantin?.destroy();
       pantin = null;
       survol?.destroy();
@@ -1282,6 +1681,67 @@ export class PartieScene extends Phaser.Scene {
         });
       }
     });
+  }
+
+  /**
+   * Montre ce que ferait le coup avant qu'on lâche l'élève : l'adversaire qui serait plaqué, le
+   * chemin à la craie qui s'allongerait, les goûters qui seraient ramassés, la victoire.
+   */
+  private montrerApercu(action: Action, cible: string): Phaser.GameObjects.GameObject[] {
+    const a = apercu(this.etat, action);
+    if (!a) return [];
+    const objets: Phaser.GameObjects.GameObject[] = [];
+    const bande = this.bandeActive;
+    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const p = this.pos(cible);
+
+    // Le chemin gagné, en pointillés de la couleur de la bande.
+    if (a.nouvellesAllees.length > 0) {
+      const g = this.ajouter(this.add.graphics());
+      g.lineStyle(14, couleur, 0.85);
+      for (const i of a.nouvellesAllees) {
+        const [u, v] = this.cour.allees[i] as [string, string];
+        this.pointilles(g, this.pos(u), this.pos(v), 16, 12);
+      }
+      this.tweens.add({ targets: g, alpha: 0.4, duration: 380, yoyo: true, repeat: -1 });
+      objets.push(g);
+    }
+
+    const bulle = (x: number, y: number, mot: string, taille: number): void => {
+      const t = this.texte(x, y, mot, taille, '#ffe066', {
+        fontStyle: 'bold',
+        stroke: COULEURS.texteSombre,
+        strokeThickness: 6,
+      })
+        .setOrigin(0.5)
+        .setAngle(-6);
+      this.tweens.add({ targets: t, scale: 1.12, duration: 300, yoyo: true, repeat: -1 });
+      objets.push(t);
+    };
+
+    if (a.victoire) {
+      bulle(p.x, p.y - 96, TEXTES.animations.victoire, 40);
+    } else if (a.plaque) {
+      bulle(p.x, p.y - 82, TEXTES.animations.apercuPlaque(a.plaque), 26);
+    }
+
+    // Les goûters qui seraient ramassés sautillent avec leur valeur.
+    for (const gouter of a.gouters) {
+      const c = this.positionGouter(gouter.region);
+      const anneau = this.ajouter(this.add.circle(c.x, c.y, 34));
+      anneau.setStrokeStyle(6, COULEURS.allume, 1);
+      this.tweens.add({
+        targets: anneau,
+        scale: 1.25,
+        alpha: 0.4,
+        duration: 320,
+        yoyo: true,
+        repeat: -1,
+      });
+      objets.push(anneau);
+      bulle(c.x, c.y - 50, `+${gouter.bonsPoints}`, 30);
+    }
+    return objets;
   }
 
   private montrerCibles(el: Eleve, cibles: string[]): void {
@@ -1572,104 +2032,380 @@ export class PartieScene extends Phaser.Scene {
   // Sensations : atterrissage, plaquage, secousses, goûters, cinématiques, sons
   // -------------------------------------------------------------------------
 
-  private animer(nouveaux: Evenement[], grandsFreres: boolean): void {
-    for (const ev of nouveaux) {
-      switch (ev.type) {
-        case 'pose':
-          if (this.cour.noeuds[ev.cible]?.type === 'ilot') {
-            this.atterrissage(ev.cible, ev.plaque !== undefined);
-          }
-          break;
-        case 'glissade':
-          jouerSon('glissade');
-          this.atterrissage(ev.arrivee, false);
-          break;
-        case 'region':
-          this.ramasserGouter(ev.region, ev.bonsPoints);
-          break;
-        case 'appel':
-        case 'pioche':
-          jouerSon('pioche');
-          break;
-        case 'fin':
-          this.victoire(ev.raison === 'cabane');
-          break;
-        default:
-          break;
-      }
+  /**
+   * Met en scène un coup en trois temps : l'élève est annoncé (il se ramasse en l'air), il tombe
+   * (impact, poussière, « BOUM »), puis chaque conséquence se joue sur la cour, l'une après
+   * l'autre : l'adversaire file chez la CPE, le goûter vole au cartable, la surveillante marche,
+   * les copains arrivent du portail… Les panneaux des moments marquants viennent après.
+   */
+  private animer(nouveaux: Evenement[], grandsFreres: boolean, duree: number): void {
+    const plan = planAnimations(nouveaux);
+    // Origine des effets à distance (éternuement) : l'îlot où l'élève vient d'arriver.
+    const derniereCible = [...nouveaux].reverse().find((ev) => ev.type === 'pose');
+    const origine =
+      derniereCible?.type === 'pose' && this.cour.noeuds[derniereCible.cible]
+        ? this.pos(derniereCible.cible)
+        : { x: LARGEUR / 2, y: 500 };
+    for (const { ev, debut } of plan) {
+      const jouer = (): void => this.animerEvenement(ev, origine);
+      if (debut === 0 || !this.animations) jouer();
+      else this.time.delayedCall(debut, jouer);
     }
     if (!this.animations) return;
     const suite = cinematiquesPour(nouveaux, grandsFreres);
     if (suite.length === 0) return;
-    this.cinematiques.push(...suite);
-    if (!this.cinematiqueEnCours) this.cinematiqueSuivante();
+    // Les panneaux attendent que la cour ait montré le coup.
+    this.time.delayedCall(duree, () => {
+      this.cinematiques.push(...suite);
+      if (!this.cinematiqueEnCours) this.cinematiqueSuivante();
+    });
+  }
+
+  private animerEvenement(ev: Evenement, origine: Point): void {
+    switch (ev.type) {
+      case 'pose':
+        if (this.cour.noeuds[ev.cible]?.type === 'ilot') {
+          this.atterrissage(ev.cible, ev.plaque);
+        } else {
+          jouerSon('pose');
+        }
+        break;
+      case 'glissade':
+        jouerSon('glissade');
+        this.glissade(ev.depart, ev.arrivee);
+        break;
+      case 'region':
+        this.ramasserGouter(ev.region, ev.bande, ev.bonsPoints);
+        break;
+      case 'appel':
+      case 'pioche':
+        jouerSon('pioche');
+        this.copainsArrivent(ev.bande, ev.nombre);
+        break;
+      case 'cpe':
+        this.volerVersLieu(this.pos(ev.ilot), ev.bande, ev.role, ev.bande, 'cpe');
+        break;
+      case 'infirmerie':
+        this.eternuement(origine, ev.bande);
+        break;
+      case 'rappel':
+        this.volerVersRang(this.pos(ev.ilot), ev.bande);
+        break;
+      case 'repechage':
+        this.volerVersRang(positionLieu(this.cour, ev.bande, 'cpe'), ev.bande);
+        break;
+      case 'surveillante':
+        this.marcheSurveillante(ev.position, ev.pas);
+        break;
+      case 'fin':
+        this.victoire(ev.raison === 'cabane');
+        break;
+      default:
+        break;
+    }
   }
 
   private secousse(force: number, duree = 180): void {
     if (this.animations) this.cameras.main.shake(duree, force);
   }
 
-  /** L'élève tombe sur l'îlot, rebondit, et s'écrase un peu ; s'il plaque, tout tremble. */
-  private atterrissage(id: string, plaque: boolean): void {
-    const badge = this.badges.get(id);
-    if (!badge || !this.animations) {
-      jouerSon(plaque ? 'plaque' : 'pose');
-      return;
-    }
-    const y0 = badge.y;
-    badge.setY(y0 - 70).setScale(1.2);
-    this.tweens.add({
-      targets: badge,
-      y: y0,
-      scale: 1,
-      duration: plaque ? 260 : 480,
-      ease: plaque ? 'Quad.easeIn' : 'Bounce.easeOut',
-      onComplete: () => {
-        this.tweens.add({
-          targets: badge,
-          scaleX: 1.22,
-          scaleY: 0.8,
-          duration: 80,
-          yoyo: true,
-        });
-        if (plaque) this.plaquage(id);
-      },
-    });
-    if (!plaque) this.time.delayedCall(120, () => jouerSon('pose'));
-  }
-
-  private plaquage(id: string): void {
-    const p = this.pos(id);
-    jouerSon('plaque');
-    this.secousse(0.012, 220);
-    // Nuage de poussière.
-    for (let k = 0; k < 8; k++) {
-      const a = (k / 8) * Math.PI * 2;
-      const nuage = this.ajouter(this.add.circle(p.x, p.y + 20, 9, 0xd8c9a3, 0.9));
-      this.tweens.add({
-        targets: nuage,
-        x: p.x + Math.cos(a) * 62,
-        y: p.y + 20 + Math.sin(a) * 30,
-        scale: 1.8,
-        alpha: 0,
-        duration: 420,
-        ease: 'Quad.easeOut',
-        onComplete: () => nuage.destroy(),
-      });
-    }
-    const t = this.texte(p.x, p.y - 60, TEXTES.animations.plaque, 30, '#ffe066', {
+  /** Grosse onomatopée dessinée qui surgit puis s'envole. */
+  private onomatopee(x: number, y: number, mot: string, taille = 34, couleur = '#ffe066'): void {
+    const t = this.texte(x, y, mot, taille, couleur, {
       fontStyle: 'bold',
       stroke: COULEURS.texteSombre,
       strokeThickness: 7,
     })
       .setOrigin(0.5)
       .setScale(0.3)
-      .setAngle(-8);
-    this.tweens.add({ targets: t, scale: 1, duration: 220, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: t, alpha: 0, y: p.y - 90, delay: 650, duration: 300 });
+      .setAngle(Phaser.Math.Between(-10, 6));
+    this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.easeOut' });
+    this.tweens.add({
+      targets: t,
+      alpha: 0,
+      y: y - 34,
+      delay: 620,
+      duration: 280,
+      onComplete: () => t.destroy(),
+    });
   }
 
-  private ramasserGouter(regionId: string, n: number): void {
+  /**
+   * Les trois temps de l'arrivée : l'élève apparaît au-dessus de l'îlot et se ramasse (annonce),
+   * tombe (action), s'écrase et rebondit (conséquence). S'il plaque, la chute est plus sèche,
+   * l'image se fige un instant et l'adversaire s'aplatit dessous.
+   */
+  private atterrissage(id: string, plaque: RoleId | undefined): void {
+    const badge = this.badges.get(id);
+    if (!badge || !this.animations) {
+      jouerSon(plaque ? 'plaque' : 'pose');
+      return;
+    }
+    const y0 = badge.y;
+    // Annonce : en l'air, ramassé en boule, il prend son élan.
+    badge.setY(y0 - 120).setScale(1.15, 0.85);
+    this.tweens.add({
+      targets: badge,
+      y: y0 - 136,
+      scaleX: 0.9,
+      scaleY: 1.15,
+      duration: ANNONCE,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        // Action : la chute.
+        this.tweens.add({
+          targets: badge,
+          y: y0,
+          scaleX: 1,
+          scaleY: 1,
+          duration: plaque ? 200 : 300,
+          ease: 'Quad.easeIn',
+          onComplete: () => {
+            // Conséquence : écrasement, puis retour en forme.
+            badge.setScale(1.3, 0.72);
+            this.tweens.add({
+              targets: badge,
+              scaleX: 1,
+              scaleY: 1,
+              duration: 340,
+              ease: 'Elastic.easeOut',
+              easeParams: [1.2, 0.5],
+            });
+            if (plaque) this.plaquage(id, badge, plaque);
+            else jouerSon('pose');
+          },
+        });
+      },
+    });
+  }
+
+  private plaquage(id: string, badge: Phaser.GameObjects.Container, role: RoleId): void {
+    const p = this.pos(id);
+    jouerSon('plaque');
+    this.secousse(0.014, 240);
+    // Arrêt sur image : tout se fige un très court instant, ça donne du poids au choc.
+    this.tweens.timeScale = 0.05;
+    this.time.delayedCall(70, () => (this.tweens.timeScale = 1));
+    // L'adversaire plaqué : son badge s'aplatit sous l'élève, avec des étoiles qui tournent.
+    const adv = this.bandeActive === 'rouge' ? 'bleu' : 'rouge';
+    const plaqueBadge = this.ajouter(creerBadge(this, adv, role, 40));
+    plaqueBadge.setPosition(p.x, p.y + 28).setScale(1.3, 0.4);
+    this.dyn.moveBelow(plaqueBadge, badge);
+    this.tweens.add({
+      targets: plaqueBadge,
+      x: p.x - RAYON_ILOT - 22,
+      y: p.y - 30,
+      scaleX: 0.65,
+      scaleY: 0.65,
+      delay: 380,
+      duration: 260,
+      ease: 'Quad.easeOut',
+      onComplete: () => plaqueBadge.destroy(),
+    });
+    for (let k = 0; k < 3; k++) {
+      const etoile = this.texte(p.x, p.y + 20, '★', 22, '#ffe066', {
+        stroke: COULEURS.texteSombre,
+        strokeThickness: 4,
+      }).setOrigin(0.5);
+      const a0 = (k / 3) * Math.PI * 2;
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration: 600,
+        onUpdate: (tw) => {
+          const v = tw.getValue() ?? 0;
+          const a = a0 + v * Math.PI * 2;
+          etoile.setPosition(p.x + Math.cos(a) * 44, p.y + 26 + Math.sin(a) * 12);
+          etoile.setAlpha(1 - v * 0.6);
+        },
+        onComplete: () => etoile.destroy(),
+      });
+    }
+    // Nuage de poussière.
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      const nuage = this.ajouter(this.add.circle(p.x, p.y + 24, 10, 0xe6d8b4, 0.95));
+      nuage.setStrokeStyle(2, COULEURS.encre, 0.8);
+      this.tweens.add({
+        targets: nuage,
+        x: p.x + Math.cos(a) * 74,
+        y: p.y + 24 + Math.sin(a) * 34,
+        scale: 1.9,
+        alpha: 0,
+        duration: 480,
+        ease: 'Quad.easeOut',
+        onComplete: () => nuage.destroy(),
+      });
+    }
+    this.onomatopee(p.x, p.y - 70, TEXTES.animations.boum, 40);
+  }
+
+  /** Toboggan : l'élève glisse d'un îlot à l'autre en tournoyant. */
+  private glissade(depart: string, arrivee: string): void {
+    const badge = this.badges.get(arrivee);
+    if (!badge) return;
+    const a = this.pos(depart);
+    const b = this.pos(arrivee);
+    badge.setPosition(a.x, a.y);
+    this.tweens.add({
+      targets: badge,
+      x: b.x,
+      y: b.y,
+      angle: 360,
+      duration: 520,
+      ease: 'Quad.easeInOut',
+      onComplete: () => {
+        badge.setAngle(0);
+        this.secousse(0.006, 120);
+      },
+    });
+  }
+
+  /**
+   * Fait voler un objet de `a` à `b` en cloche, en tournant un peu, puis le détruit et appelle
+   * `arrivee`.
+   */
+  private volerEnCloche(
+    objet: Phaser.GameObjects.Container | Phaser.GameObjects.Graphics,
+    a: Point,
+    b: Point,
+    duree: number,
+    arrivee?: () => void,
+  ): void {
+    const hauteur = Math.min(160, 60 + Math.hypot(b.x - a.x, b.y - a.y) * 0.3);
+    objet.setPosition(a.x, a.y);
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: duree,
+      ease: 'Sine.easeInOut',
+      onUpdate: (tw) => {
+        const v = tw.getValue() ?? 0;
+        objet.setPosition(
+          a.x + (b.x - a.x) * v,
+          a.y + (b.y - a.y) * v - Math.sin(v * Math.PI) * hauteur,
+        );
+        objet.setAngle(Math.sin(v * Math.PI * 2) * 14);
+      },
+      onComplete: () => {
+        objet.destroy();
+        arrivee?.();
+      },
+    });
+  }
+
+  /** Le panneau d'un lieu fait un petit bond : quelqu'un vient d'y arriver ou d'en partir. */
+  private rebondLieu(bande: Bande, lieu: Lieu): void {
+    const c = this.panneauxLieux.get(`${bande}:${lieu}`);
+    if (!c) return;
+    this.tweens.add({
+      targets: c,
+      scaleX: 1.15,
+      scaleY: 0.9,
+      duration: 90,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+    });
+  }
+
+  /** Un élève quitte la cour pour un lieu (CPE) : il vole jusqu'au panneau, qui rebondit. */
+  private volerVersLieu(
+    depuis: Point,
+    bandeEleve: Bande,
+    role: RoleId,
+    bandeLieu: Bande,
+    lieu: Lieu,
+  ): void {
+    jouerSon('cpe');
+    const badge = this.ajouter(creerBadge(this, bandeEleve, role, 44));
+    this.volerEnCloche(badge, depuis, positionLieu(this.cour, bandeLieu, lieu), 560, () =>
+      this.rebondLieu(bandeLieu, lieu),
+    );
+  }
+
+  /** Des copains sortent du portail et courent jusqu'au rang. */
+  private copainsArrivent(bande: Bande, n: number): void {
+    const portail = positionLieu(this.cour, bande, 'portail');
+    this.rebondLieu(bande, 'portail');
+    for (let k = 0; k < n; k++) {
+      const tete = this.ajouter(this.add.graphics());
+      forme(tete, contourRond(0, 0, 16, graineDe(k, n) + 9), {
+        remplissage: bande === 'rouge' ? 0xffc2b6 : 0xc3ccff,
+        trait: 3,
+      });
+      tete.setVisible(false);
+      this.time.delayedCall(k * 160, () => {
+        tete.setVisible(true);
+        this.volerEnCloche(
+          tete,
+          portail,
+          { x: LARGEUR / 2 + (k - (n - 1) / 2) * 70, y: RANG.y },
+          620,
+        );
+      });
+    }
+  }
+
+  /** Un élève rentre dans le rang (banc, porte de la vie scolaire). */
+  private volerVersRang(depuis: Point, bande: Bande): void {
+    jouerSon('pioche');
+    const tete = this.ajouter(this.add.graphics());
+    forme(tete, contourRond(0, 0, 18, graineDe(depuis.x, depuis.y)), {
+      remplissage: bande === 'rouge' ? 0xffc2b6 : 0xc3ccff,
+      trait: 3,
+    });
+    this.volerEnCloche(tete, depuis, { x: LARGEUR / 2, y: RANG.y }, 600);
+  }
+
+  /** Atchoum : un nuage de microbes part de l'élève vers le portail de la bande adverse. */
+  private eternuement(depuis: Point, bande: Bande): void {
+    jouerSon('infirmerie');
+    this.onomatopee(depuis.x, depuis.y - 70, TEXTES.animations.atchoum, 32, '#b9f0a0');
+    const nuage = this.ajouter(this.add.graphics());
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2;
+      nuage.fillStyle(0x9fe08a, 0.95);
+      nuage.lineStyle(3, COULEURS.encre, 1);
+      nuage.fillCircle(Math.cos(a) * 14, Math.sin(a) * 9, 13);
+      nuage.strokeCircle(Math.cos(a) * 14, Math.sin(a) * 9, 13);
+    }
+    nuage.fillStyle(0x9fe08a, 1);
+    nuage.fillCircle(0, 0, 16);
+    this.volerEnCloche(nuage, depuis, positionLieu(this.cour, bande, 'portail'), 620, () =>
+      this.rebondLieu(bande, 'portail'),
+    );
+  }
+
+  /** Mme Josiane marche jusqu'au goûter qu'elle va garder, à petits pas sautillants. */
+  private marcheSurveillante(position: number, pas: number): void {
+    const j = this.josiane;
+    const ronde = this.cour.ronde;
+    if (!j || ronde.length === 0) return;
+    const indexRegion = ronde.at((((position - pas) % ronde.length) + ronde.length) % ronde.length);
+    const ancien = indexRegion === undefined ? undefined : this.cour.regions.at(indexRegion)?.id;
+    if (!ancien || pas === 0) return;
+    const a = this.positionSurveillante(ancien);
+    const arrivee = { x: j.x, y: j.y };
+    j.setPosition(a.x, a.y + 30);
+    this.onomatopee(a.x, a.y - 40, TEXTES.animations.sifflet, 26, '#e2c8ff');
+    const duree = 760;
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: duree,
+      ease: 'Sine.easeInOut',
+      onUpdate: (tw) => {
+        const v = tw.getValue() ?? 0;
+        // Petits pas : elle sautille 5 fois en chemin.
+        const saut = Math.abs(Math.sin(v * Math.PI * 5)) * 10;
+        j.setPosition(a.x + (arrivee.x - a.x) * v, a.y + 30 + (arrivee.y - a.y - 30) * v - saut);
+      },
+      onComplete: () => j.setPosition(arrivee.x, arrivee.y),
+    });
+  }
+
+  /** Le goûter ramassé s'envole de la cour jusqu'au cartable de la bande, qui se remplit. */
+  private ramasserGouter(regionId: string, bande: Bande, n: number): void {
     jouerSon('gouter');
     if (!this.animations) return;
     const c = this.positionGouter(regionId);
@@ -1684,12 +2420,42 @@ export class PartieScene extends Phaser.Scene {
       ease: 'Quad.easeOut',
       onComplete: () => anneau.destroy(),
     });
-    const t = this.texte(c.x, c.y - 30, TEXTES.animations.gouter(n), 30, '#ffe066', {
-      fontStyle: 'bold',
-      stroke: COULEURS.texteSombre,
-      strokeThickness: 7,
-    }).setOrigin(0.5);
-    this.tweens.add({ targets: t, y: c.y - 110, alpha: 0, duration: 1300, ease: 'Quad.easeOut' });
+    this.onomatopee(c.x, c.y - 40, TEXTES.animations.gouter(n), 30);
+    // Les cases à remplir : celles qui suivent les goûters déjà rangés dans le cartable.
+    const cases = this.cartables[bande];
+    const total = this.etat.joueurs[bande].bonsPoints;
+    for (let k = 0; k < n; k++) {
+      const index = total - n + k;
+      const cible = cases[Math.min(index, cases.length - 1)];
+      if (!cible) continue;
+      const biscuit = this.ajouter(this.add.graphics());
+      this.dessinerBiscuit(biscuit, 0, 0, 14);
+      biscuit.setVisible(false);
+      this.time.delayedCall(k * 140, () => {
+        biscuit.setVisible(true);
+        this.volerEnCloche(biscuit, c, { x: cible.x, y: cible.y + MONTEE }, 700, () => {
+          if (index >= cases.length) return;
+          const plein = this.ajouter(this.add.graphics());
+          forme(
+            plein,
+            bande === 'rouge'
+              ? contourRond(cible.x, cible.y + MONTEE, 13, graineDe(index, 1))
+              : contourRect(
+                  cible.x - 13,
+                  cible.y + MONTEE - 13,
+                  26,
+                  26,
+                  5,
+                  graineDe(index, 1),
+                  0.5,
+                ),
+            { remplissage: COULEURS.jaune, trait: 3 },
+          );
+          this.dessinerBiscuit(plein, cible.x, cible.y + MONTEE, 8);
+          this.secousse(0.003, 80);
+        });
+      });
+    }
   }
 
   private victoire(parCabane: boolean): void {
