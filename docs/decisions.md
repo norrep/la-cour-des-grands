@@ -34,3 +34,13 @@ Le prompt de Clément fait foi ; le document de conception sert de complément.
 - **D1.16 — Banc des maîtresses.** Il annule le pouvoir de tout élève posé dessus, y compris le 2e élève du Chouchou. Il n'a pas d'autre effet.
 - **D1.17 — Banc.** Il ne reprend pas l'élève qui vient d'être posé sur le banc ; il reprend l'élève visible d'un autre îlot, et celui de dessous redevient visible.
 - **D1.18 — Seuil de la cour n°1.** Le document de conception cite un seuil de 5 en exemple ; le prompt (3 bons points) fait foi.
+
+## Étape 2 — Jouable à deux sur téléphone
+
+- **D2.1 — Cour fixe.** La cour ne pivote pas entre les tours : la cabane bleue reste en haut, la rouge en bas. Le rang affiché en bas est toujours celui de la bande qui joue.
+- **D2.2 — Premier écran.** La partie commence par « Passe le téléphone », pour que le premier joueur découvre son rang seul.
+- **D2.3 — Annulation.** « Annuler » ramène au début du tour en cours, y compris au milieu d'un choix de pouvoir, tant que le coup n'est pas validé. Le hasard étant à graine, rejouer le même coup donne le même tirage (pas de « re-tirage » du Contagieux en annulant).
+- **D2.4 — Validation.** Un coup terminé n'est définitif qu'après « Valider le coup » ; le rang est caché pendant ce temps. Une victoire, elle, s'affiche tout de suite.
+- **D2.5 — Équipements.** Ils se désactivent depuis l'écran d'accueil (« Équipements spéciaux : non »).
+- **D2.6 — Pouvoirs à cible.** Rapporteuse, banc, buts et toboggan se jouent en touchant l'îlot qui s'allume ; Populaire, Contagieux, Délégué, cabane perchée et porte de la vie scolaire par des boutons ; le 2e élève du Chouchou se glisse depuis le rang.
+- **D2.7 — Débogage.** `window.__partie` expose le contrôleur, pour vérifier l'écran avec des tests automatisés.

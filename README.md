@@ -6,6 +6,16 @@ Duel tactique mobile en 2D, de 4 à 6 minutes, à deux joueurs : deux bandes d'�
 - **Stack :** TypeScript strict, Vite, Phaser 3, Vitest, ESLint, Prettier
 - **Format :** portrait 9:16, base 720×1280, mise à l'échelle FIT, tactile
 
+## Jouer
+
+Ouvre le lien sur ton téléphone, touche « Jouer à deux », puis passez-vous le téléphone :
+
+1. Glisse un élève de ton rang (en bas) vers un îlot qui s'allume, ou touche « Appeler des copains ».
+2. Si l'élève a un pouvoir, choisis sa cible (îlot qui s'allume ou bouton), ou « Passer ».
+3. « Valider le coup », puis donne le téléphone à l'autre bande. « Annuler » reprend le tour tant qu'il n'est pas validé.
+
+Badge **rond** = bande rouge, badge **carré** = bande bleue. Les traces de pas violettes montrent la prochaine allée de la surveillante ; l'allée rouge est bloquée et les îlots entourés de violet sont sous surveillance.
+
 ## Commandes
 
 | Commande             | Rôle                                                                                                       |
