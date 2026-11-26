@@ -1,8 +1,21 @@
 import type { Cour } from '../engine/index';
-import { LARGEUR } from './config';
+import { HAUT, LARGEUR } from './config';
+
+/**
+ * Sur un écran plus allongé que 9:16, la place gagnée en bas va surtout à la cour : le pupitre
+ * descend vers le bord (en gardant une petite marge pour la barre du téléphone).
+ */
+export const DESCENTE = Math.round(-HAUT * 0.8);
+/** De même, le bandeau du haut remonte (en laissant la place de l'encoche) et la cour avec lui. */
+export const MONTEE = Math.round(HAUT * 0.55);
 
 /** Zone de l'écran (en pixels de la résolution de base) où l'on dessine la cour. */
-export const ZONE_COUR = { x: 40, y: 100, largeur: LARGEUR - 80, hauteur: 940 } as const;
+export const ZONE_COUR = {
+  x: 40,
+  y: 100 + MONTEE,
+  largeur: LARGEUR - 80,
+  hauteur: 940 + DESCENTE - MONTEE,
+} as const;
 
 export interface Point {
   x: number;
@@ -49,7 +62,7 @@ export function noeudSous(
   return meilleur;
 }
 
-export const RANG = { y: 1185, largeurCarte: 80, hauteurCarte: 140, ecart: 86 } as const;
+export const RANG = { y: 1185 + DESCENTE, largeurCarte: 80, hauteurCarte: 140, ecart: 86 } as const;
 
 /** Abscisse de la carte `i` sur `n` dans le rang. */
 export function xCarteRang(i: number, n: number): number {

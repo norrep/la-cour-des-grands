@@ -16,7 +16,7 @@ import {
   type Evenement,
   type Option,
 } from '../../engine/index';
-import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
+import { BAS, COULEURS, HAUT, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
 import { alleesDuChemin } from '../chemins';
 import { cinematiquesPour, type Cinematique, type CinematiqueId } from '../cinematiques';
 import { NB_CONSEILS, prochainConseil, type ConseilId } from '../conseils';
@@ -28,6 +28,9 @@ import {
   RANG,
   xCarteRang,
   type Point,
+  DESCENTE,
+  MONTEE,
+  ZONE_COUR,
 } from '../disposition';
 import { dernieresLignes, nomGouter } from '../journal';
 import { aide, tonFun, tutoPasse } from '../ton';
@@ -41,13 +44,14 @@ import { activerSons, jouerSon, type SonId } from '../sons';
 import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
 import { DECOR, ILLUSTRATIONS, JOSIANE } from './ChargementScene';
+import { cadrer, decorPlein } from '../ui/ecran';
 import { Gelee, rendreVivant } from '../ui/gelee';
 
 const RAYON_ILOT = 48;
-const TAILLE_BADGE = 62;
+const TAILLE_BADGE = 70;
 const RAYON_DEPOT = 75;
-const Y_JOURNAL = 935;
-const Y_ACTIONS = 1040;
+const Y_JOURNAL = 935 + DESCENTE;
+const Y_ACTIONS = 1040 + DESCENTE;
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
 const DUREE_FIN_DE_TOUR = 900;
 
@@ -114,9 +118,10 @@ export class PartieScene extends Phaser.Scene {
   }
 
   create(): void {
+    cadrer(this);
     this.cameras.main.setBackgroundColor(COULEURS.fond);
     if (this.textures.exists(DECOR)) {
-      this.add.image(LARGEUR / 2, HAUTEUR / 2, DECOR).setDisplaySize(LARGEUR, HAUTEUR);
+      decorPlein(this.add.image(LARGEUR / 2, HAUTEUR / 2, DECOR));
     }
     this.dyn = this.add.container(0, 0);
     // Un toucher bref ouvre la fiche ; il faut bouger un peu le doigt pour glisser.
@@ -134,7 +139,14 @@ export class PartieScene extends Phaser.Scene {
     this.surbrillances = [];
 
     this.dessinerCour();
+    // Le contenu du bandeau du haut remonte vers le bord sur un écran allongé (pas son papier, qui
+    // va déjà jusqu'au bord).
+    const avantHud = this.dyn.length + 1;
     this.dessinerHud();
+    for (const o of this.dyn.list.slice(avantHud)) {
+      const objet = o as unknown as { y: number };
+      objet.y += MONTEE;
+    }
     this.dessinerJournal();
     if (this.ctrl.phase === 'jeu') this.dessinerPupitre();
     if (this.ctrl.phase === 'jeu') this.dessinerActions();
@@ -223,10 +235,19 @@ export class PartieScene extends Phaser.Scene {
     const e = this.etat;
     const g = this.ajouter(this.add.graphics());
 
+    // Le plateau se détache du décor : un goudron clair et uni sous les allées, pour que rien ne
+    // se confonde avec les traçages du terrain.
+    const zone = ZONE_COUR;
+    g.fillStyle(0xe9e5f7, 0.72);
+    g.fillPoints(
+      contourRect(zone.x - 22, zone.y + 4, zone.largeur + 44, zone.hauteur - 8, 40, 31, 2),
+      true,
+    );
+
     // Allées en pointillés d'encre, comme tracées à la craie grasse sur le goudron.
     for (const [a, b] of this.cour.allees) {
-      g.lineStyle(5, COULEURS.encre, 0.45);
-      this.pointilles(g, this.pos(a), this.pos(b));
+      g.lineStyle(7, COULEURS.encre, 0.55);
+      this.pointilles(g, this.pos(a), this.pos(b), 14, 10);
     }
 
     // Chemin de chaque bande : un gros trait de couleur cerné d'encre.
@@ -265,8 +286,12 @@ export class PartieScene extends Phaser.Scene {
       const gi = this.ajouter(this.add.graphics());
       forme(gi, contourRond(p.x, p.y, RAYON_ILOT, graineDe(p.x, p.y)), {
         remplissage: special ? COULEURS.ilotSpecial : COULEURS.ilot,
-        ombre: 6,
+        ombre: 8,
+        trait: 6,
       });
+      // Liseré plus foncé à l'intérieur : la pastille a du volume, comme un gros bouton.
+      gi.lineStyle(6, special ? 0xf0b440 : 0x7fcf72, 1);
+      gi.strokeCircle(p.x, p.y + 3, RAYON_ILOT - 8);
       // Petit reflet clair, comme sur les dessins.
       gi.lineStyle(5, 0xffffff, 0.6);
       gi.beginPath();
@@ -275,9 +300,9 @@ export class PartieScene extends Phaser.Scene {
       // Illustration de l'équipement, posée sur l'îlot derrière l'élève.
       const illustration = special && n?.equipement ? ILLUSTRATIONS[n.equipement] : undefined;
       if (illustration && this.textures.exists(illustration)) {
-        // Le dessin fait 300 × 251 pixels dans une texture de 512 × 256.
+        // Le dessin fait 324 × 275 pixels (contour compris) dans une texture de 512 × 512.
         const im = this.add.image(p.x, p.y + RAYON_ILOT * 0.35, illustration);
-        im.setOrigin(150 / im.width, 251 / im.height).setScale((RAYON_ILOT * 1.7) / 300);
+        im.setOrigin(162 / im.width, 275 / im.height).setScale((RAYON_ILOT * 1.8) / 324);
         this.ajouter(im);
       }
       // Seuls les îlots spéciaux ont un nom (demande de Clément) ; il passe devant les pieds.
@@ -480,12 +505,13 @@ export class PartieScene extends Phaser.Scene {
       ombre.fillStyle(COULEURS.encre, 0.25);
       ombre.fillEllipse(x + 2, y + 30, 46, 12);
       const hauteur = 100;
-      // L'image fait 146 × 420 pixels, dans une texture plus grande (puissance de 2, pour les mipmaps).
+      // L'image fait 170 × 444 pixels (contour compris), dans une texture plus grande (puissance de 2,
+      // pour les mipmaps).
       const corps = new Gelee(this, {
         cle: JOSIANE,
-        echelle: hauteur / 420,
-        pivot: 420,
-        centreX: 73,
+        echelle: hauteur / 444,
+        pivot: 444,
+        centreX: 85,
       });
       const josiane = this.add.container(x, y + 30, corps.objets).setAlpha(alpha);
       this.ajouter(josiane);
@@ -727,7 +753,7 @@ export class PartieScene extends Phaser.Scene {
     const e = this.etat;
     const g = this.ajouter(this.add.graphics());
     // Bandeau de papier en haut, bord inférieur un peu tremblé.
-    forme(g, contourRect(-20, -30, LARGEUR + 40, 124, 22, 7), {
+    forme(g, contourRect(-20, HAUT - 30, LARGEUR + 40, 124 - HAUT + MONTEE, 22, 7), {
       remplissage: COULEURS.papier,
       ombre: 5,
     });
@@ -912,15 +938,15 @@ export class PartieScene extends Phaser.Scene {
   /** Le pupitre en bas de l'écran : un grand papier sous les boutons et le rang. */
   private dessinerPupitre(): void {
     const g = this.ajouter(this.add.graphics());
-    forme(g, contourRect(-20, Y_ACTIONS - 42, LARGEUR + 40, HAUTEUR - Y_ACTIONS + 80, 26, 17), {
+    forme(g, contourRect(-20, Y_ACTIONS - 42, LARGEUR + 40, BAS - Y_ACTIONS + 80, 26, 17), {
       remplissage: 0xffe9c2,
       ombre: 0,
     });
     // Lignes de cahier, discrètes.
     g.lineStyle(2, 0x9fc3e8, 0.5);
-    for (let y = Y_ACTIONS + 52; y < HAUTEUR; y += 34) g.lineBetween(0, y, LARGEUR, y);
+    for (let y = Y_ACTIONS + 52; y < BAS; y += 34) g.lineBetween(0, y, LARGEUR, y);
     g.lineStyle(2, 0xf0705f, 0.45);
-    g.lineBetween(24, Y_ACTIONS - 40, 24, HAUTEUR);
+    g.lineBetween(24, Y_ACTIONS - 40, 24, BAS);
   }
 
   private dessinerActions(): void {
@@ -1286,12 +1312,14 @@ export class PartieScene extends Phaser.Scene {
         fontStyle: '700',
       },
     ).setOrigin(0.5);
-    const bloc = this.ajouter(this.add.rectangle(0, 0, LARGEUR, HAUTEUR, 0x000000, 0.001));
+    const bloc = this.ajouter(this.add.rectangle(0, HAUT, LARGEUR, BAS - HAUT, 0x000000, 0.001));
     bloc.setOrigin(0, 0).setInteractive();
   }
 
   private voile(alpha: number): void {
-    const v = this.ajouter(this.add.rectangle(0, 0, LARGEUR, HAUTEUR, COULEURS.fondSombre, alpha));
+    const v = this.ajouter(
+      this.add.rectangle(0, HAUT, LARGEUR, BAS - HAUT, COULEURS.fondSombre, alpha),
+    );
     v.setOrigin(0, 0);
     v.setInteractive();
   }
@@ -1465,7 +1493,7 @@ export class PartieScene extends Phaser.Scene {
     });
     const hauteur = 78 + mesure.height + 130;
     mesure.destroy();
-    const y0 = HAUTEUR - hauteur - 24;
+    const y0 = BAS - hauteur - 24;
     const corps = this.texte(x0 + 30, y0 + 78, C[id], 27, COULEURS.texteSombre, {
       wordWrap: { width: largeur - 60 },
       lineSpacing: 6,
@@ -1661,7 +1689,7 @@ export class PartieScene extends Phaser.Scene {
       c.setAngle(Phaser.Math.Between(0, 180));
       this.tweens.add({
         targets: c,
-        y: HAUTEUR + 30,
+        y: BAS + 30,
         x: x + Phaser.Math.Between(-80, 80),
         angle: c.angle + Phaser.Math.Between(200, 600),
         delay: Phaser.Math.Between(0, 700),
@@ -1707,7 +1735,7 @@ export class PartieScene extends Phaser.Scene {
       delegue: 'pioche',
     };
     jouerSon(SONS[id]);
-    const fond = this.add.rectangle(0, 0, LARGEUR, HAUTEUR, COULEURS.fondSombre, 0.55);
+    const fond = this.add.rectangle(0, HAUT, LARGEUR, BAS - HAUT, COULEURS.fondSombre, 0.55);
     fond.setOrigin(0, 0).setInteractive();
     const bandeau = this.add.graphics();
     const COULEURS_PANNEAU: Record<CinematiqueId, number> = {

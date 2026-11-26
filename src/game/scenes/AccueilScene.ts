@@ -6,6 +6,7 @@ import { ecrireConseils, ecrireSons, lireConseils, lireSons } from '../preferenc
 import { activerSons } from '../sons';
 import { creerBouton } from '../ui/bouton';
 import { contourRect, forme } from '../ui/style';
+import { cadrer, decorPlein } from '../ui/ecran';
 import { DECOR } from './ChargementScene';
 
 export interface DonneesPartie {
@@ -24,12 +25,13 @@ export class AccueilScene extends Phaser.Scene {
   }
 
   create(): void {
+    cadrer(this);
     activerSons(lireSons());
     this.cameras.main.setBackgroundColor(COULEURS.fond);
     const cx = LARGEUR / 2;
 
     if (this.textures.exists(DECOR)) {
-      this.add.image(cx, HAUTEUR / 2, DECOR).setDisplaySize(LARGEUR, HAUTEUR);
+      decorPlein(this.add.image(cx, HAUTEUR / 2, DECOR));
     }
 
     // Le titre sur une grande pancarte jaune, un peu de travers.

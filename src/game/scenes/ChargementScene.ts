@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COULEURS, HAUTEUR, LARGEUR, POLICE } from '../config';
 import { preparerSkin, choisirSkin, skinActif } from '../skins/index';
+import { cadrer } from '../ui/ecran';
 import { TEXTES } from '../../data/textes';
 
 /** Clé du décor de la cour (image plein écran derrière le plateau). */
@@ -34,6 +35,7 @@ export class ChargementScene extends Phaser.Scene {
   }
 
   create(): void {
+    cadrer(this);
     this.add
       .text(LARGEUR / 2, HAUTEUR / 2, TEXTES.chargement, {
         fontFamily: POLICE,

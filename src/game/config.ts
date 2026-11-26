@@ -1,6 +1,33 @@
-/** Résolution de base, portrait 9:16. */
+/**
+ * Résolution de base, portrait 9:16 : tout est placé dans ces coordonnées. Sur un écran plus
+ * allongé (la plupart des téléphones), on voit un peu plus haut et plus bas que cette zone : le
+ * décor, le bandeau du haut et le pupitre du bas s'étendent jusqu'aux bords (`HAUT`, `BAS`).
+ */
 export const LARGEUR = 720;
 export const HAUTEUR = 1280;
+
+const ecran = typeof window === 'undefined' ? null : window;
+
+/** Hauteur réellement visible, en coordonnées de jeu : de 9:16 jusqu'à 9:22. */
+export const HAUTEUR_ECRAN = ecran
+  ? Math.round(
+      Math.min(
+        1760,
+        Math.max(HAUTEUR, (LARGEUR * ecran.innerHeight) / Math.max(1, ecran.innerWidth)),
+      ),
+    )
+  : HAUTEUR;
+/** Bord haut et bord bas de l'écran (la zone de base est centrée). */
+export const HAUT = -(HAUTEUR_ECRAN - HAUTEUR) / 2;
+export const BAS = HAUTEUR + (HAUTEUR_ECRAN - HAUTEUR) / 2;
+
+/**
+ * Pixels réels par pixel de jeu : on dessine à la résolution du téléphone (jusqu'à 2×, au-delà le téléphone chaufferait pour rien) pour un
+ * trait net au lieu d'une image agrandie et floue.
+ */
+export const RESOLUTION = ecran
+  ? Math.min(2, Math.max(1, (ecran.devicePixelRatio || 1) * (ecran.innerWidth / LARGEUR)))
+  : 1;
 
 /** Palette cartoon : aplats pastel et trait d'encre, accordés aux élèves dessinés. */
 export const COULEURS = {
