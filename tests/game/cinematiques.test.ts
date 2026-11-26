@@ -30,7 +30,7 @@ describe('Cinématiques', () => {
     ).toEqual([]);
   });
 
-  it('les grands frères du Chouchou passent en premier', () => {
+  it('le grand frère du Chouchou passe en premier', () => {
     expect(
       cinematiquesPour([{ type: 'infirmerie', tour: 1, bande: 'bleu', eleveId: 'b' }], true),
     ).toEqual(['grandsFreres', 'infirmerie']);

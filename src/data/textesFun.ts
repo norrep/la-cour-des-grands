@@ -32,7 +32,7 @@ export const FUN = {
   },
   choix: {
     populaire: ['La Populaire claque des doigts : touche ton portail, 2 copains rappliquent.'],
-    chouchou: ['« Mes grands frères vont venir ! » Glisse un 5 ou plus (cartes claires).'],
+    chouchou: ['« Mon grand frère va venir ! » Glisse un 5 ou plus (cartes claires).'],
     rapporteuse: ['« Madaaame ! » Touche l’adversaire qui tremble, direction la CPE.'],
     contagieux: ['Atchoum ! Touche le portail d’en face pour refiler le rhume.'],
     delegue: ['Mot d’excuse en main : touche Mme Josiane pour l’éloigner, ou garde-le pour toi.'],
