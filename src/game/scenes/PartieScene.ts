@@ -327,9 +327,9 @@ export class PartieScene extends Phaser.Scene {
       // Illustration de l'équipement, posée sur l'îlot derrière l'élève.
       const illustration = special && n?.equipement ? ILLUSTRATIONS[n.equipement] : undefined;
       if (illustration && this.textures.exists(illustration)) {
-        // Le dessin fait 324 × 275 pixels (marge des traits comprise) dans une texture de 512 × 512.
+        // Le dessin fait 648 × 550 pixels (marge des traits comprise) dans une texture de 1024 × 1024.
         const im = this.add.image(p.x, p.y + RAYON_ILOT * 0.35, illustration);
-        im.setOrigin(162 / im.width, 275 / im.height).setScale((RAYON_ILOT * 1.8) / 324);
+        im.setOrigin(324 / im.width, 550 / im.height).setScale((RAYON_ILOT * 1.8) / 648);
         this.ajouter(im);
       }
       // Seuls les îlots spéciaux ont un nom (demande de Clément) ; il passe devant les pieds.
