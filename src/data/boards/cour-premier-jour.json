@@ -1,0 +1,49 @@
+{
+  "id": "cour-premier-jour",
+  "nom": "La cour du premier jour",
+  "cabanes": [
+    { "id": "CabBleue", "bande": "bleu", "x": 0.5, "y": 0.06 },
+    { "id": "CabRouge", "bande": "rouge", "x": 0.5, "y": 0.82 }
+  ],
+  "ilots": [
+    { "id": "A1", "nom": "Le toboggan", "x": 0.28, "y": 0.22, "decor": "toboggan" },
+    { "id": "A2", "nom": "Les jeux à ressort", "x": 0.72, "y": 0.22, "decor": "jeuxRessort" },
+    { "id": "M1", "nom": "Le bac à sable", "x": 0.1, "y": 0.44, "decor": "bacASable" },
+    { "id": "M2", "nom": "Le banc", "x": 0.5, "y": 0.44, "equipement": "banc" },
+    { "id": "M3", "nom": "La marelle", "x": 0.9, "y": 0.44, "decor": "marelle" },
+    { "id": "B1", "nom": "L’arbre", "x": 0.28, "y": 0.66, "decor": "arbre" },
+    { "id": "B2", "nom": "Les buts", "x": 0.72, "y": 0.66, "decor": "buts" }
+  ],
+  "allees": [
+    ["CabBleue", "A1"],
+    ["CabBleue", "A2"],
+    ["A1", "A2"],
+    ["A1", "M1"],
+    ["A1", "M2"],
+    ["A2", "M2"],
+    ["A2", "M3"],
+    ["M1", "B1"],
+    ["M2", "B1"],
+    ["M2", "B2"],
+    ["M3", "B2"],
+    ["B1", "B2"],
+    ["B1", "CabRouge"],
+    ["B2", "CabRouge"]
+  ],
+  "regions": [
+    { "id": "haut", "nom": "Le haut de la cour", "ilots": ["A1", "A2", "M2"], "bonsPoints": 2 },
+    { "id": "bas", "nom": "Le bas de la cour", "ilots": ["B1", "B2", "M2"], "bonsPoints": 2 },
+    { "id": "gauche", "nom": "Le côté gauche", "ilots": ["A1", "M1", "B1", "M2"], "bonsPoints": 1 },
+    { "id": "droite", "nom": "Le côté droit", "ilots": ["A2", "M3", "B2", "M2"], "bonsPoints": 1 }
+  ],
+  "seuilBonsPoints": 3,
+  "ronde": [
+    ["A1", "M1"],
+    ["M1", "B1"],
+    ["B1", "B2"],
+    ["B2", "M3"],
+    ["M3", "A2"],
+    ["A2", "A1"]
+  ],
+  "departRonde": 0
+}
