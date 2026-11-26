@@ -16,7 +16,17 @@ import {
   type Evenement,
   type Option,
 } from '../../engine/index';
-import { BAS, COULEURS, HAUT, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
+import {
+  BAS,
+  COULEURS,
+  DROITE,
+  GAUCHE,
+  HAUT,
+  HAUTEUR,
+  LARGEUR,
+  POLICE,
+  POLICE_TITRE,
+} from '../config';
 import { alleesDuChemin } from '../chemins';
 import { cinematiquesPour, type Cinematique, type CinematiqueId } from '../cinematiques';
 import { NB_CONSEILS, prochainConseil, type ConseilId } from '../conseils';
@@ -30,7 +40,6 @@ import {
   type Point,
   DESCENTE,
   MONTEE,
-  ZONE_COUR,
 } from '../disposition';
 import { dernieresLignes, nomGouter } from '../journal';
 import { aide, tonFun, tutoPasse } from '../ton';
@@ -234,15 +243,6 @@ export class PartieScene extends Phaser.Scene {
   private dessinerCour(): void {
     const e = this.etat;
     const g = this.ajouter(this.add.graphics());
-
-    // Le plateau se détache du décor : un goudron clair et uni sous les allées, pour que rien ne
-    // se confonde avec les traçages du terrain.
-    const zone = ZONE_COUR;
-    g.fillStyle(0xe9e5f7, 0.72);
-    g.fillPoints(
-      contourRect(zone.x - 22, zone.y + 4, zone.largeur + 44, zone.hauteur - 8, 40, 31, 2),
-      true,
-    );
 
     // Allées en pointillés d'encre, comme tracées à la craie grasse sur le goudron.
     for (const [a, b] of this.cour.allees) {
@@ -753,10 +753,14 @@ export class PartieScene extends Phaser.Scene {
     const e = this.etat;
     const g = this.ajouter(this.add.graphics());
     // Bandeau de papier en haut, bord inférieur un peu tremblé.
-    forme(g, contourRect(-20, HAUT - 30, LARGEUR + 40, 124 - HAUT + MONTEE, 22, 7), {
-      remplissage: COULEURS.papier,
-      ombre: 5,
-    });
+    forme(
+      g,
+      contourRect(GAUCHE - 20, HAUT - 30, DROITE - GAUCHE + 40, 124 - HAUT + MONTEE, 22, 7),
+      {
+        remplissage: COULEURS.papier,
+        ombre: 5,
+      },
+    );
 
     const score = (b: Bande, x: number) => {
       const badge = creerBadge(this, b, 'grand', 46);
@@ -938,13 +942,17 @@ export class PartieScene extends Phaser.Scene {
   /** Le pupitre en bas de l'écran : un grand papier sous les boutons et le rang. */
   private dessinerPupitre(): void {
     const g = this.ajouter(this.add.graphics());
-    forme(g, contourRect(-20, Y_ACTIONS - 42, LARGEUR + 40, BAS - Y_ACTIONS + 80, 26, 17), {
-      remplissage: 0xffe9c2,
-      ombre: 0,
-    });
+    forme(
+      g,
+      contourRect(GAUCHE - 20, Y_ACTIONS - 42, DROITE - GAUCHE + 40, BAS - Y_ACTIONS + 80, 26, 17),
+      {
+        remplissage: 0xffe9c2,
+        ombre: 0,
+      },
+    );
     // Lignes de cahier, discrètes.
     g.lineStyle(2, 0x9fc3e8, 0.5);
-    for (let y = Y_ACTIONS + 52; y < BAS; y += 34) g.lineBetween(0, y, LARGEUR, y);
+    for (let y = Y_ACTIONS + 52; y < BAS; y += 34) g.lineBetween(GAUCHE, y, DROITE, y);
     g.lineStyle(2, 0xf0705f, 0.45);
     g.lineBetween(24, Y_ACTIONS - 40, 24, BAS);
   }
@@ -1312,13 +1320,15 @@ export class PartieScene extends Phaser.Scene {
         fontStyle: '700',
       },
     ).setOrigin(0.5);
-    const bloc = this.ajouter(this.add.rectangle(0, HAUT, LARGEUR, BAS - HAUT, 0x000000, 0.001));
+    const bloc = this.ajouter(
+      this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 0.001),
+    );
     bloc.setOrigin(0, 0).setInteractive();
   }
 
   private voile(alpha: number): void {
     const v = this.ajouter(
-      this.add.rectangle(0, HAUT, LARGEUR, BAS - HAUT, COULEURS.fondSombre, alpha),
+      this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, COULEURS.fondSombre, alpha),
     );
     v.setOrigin(0, 0);
     v.setInteractive();
@@ -1735,7 +1745,14 @@ export class PartieScene extends Phaser.Scene {
       delegue: 'pioche',
     };
     jouerSon(SONS[id]);
-    const fond = this.add.rectangle(0, HAUT, LARGEUR, BAS - HAUT, COULEURS.fondSombre, 0.55);
+    const fond = this.add.rectangle(
+      GAUCHE,
+      HAUT,
+      DROITE - GAUCHE,
+      BAS - HAUT,
+      COULEURS.fondSombre,
+      0.55,
+    );
     fond.setOrigin(0, 0).setInteractive();
     const bandeau = this.add.graphics();
     const COULEURS_PANNEAU: Record<CinematiqueId, number> = {

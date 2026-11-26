@@ -7,6 +7,7 @@
  * dandine et fait des gestes selon son caractère. Le pantin est tenu par la main : son bras gauche,
  * découpé à part, se lève jusqu'au doigt, et le corps ballotte en se pliant.
  */
+import Phaser from 'phaser';
 import { ROLES, type Bande, type RoleId } from '../../../engine/index';
 import { creerBadge } from '../../ui/badge';
 import { Gelee, rendreVivant } from '../../ui/gelee';
@@ -135,11 +136,13 @@ export const SKIN_CARTOON: Skin = {
           .setPosition(epaule.x, epaule.y)
           .setRotation(Math.PI - aBras)
           .setScale(echelle * (1 - (etire - 1) * 0.5), echelle * etire);
-        // Le corps suit le tronc ; les jambes, plus lentes, traînent derrière et le plient.
+        // Le corps pend dans le prolongement du bras (il ne reste plus droit pendant que le bras
+        // balance), avec un peu de retard du tronc ; les jambes, plus lentes, traînent derrière.
+        const aCorps = aBras * 0.7 + s.angle * 0.3;
         const [j1, j2] = s.jambes;
         const aJambes = (angleDe(j1[0], j1[1]) + angleDe(j2[0], j2[1])) / 2;
-        const pliJambes = Math.sin(aJambes - s.angle) * 0.7;
-        boite.setPosition(epaule.x, epaule.y).setRotation(-s.angle * 0.85);
+        const pliJambes = Math.sin(Phaser.Math.Clamp(aJambes - aCorps, -0.6, 0.6)) * 0.8;
+        boite.setPosition(epaule.x, epaule.y).setRotation(-aCorps);
         corps.plier((d) => (d <= hanches ? 0 : pliJambes * (d - hanches)));
         // Le doigt du joueur qui tient la main.
         prise.clear();

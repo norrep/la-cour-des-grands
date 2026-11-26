@@ -7,26 +7,30 @@ export const LARGEUR = 720;
 export const HAUTEUR = 1280;
 
 const ecran = typeof window === 'undefined' ? null : window;
+/** Hauteur / largeur de l'écran (de la zone de page, sous la barre du navigateur). */
+const FORME = ecran ? ecran.innerHeight / Math.max(1, ecran.innerWidth) : HAUTEUR / LARGEUR;
 
-/** Hauteur réellement visible, en coordonnées de jeu : de 9:16 jusqu'à 9:22. */
-export const HAUTEUR_ECRAN = ecran
-  ? Math.round(
-      Math.min(
-        1760,
-        Math.max(HAUTEUR, (LARGEUR * ecran.innerHeight) / Math.max(1, ecran.innerWidth)),
-      ),
-    )
-  : HAUTEUR;
-/** Bord haut et bord bas de l'écran (la zone de base est centrée). */
+/**
+ * Zone réellement visible, en coordonnées de jeu. Écran plus allongé que 9:16 : on voit plus haut et
+ * plus bas (jusqu'à 9:22). Écran plus court (navigateur intégré, tablette) : on voit plus large sur
+ * les côtés (jusqu'au carré). Le décor remplit tout ; la zone de base reste centrée.
+ */
+export const HAUTEUR_ECRAN =
+  FORME >= HAUTEUR / LARGEUR ? Math.round(Math.min(1760, LARGEUR * FORME)) : HAUTEUR;
+export const LARGEUR_ECRAN =
+  FORME >= HAUTEUR / LARGEUR ? LARGEUR : Math.round(Math.min(HAUTEUR, HAUTEUR / FORME));
+/** Bords de l'écran (la zone de base va de 0 à LARGEUR et de 0 à HAUTEUR). */
 export const HAUT = -(HAUTEUR_ECRAN - HAUTEUR) / 2;
 export const BAS = HAUTEUR + (HAUTEUR_ECRAN - HAUTEUR) / 2;
+export const GAUCHE = -(LARGEUR_ECRAN - LARGEUR) / 2;
+export const DROITE = LARGEUR + (LARGEUR_ECRAN - LARGEUR) / 2;
 
 /**
  * Pixels réels par pixel de jeu : on dessine à la résolution du téléphone (jusqu'à 2×, au-delà le téléphone chaufferait pour rien) pour un
  * trait net au lieu d'une image agrandie et floue.
  */
 export const RESOLUTION = ecran
-  ? Math.min(2, Math.max(1, (ecran.devicePixelRatio || 1) * (ecran.innerWidth / LARGEUR)))
+  ? Math.min(2, Math.max(1, (ecran.devicePixelRatio || 1) * (ecran.innerWidth / LARGEUR_ECRAN)))
   : 1;
 
 /** Palette cartoon : aplats pastel et trait d'encre, accordés aux élèves dessinés. */

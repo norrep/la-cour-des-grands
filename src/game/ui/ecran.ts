@@ -3,7 +3,7 @@
  * résolution du téléphone) et centrée sur la zone de base de 720 × 1280.
  */
 import Phaser from 'phaser';
-import { HAUTEUR, HAUTEUR_ECRAN, LARGEUR, RESOLUTION } from '../config';
+import { HAUTEUR, HAUTEUR_ECRAN, LARGEUR, LARGEUR_ECRAN, RESOLUTION } from '../config';
 
 export function cadrer(scene: Phaser.Scene): void {
   scene.cameras.main.setZoom(RESOLUTION).centerOn(LARGEUR / 2, HAUTEUR / 2);
@@ -20,7 +20,7 @@ export function textesNets(): void {
   };
 }
 
-/** Le décor (720 × 1280) couvre tout l'écran, même plus allongé, sans être déformé. */
+/** Le décor (720 × 1280) couvre tout l'écran, plus allongé ou plus large, sans être déformé. */
 export function decorPlein(image: Phaser.GameObjects.Image): Phaser.GameObjects.Image {
-  return image.setScale(Math.max(LARGEUR / image.width, HAUTEUR_ECRAN / image.height));
+  return image.setScale(Math.max(LARGEUR_ECRAN / image.width, HAUTEUR_ECRAN / image.height));
 }

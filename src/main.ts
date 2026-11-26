@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import '@fontsource/fredoka/500.css';
 import '@fontsource/fredoka/600.css';
 import '@fontsource/fredoka/700.css';
-import { HAUTEUR_ECRAN, LARGEUR, RESOLUTION } from './game/config';
+import { HAUTEUR_ECRAN, LARGEUR_ECRAN, RESOLUTION } from './game/config';
 import { AccueilScene } from './game/scenes/AccueilScene';
 import { ChargementScene } from './game/scenes/ChargementScene';
 import { PartieScene } from './game/scenes/PartieScene';
@@ -14,7 +14,7 @@ new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'jeu',
   // Toute la hauteur de l'écran, à la résolution du téléphone (voir `ui/ecran.ts`).
-  width: Math.round(LARGEUR * RESOLUTION),
+  width: Math.round(LARGEUR_ECRAN * RESOLUTION),
   height: Math.round(HAUTEUR_ECRAN * RESOLUTION),
   backgroundColor: '#2b2340',
   scale: {
