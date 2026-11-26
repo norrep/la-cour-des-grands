@@ -27,3 +27,26 @@ export const lireConseils = (): boolean => lire(CLE_CONSEILS);
 export const ecrireConseils = (oui: boolean): void => ecrire(CLE_CONSEILS, oui);
 export const lireSons = (): boolean => lire(CLE_SONS);
 export const ecrireSons = (oui: boolean): void => ecrire(CLE_SONS, oui);
+
+const CLE_SKIN = 'cour-des-grands.skin';
+const memoireTexte = new Map<string, string>();
+
+/** Le skin choisi, ou `null` s'il n'a jamais été choisi. */
+export function lireSkin(): string | null {
+  const m = memoireTexte.get(CLE_SKIN);
+  if (m !== undefined) return m;
+  try {
+    return globalThis.localStorage?.getItem(CLE_SKIN) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function ecrireSkin(id: string): void {
+  memoireTexte.set(CLE_SKIN, id);
+  try {
+    globalThis.localStorage?.setItem(CLE_SKIN, id);
+  } catch {
+    // Stockage indisponible : le choix vaut pour cette visite seulement.
+  }
+}

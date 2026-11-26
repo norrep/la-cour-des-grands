@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { HAUTEUR, LARGEUR } from './game/config';
 import { AccueilScene } from './game/scenes/AccueilScene';
+import { ChargementScene } from './game/scenes/ChargementScene';
 import { PartieScene } from './game/scenes/PartieScene';
 
 new Phaser.Game({
@@ -16,5 +17,5 @@ new Phaser.Game({
   input: { activePointers: 2 },
   render: { antialias: true },
   fps: { target: 60 },
-  scene: [AccueilScene, PartieScene],
+  scene: [ChargementScene, AccueilScene, PartieScene],
 });

@@ -33,6 +33,7 @@ import {
 } from '../disposition';
 import { dernieresLignes, nomGouter } from '../journal';
 import { creerBadge } from '../ui/badge';
+import { skinActif } from '../skins/index';
 import { creerBouton } from '../ui/bouton';
 import { ecrireConseils, lireSons } from '../preferences';
 import { activerSons, jouerSon, type SonId } from '../sons';
@@ -302,7 +303,7 @@ export class PartieScene extends Phaser.Scene {
 
       const dessus = sommet(e, id);
       if (dessus) {
-        const badge = creerBadge(this, dessus.bande, dessus.role, TAILLE_BADGE);
+        const badge = skinActif().eleve(this, dessus.bande, dessus.role, TAILLE_BADGE);
         badge.setPosition(p.x, p.y);
         this.ajouter(badge);
         this.badges.set(id, badge);
@@ -1018,10 +1019,10 @@ export class PartieScene extends Phaser.Scene {
     g.lineStyle(3, COULEURS.fondSombre, 1);
     g.fillRoundedRect(-l / 2, -h / 2, l, h, 12);
     g.strokeRoundedRect(-l / 2, -h / 2, l, h, 12);
-    const badge = creerBadge(this, el.bande, el.role, 56);
+    const badge = skinActif().eleve(this, el.bande, el.role, 56);
     badge.setPosition(0, -26);
     const nom = this.add
-      .text(0, 36, TEXTES.rolesCourts[el.role], {
+      .text(0, 50, TEXTES.rolesCourts[el.role], {
         fontFamily: POLICE,
         fontSize: TEXTES.rolesCourts[el.role].length > 9 ? '13px' : '15px',
         color: COULEURS.texteSombre,
@@ -1272,7 +1273,7 @@ export class PartieScene extends Phaser.Scene {
     this.texte(x0, y, A.eleves, 21, '#ffe066', { fontStyle: 'bold' });
     y += 32;
     for (const r of ROLES) {
-      const badge = creerBadge(this, 'rouge', r.id, 40);
+      const badge = skinActif().eleve(this, 'rouge', r.id, 40);
       badge.setPosition(x0 + 20, y + 22);
       this.ajouter(badge);
       const nom = this.texte(x0 + 52, y, TEXTES.roles[r.id], 17, '#ffe066', { fontStyle: 'bold' });

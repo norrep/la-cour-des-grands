@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { TEXTES } from '../../data/textes';
 import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
-import { creerBadge } from '../ui/badge';
+import { choisirSkin, preparerSkin, skinActif, skinSuivant } from '../skins/index';
 import { ecrireConseils, ecrireSons, lireConseils, lireSons } from '../preferences';
 import { activerSons } from '../sons';
 import { creerBouton } from '../ui/bouton';
@@ -47,10 +47,10 @@ export class AccueilScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const rouge = creerBadge(this, 'rouge', 'grand', 130);
-    rouge.setPosition(cx - 110, 580);
-    const bleu = creerBadge(this, 'bleu', 'petit', 130);
-    bleu.setPosition(cx + 110, 580);
+    const rouge = skinActif().eleve(this, 'rouge', 'grand', 100);
+    rouge.setPosition(cx - 110, 560);
+    const bleu = skinActif().eleve(this, 'bleu', 'petit', 100);
+    bleu.setPosition(cx + 110, 560);
     this.tweens.add({ targets: [rouge, bleu], angle: 6, duration: 600, yoyo: true, repeat: -1 });
 
     creerBouton(
@@ -77,7 +77,7 @@ export class AccueilScene extends Phaser.Scene {
       creerBouton(
         this,
         cx,
-        895,
+        885,
         TEXTES.accueil.equipements(this.equipements),
         () => {
           this.equipements = !this.equipements;
@@ -91,7 +91,7 @@ export class AccueilScene extends Phaser.Scene {
       creerBouton(
         this,
         cx,
-        975,
+        960,
         TEXTES.conseils.accueil(lireConseils()),
         () => {
           ecrireConseils(!lireConseils());
@@ -105,8 +105,8 @@ export class AccueilScene extends Phaser.Scene {
     const creerBoutonSons = () =>
       creerBouton(
         this,
-        cx,
-        1055,
+        cx - 108,
+        1035,
         TEXTES.sons(lireSons()),
         () => {
           ecrireSons(!lireSons());
@@ -114,9 +114,28 @@ export class AccueilScene extends Phaser.Scene {
           boutonSons.destroy();
           boutonSons = creerBoutonSons();
         },
-        { largeur: 420, hauteur: 64, taille: 25 },
+        { largeur: 204, hauteur: 64, taille: 23 },
       );
     let boutonSons = creerBoutonSons();
+
+    // Style des élèves : chaque appui passe au skin suivant et redessine l'accueil.
+    let changement = false;
+    creerBouton(
+      this,
+      cx + 108,
+      1035,
+      TEXTES.style(TEXTES.skins[skinActif().id]),
+      () => {
+        if (changement) return;
+        changement = true;
+        const id = skinSuivant(skinActif().id);
+        preparerSkin(this, id)
+          .then(() => choisirSkin(id))
+          .catch(() => undefined)
+          .finally(() => this.scene.restart());
+      },
+      { largeur: 204, hauteur: 64, taille: 23 },
+    );
 
     this.add
       .text(cx, 1175, TEXTES.accueil.regle, {

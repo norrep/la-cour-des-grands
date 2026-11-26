@@ -3,6 +3,7 @@
  * Le moteur de règles n'affiche rien : seul le rendu lit ce fichier.
  */
 import type { Bande, EquipementId, RaisonFin, RoleId } from '../engine/types';
+import type { SkinId } from '../game/skins/types';
 
 const ROLES: Record<RoleId, string> = {
   petit: 'Le Petit de maternelle',
@@ -173,6 +174,10 @@ export const TEXTES = {
     gouter: (n: number) => `+${n} goûter${n > 1 ? 's' : ''} !`,
   },
   sons: (actifs: boolean) => `Sons : ${actifs ? 'oui' : 'non'}`,
+  /** Nom de chaque skin, affiché sur le bouton « Style » de l'accueil. */
+  skins: { cartoon: 'Cartoon', classique: 'Jetons' } as Record<SkinId, string>,
+  style: (nom: string) => `Style : ${nom}`,
+  chargement: 'Chargement…',
   conseils: {
     accueil: (actifs: boolean) => `Conseils pour débuter : ${actifs ? 'oui' : 'non'}`,
     titre: 'Conseil',

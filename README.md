@@ -38,6 +38,7 @@ Badge **rond** = bande rouge, badge **carré** = bande bleue. Les traces de pas 
 src/
   engine/        moteur de règles en TypeScript pur, déterministe, sans Phaser
   game/          rendu Phaser : lit l'état et envoie des actions
+    skins/       visuels interchangeables des élèves (Cartoon, Jetons)
   data/
     boards/      cours décrites en JSON (îlots, allées, régions, ronde)
     textes.ts    tous les textes affichés, en français
