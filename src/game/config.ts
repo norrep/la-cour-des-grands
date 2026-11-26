@@ -13,7 +13,8 @@ export const COULEURS = {
   ilotSpecial: 0xe0b84a,
   surveillante: 0x8e44ad,
   allume: 0xffe066,
-  bloquee: 0xc0392b,
+  /** Allée bloquée par la surveillante : sa couleur, pour ne pas la confondre avec la bande rouge. */
+  bloquee: 0x7d2fa0,
   texteSombre: '#1d2b22',
   texteClair: '#f4f1e6',
   texteRouge: '#d9453b',

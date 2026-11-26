@@ -51,3 +51,10 @@ Le prompt de Clément fait foi ; le document de conception sert de complément.
 - **D2.9 — Piles visibles.** Les élèves plaqués apparaissent en petits badges à gauche de l'îlot (jusqu'à 4), en plus du compteur « ×n ».
 - **D2.10 — Consignes.** Chaque choix dit d'où il vient (« Pouvoir du… », « Tu as posé sur le banc… ») et une bulle s'affiche au-dessus de l'îlot qui le déclenche. L'îlot spécial porte des étoiles ★.
 - **D2.11 — Aide.** Le bouton « ? » ouvre « Comment jouer » : le but, le tour, les 8 élèves, l'îlot spécial et la légende.
+
+### Deuxième passe de clarté (« c'est mou, pas hyper clair »)
+
+- **D2.12 — Conseils pour débuter.** Activés par défaut, réglables sur l'accueil (choix gardé sur le téléphone). Chaque joueur voit chaque conseil une fois par partie, dans l'ordre : but, glisser, chemin, plaquer, appeler, surveillante (dès le tour 3), zones (dès le tour 6). Un seul conseil de ce type par tour ; ceux sur le pouvoir et la validation s'affichent au moment où ils servent. « Plus de conseils » les coupe pour la partie et les suivantes.
+- **D2.13 — Chemin à la craie.** Les allées qui relient la cabane d'une bande à ses îlots (élève de la bande au sommet, sans l'allée bloquée) sont tracées en épais à sa couleur : la bande peut poser sur tout îlot qui touche ce chemin (la Fouine exceptée).
+- **D2.14 — Allée bloquée en violet.** L'allée de la surveillante passe du rouge au violet (sa couleur), pour ne pas la confondre avec le chemin de la bande rouge.
+- **D2.15 — Jetons de zones.** Toucher un jeton +1/+2 montre les îlots à occuper, ou qui a déjà gagné la zone.

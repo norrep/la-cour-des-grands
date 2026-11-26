@@ -19,6 +19,8 @@ import {
   type Option,
 } from '../../engine/index';
 import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
+import { alleesDuChemin } from '../chemins';
+import { prochainConseil, type ConseilId } from '../conseils';
 import { Controleur } from '../controleur';
 import {
   centreRegion,
@@ -31,6 +33,7 @@ import {
 import { dernieresLignes } from '../journal';
 import { creerBadge } from '../ui/badge';
 import { creerBouton } from '../ui/bouton';
+import { ecrireConseils } from '../preferences';
 import type { DonneesPartie } from './AccueilScene';
 
 const RAYON_ILOT = 48;
@@ -56,6 +59,11 @@ export class PartieScene extends Phaser.Scene {
   /** Fiche d'information affichée à la place du journal (élève ou îlot touché). */
   private fiche: { titre: string; texte: string } | null = null;
   private aideOuverte = false;
+  /** Conseils pour débuter : actifs ou non, et déjà vus par chaque joueur. */
+  private conseilsActifs = true;
+  private conseilsVus: Record<Bande, Set<ConseilId>> = { rouge: new Set(), bleu: new Set() };
+  /** Dernier tour où chaque joueur a lu un conseil de préparation. */
+  private tourDernierConseil: Record<Bande, number> = { rouge: 0, bleu: 0 };
 
   constructor() {
     super('partie');
@@ -71,6 +79,9 @@ export class PartieScene extends Phaser.Scene {
     this.departToboggan = null;
     this.fiche = null;
     this.aideOuverte = false;
+    this.conseilsActifs = donnees.conseils;
+    this.conseilsVus = { rouge: new Set(), bleu: new Set() };
+    this.tourDernierConseil = { rouge: 0, bleu: 0 };
     // Accès de débogage, utilisé aussi par les tests automatisés de l'écran.
     (window as unknown as { __partie?: unknown }).__partie = {
       ctrl: this.ctrl,
@@ -107,6 +118,7 @@ export class PartieScene extends Phaser.Scene {
     if (this.ctrl.phase === 'passe') this.dessinerPasse();
     if (this.ctrl.phase === 'fin') this.dessinerFin();
     if (this.aideOuverte) this.dessinerAide();
+    else this.dessinerConseil();
   }
 
   private montrerFiche(titre: string, texte: string): void {
@@ -186,7 +198,18 @@ export class PartieScene extends Phaser.Scene {
     const bloquee = alleeSurveillante(e);
     const suivante = alleeSuivante(e);
 
-    // Allées en pointillés à la craie ; celle de la surveillante en rouge.
+    // Chemin à la craie de chaque bande : les allées qui relient sa cabane à ses îlots.
+    for (const b of ['rouge', 'bleu'] as const) {
+      g.lineStyle(22, b === 'rouge' ? COULEURS.rouge : COULEURS.bleu, 0.8);
+      for (const i of alleesDuChemin(e, b)) {
+        const [a, c] = this.cour.allees[i] as [string, string];
+        const pa = this.pos(a);
+        const pc = this.pos(c);
+        g.lineBetween(pa.x, pa.y, pc.x, pc.y);
+      }
+    }
+
+    // Allées en pointillés à la craie ; celle de la surveillante en violet plein.
     this.cour.allees.forEach(([a, b], i) => {
       const pa = this.pos(a);
       const pb = this.pos(b);
@@ -308,6 +331,21 @@ export class PartieScene extends Phaser.Scene {
       );
       zone.setInteractive();
       zone.on('pointerup', () => this.ficheNoeud(id));
+    }
+    // Jetons de bons points : toucher montre les îlots de la zone.
+    for (const r of this.cour.regions) {
+      const c = centreRegion(this.cour, r.ilots);
+      const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? 18 : 0;
+      const zone = this.ajouter(this.add.circle(c.x, c.y + decalage, 30, 0xffffff, 0.001));
+      zone.setInteractive();
+      zone.on('pointerup', () => {
+        const prise = this.etat.regionsPrises[r.id];
+        const noms = r.ilots.map((id) => this.cour.noeuds[id]?.nom ?? id);
+        this.montrerFiche(
+          TEXTES.regionTitre(r.bonsPoints),
+          prise ? TEXTES.regionPrise(prise, r.bonsPoints) : TEXTES.region(r.bonsPoints, noms),
+        );
+      });
     }
   }
 
@@ -1062,6 +1100,89 @@ export class PartieScene extends Phaser.Scene {
           this.rafraichir();
         },
         { largeur: 300, hauteur: 64, couleur: COULEURS.allume },
+      ),
+    );
+  }
+
+  /** Bulle de conseil pour débuter : un seul à la fois, à fermer avant de jouer. */
+  private dessinerConseil(): void {
+    if (!this.conseilsActifs) return;
+    const bande = this.bandeActive;
+    const tour = this.ctrl.phase === 'aConfirmer' ? this.etat.tour - 1 : this.etat.tour;
+    const id = prochainConseil(
+      this.etat,
+      this.ctrl.phase,
+      this.conseilsVus[bande],
+      this.tourDernierConseil[bande] === tour,
+    );
+    if (!id) return;
+    const C = TEXTES.conseils;
+    this.voile(0.45);
+    const x0 = 40;
+    const largeur = LARGEUR - 80;
+    // En bas de l'écran, pour laisser voir la cour dont parle le conseil.
+    const mesure = this.add.text(0, 0, C[id], {
+      fontFamily: POLICE,
+      fontSize: '27px',
+      wordWrap: { width: largeur - 60 },
+      lineSpacing: 6,
+    });
+    const hauteur = 78 + mesure.height + 130;
+    mesure.destroy();
+    const y0 = HAUTEUR - hauteur - 24;
+    const corps = this.texte(x0 + 30, y0 + 78, C[id], 27, COULEURS.texteSombre, {
+      wordWrap: { width: largeur - 60 },
+      lineSpacing: 6,
+    });
+    const fond = this.ajouter(this.add.graphics());
+    fond.fillStyle(0x000000, 0.25);
+    fond.fillRoundedRect(x0 + 6, y0 + 8, largeur, hauteur, 26);
+    fond.fillStyle(COULEURS.papier, 1);
+    fond.lineStyle(6, COULEURS.allume, 1);
+    fond.fillRoundedRect(x0, y0, largeur, hauteur, 26);
+    fond.strokeRoundedRect(x0, y0, largeur, hauteur, 26);
+    this.dyn.bringToTop(corps);
+    this.texte(
+      x0 + 30,
+      y0 + 24,
+      `${C.titre} · ${TEXTES.bandesTitre[bande]}`,
+      26,
+      COULEURS.texteSombre,
+      {
+        fontStyle: 'bold',
+      },
+    );
+    const yb = y0 + hauteur - 62;
+    const vu = (): void => {
+      this.conseilsVus[bande].add(id);
+      if (id !== 'pouvoir' && id !== 'valider') this.tourDernierConseil[bande] = tour;
+    };
+    this.ajouter(
+      creerBouton(
+        this,
+        x0 + largeur * 0.3,
+        yb,
+        C.couper,
+        () => {
+          vu();
+          this.conseilsActifs = false;
+          ecrireConseils(false);
+          this.rafraichir(true);
+        },
+        { largeur: largeur * 0.5 - 20, hauteur: 70, taille: 22 },
+      ),
+    );
+    this.ajouter(
+      creerBouton(
+        this,
+        x0 + largeur * 0.76,
+        yb,
+        C.compris,
+        () => {
+          vu();
+          this.rafraichir(true);
+        },
+        { largeur: largeur * 0.4, hauteur: 70, taille: 28, couleur: COULEURS.allume },
       ),
     );
   }

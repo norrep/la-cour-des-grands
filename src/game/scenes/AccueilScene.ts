@@ -2,10 +2,13 @@ import Phaser from 'phaser';
 import { TEXTES } from '../../data/textes';
 import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
 import { creerBadge } from '../ui/badge';
+import { ecrireConseils, lireConseils } from '../preferences';
 import { creerBouton } from '../ui/bouton';
 
 export interface DonneesPartie {
   equipements: boolean;
+  /** Conseils pour débuter pendant les premiers tours. */
+  conseils: boolean;
   graine: number;
 }
 
@@ -51,10 +54,14 @@ export class AccueilScene extends Phaser.Scene {
     creerBouton(
       this,
       cx,
-      800,
+      780,
       `${TEXTES.accueil.jouerADeux}\n${TEXTES.accueil.sousJouerADeux}`,
       () => {
-        const donnees: DonneesPartie = { equipements: this.equipements, graine: Date.now() };
+        const donnees: DonneesPartie = {
+          equipements: this.equipements,
+          conseils: lireConseils(),
+          graine: Date.now(),
+        };
         this.scene.start('partie', donnees);
       },
       { largeur: 420, hauteur: 120, taille: 34, couleur: COULEURS.allume },
@@ -68,7 +75,7 @@ export class AccueilScene extends Phaser.Scene {
       creerBouton(
         this,
         cx,
-        950,
+        920,
         TEXTES.accueil.equipements(this.equipements),
         () => {
           this.equipements = !this.equipements;
@@ -78,8 +85,23 @@ export class AccueilScene extends Phaser.Scene {
       );
     let boutonEquip = creerBoutonEquip();
 
+    const creerBoutonConseils = () =>
+      creerBouton(
+        this,
+        cx,
+        1040,
+        TEXTES.conseils.accueil(lireConseils()),
+        () => {
+          ecrireConseils(!lireConseils());
+          boutonConseils.destroy();
+          boutonConseils = creerBoutonConseils();
+        },
+        { largeur: 420, hauteur: 70, taille: 26 },
+      );
+    let boutonConseils = creerBoutonConseils();
+
     this.add
-      .text(cx, 1100, TEXTES.accueil.regle, {
+      .text(cx, 1170, TEXTES.accueil.regle, {
         fontFamily: POLICE,
         fontSize: '24px',
         color: COULEURS.texteClair,
