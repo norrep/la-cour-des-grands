@@ -8,3 +8,29 @@ Le prompt de Clément fait foi ; le document de conception sert de complément.
 - **D0.1 — Phaser 3.** `npm i phaser` installe aujourd'hui Phaser 4. Le cahier des charges demande Phaser 3 : la version est fixée à `^3.90`.
 - **D0.2 — Chemins relatifs.** Vite construit avec `base: './'`, pour que le même build marche en local et sous `/la-cour-des-grands/` sur GitHub Pages.
 - **D0.3 — Une seule CI.** Un seul workflow vérifie (types, lint, format, tests, build) puis déploie sur Pages, uniquement pour un push sur `main` et seulement si tout passe.
+
+## Étape 1 — Moteur de règles
+
+### Architecture
+
+- **D1.1 — État immuable.** `jouer(etat, action)` renvoie un nouvel état sans modifier l'ancien. Le rendu pourra annuler un coup non confirmé en gardant l'état précédent.
+- **D1.2 — Choix pas à pas.** Une pose qui déclenche un pouvoir ou un équipement avec au moins une cible valide met la partie « en attente » d'un choix (`choisir` une option ou `passer`). Sans cible valide, l'effet ne fait rien et on n'attend rien.
+- **D1.3 — Pile d'effets.** Après une pose, on résout le pouvoir de l'élève puis l'effet de l'îlot. Le 2e élève du Chouchou est une pose complète : son pouvoir, puis l'effet de son îlot, sont résolus avant l'effet de l'îlot du Chouchou.
+- **D1.4 — Hasard.** Tout le hasard (mélange, premier joueur, Contagieux) passe par un générateur à graine stocké dans l'état : une même graine rejoue la même partie.
+
+### Interprétations de règles
+
+- **D1.5 — Équipements facultatifs.** Comme les pouvoirs, les effets des équipements sont facultatifs (on peut passer).
+- **D1.6 — Victoire sur la cabane.** Elle est immédiate : le pouvoir de l'élève posé sur la cabane n'est pas appliqué.
+- **D1.7 — Régions.** Elles sont vérifiées après chaque changement dans la cour (pose, retrait, déplacement), pour les deux bandes, la bande qui joue d'abord. Un retrait peut donc faire marquer l'adversaire si l'élève révélé dessous complète sa région.
+- **D1.8 — Seuil atteint par les deux bandes au même moment.** La bande qui joue gagne. (Cas presque impossible, mais il fallait trancher.)
+- **D1.9 — Sonnerie.** Elle n'est vérifiée qu'au début du tour d'un joueur. Un élève à l'infirmerie compte comme injouable : le Contagieux peut donc provoquer la sonnerie.
+- **D1.10 — « Voisin » et « distance ».** Ils se comptent en allées, sans tenir compte de la surveillante (elle ne coupe que les connexions). Pour les buts, la distance est le plus court chemin en allées, cabanes comprises.
+- **D1.11 — Surveillance.** « Aucun effet ne peut y retirer ni y déplacer un élève » vaut pour tous les élèves, les siens compris : le banc ne peut pas reprendre un élève sous surveillance. Pour le toboggan, ni l'îlot de départ ni l'îlot d'arrivée ne peuvent être surveillés.
+- **D1.12 — Toboggan.** L'îlot d'arrivée peut être n'importe quel îlot voisin de l'îlot de départ, y compris celui du toboggan, et quel que soit son occupant (on pose par-dessus).
+- **D1.13 — Contagieux.** Le tirage se fait parmi les élèves du rang adverse qui ne sont pas déjà à l'infirmerie. Sans élève éligible, le pouvoir ne fait rien.
+- **D1.14 — Délégué.** Son déplacement de la surveillante s'ajoute à l'avance normale de fin de tour complet.
+- **D1.15 — Marelle.** Les valeurs autorisées (îlots de marelle et cabanes) ne s'appliquent que si les équipements spéciaux sont actifs.
+- **D1.16 — Banc des maîtresses.** Il annule le pouvoir de tout élève posé dessus, y compris le 2e élève du Chouchou. Il n'a pas d'autre effet.
+- **D1.17 — Banc.** Il ne reprend pas l'élève qui vient d'être posé sur le banc ; il reprend l'élève visible d'un autre îlot, et celui de dessous redevient visible.
+- **D1.18 — Seuil de la cour n°1.** Le document de conception cite un seuil de 5 en exemple ; le prompt (3 bons points) fait foi.
