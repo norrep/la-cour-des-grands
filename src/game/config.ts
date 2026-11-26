@@ -26,11 +26,11 @@ export const GAUCHE = -(LARGEUR_ECRAN - LARGEUR) / 2;
 export const DROITE = LARGEUR + (LARGEUR_ECRAN - LARGEUR) / 2;
 
 /**
- * Pixels réels par pixel de jeu : on dessine à la résolution du téléphone (jusqu'à 2×, au-delà le téléphone chaufferait pour rien) pour un
+ * Pixels réels par pixel de jeu : on dessine à la résolution du téléphone (jusqu'à 3×, comme les écrans des téléphones récents) pour un
  * trait net au lieu d'une image agrandie et floue.
  */
 export const RESOLUTION = ecran
-  ? Math.min(2, Math.max(1, (ecran.devicePixelRatio || 1) * (ecran.innerWidth / LARGEUR_ECRAN)))
+  ? Math.min(3, Math.max(1, (ecran.devicePixelRatio || 1) * (ecran.innerWidth / LARGEUR_ECRAN)))
   : 1;
 
 /** Palette cartoon : aplats pastel et trait d'encre, accordés aux élèves dessinés. */

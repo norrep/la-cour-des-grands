@@ -18,11 +18,18 @@ export interface OptionsGelee {
   tranches?: number;
 }
 
-/** Les tranches d'une image : `plier` place chacune selon sa ligne d'origine. */
+/**
+ * Le dessin posé sur une bande souple (une « corde » Phaser, verticale) : `plier` déplace ses
+ * points, et la texture suit sans marches. Des tranches d'image décalées faisaient des escaliers
+ * sur les traits verticaux (bras, jambes), visibles en grand.
+ */
 export class Gelee {
-  readonly objets: Phaser.GameObjects.Image[] = [];
-  /** Milieu de chaque tranche, en pixels de l'image. */
-  private readonly milieux: number[] = [];
+  readonly objets: Phaser.GameObjects.Rope[] = [];
+  /** Ligne de l'image de chaque point de la corde, en pixels de l'image. */
+  private readonly lignes: number[] = [];
+  private readonly corde: Phaser.GameObjects.Rope;
+  /** Décalage du centre de la bande par rapport à `centreX`, en pixels de l'image. */
+  private readonly decalage: number;
   readonly largeur: number;
   readonly hauteur: number;
 
@@ -30,38 +37,52 @@ export class Gelee {
     scene: Phaser.Scene,
     private readonly o: OptionsGelee,
   ) {
-    const frame = scene.textures.getFrame(o.cle);
-    this.largeur = frame?.width ?? 100;
-    this.hauteur = frame?.height ?? 100;
+    const texture = scene.textures.get(o.cle);
+    // Le cadre « __BASE » : `get()` sans nom renverrait le premier cadre ajouté (un buste).
+    const base = texture.get('__BASE');
+    this.largeur = base?.width ?? 100;
+    this.hauteur = base?.height ?? 100;
     const de = o.de ?? 0;
     const a = o.a ?? this.hauteur;
-    const n = o.tranches ?? 28;
-    const pas = (a - de) / n;
-    for (let i = 0; i < n; i++) {
-      const y0 = Math.floor(de + i * pas);
-      // Une ligne de recouvrement : pas de fente entre deux tranches décalées.
-      const y1 = Math.min(a, Math.ceil(de + (i + 1) * pas) + 1);
-      const img = scene.add
-        .image(0, 0, o.cle)
-        .setOrigin((o.centreX ?? this.largeur / 2) / this.largeur, o.pivot / this.hauteur)
-        .setScale(o.echelle)
-        .setCrop(0, y0, this.largeur, y1 - y0);
-      this.objets.push(img);
-      this.milieux.push((y0 + y1) / 2);
+    let cadre = '__BASE';
+    if (de > 0 || a < this.hauteur) {
+      cadre = `lignes-${de}-${a}`;
+      if (!texture.has(cadre)) texture.add(cadre, 0, 0, de, this.largeur, a - de);
     }
+    const n = o.tranches ?? 28;
+    for (let i = 0; i <= n; i++) this.lignes.push(de + ((a - de) * i) / n);
+    this.decalage = this.largeur / 2 - (o.centreX ?? this.largeur / 2);
+    this.corde = scene.add
+      .rope(
+        0,
+        0,
+        o.cle,
+        cadre,
+        this.lignes.map((l) => ({ x: 0, y: l })),
+        false,
+      )
+      .setScale(o.echelle);
+    this.objets.push(this.corde);
+    this.plier(() => 0);
   }
 
   /**
-   * Place les tranches. `dx(d)` donne le décalage horizontal (en pixels de jeu) d'une tranche
+   * Place la bande. `dx(d)` donne le décalage horizontal (en pixels de jeu) de la ligne
    * située à `d` pixels de jeu du pivot (positif vers le bas) ; `sy` étire en hauteur, `sx` en
    * largeur ; (`x`, `y`) déplace le tout.
    */
   plier(dx: (d: number) => number, sx = 1, sy = 1, x = 0, y = 0): void {
     const e = this.o.echelle;
-    this.objets.forEach((img, i) => {
-      const d = ((this.milieux[i] as number) - this.o.pivot) * e * sy;
-      img.setPosition(x + dx(d), y).setScale(e * sx, e * sy);
+    const points = this.corde.points as Phaser.Types.Math.Vector2Like[];
+    this.lignes.forEach((ligne, i) => {
+      const yImage = (ligne - this.o.pivot) * sy;
+      const point = points[i];
+      if (!point) return;
+      point.x = this.decalage + dx(yImage * e) / (e * sx);
+      point.y = yImage;
     });
+    this.corde.setPosition(x, y).setScale(e * sx, e);
+    this.corde.setDirty();
   }
 }
 

@@ -18,7 +18,7 @@ import { MESURES, type MesureDessin } from './mesures';
 /** Hauteur de l'élève le plus grand, en multiples de `taille`. */
 const HAUTEUR_REF = 2.5;
 /** Hauteur de l'image la plus grande, en pixels : les autres élèves sont plus petits d'autant. */
-const PIXELS_REF = 440;
+const PIXELS_REF = 880;
 /** Hauteur du numéro sur le débardeur, en fraction de l'image (l'élève est centré dessus). */
 const NUMERO = 0.4;
 /** L'élève est remonté d'une fraction de sa taille : ses pieds ne cachent pas le nom de l'îlot. */
@@ -85,7 +85,7 @@ export const SKIN_CARTOON: Skin = {
   },
   buste(scene, bande, role, largeur, hauteur) {
     const m = mesure(bande, role);
-    const bas = Math.min(m.hauteur, m.basMaillot + 6);
+    const bas = Math.min(m.hauteur, m.basMaillot + 12);
     const echelle = Math.min(hauteur / bas, largeur / m.largeur);
     const corps = new Gelee(scene, {
       cle: cle(bande, role),
@@ -104,8 +104,8 @@ export const SKIN_CARTOON: Skin = {
   },
   pastille(scene, bande, role, diametre) {
     const r = diametre / 2;
-    // Le buste est dessiné pour un cercle de 80 pixels de rayon, centré à 80 pixels du bas.
-    const echelle = r / 80;
+    // Le buste est dessiné pour un cercle de 160 pixels de rayon, centré à 160 pixels du bas.
+    const echelle = r / 160;
     const fond = scene.add.graphics();
     const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
     const clair = bande === 'rouge' ? 0xffd2c8 : 0xd5dcff;
@@ -126,8 +126,8 @@ export const SKIN_CARTOON: Skin = {
     const corps = new Gelee(scene, {
       cle: `${cle(bande, role)}-pastille`,
       echelle,
-      pivot: 256,
-      centreX: 128,
+      pivot: 512,
+      centreX: 256,
       tranches: 16,
     });
     const boite = scene.add.container(0, r - 2, corps.objets);
