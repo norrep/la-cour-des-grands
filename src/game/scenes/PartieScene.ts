@@ -5,7 +5,6 @@ import {
   actionsLegales,
   chargerCour,
   ciblesPossibles,
-  gouterSuivant,
   gouterSurveille,
   ROLES,
   sommet,
@@ -41,7 +40,8 @@ import { ecrireConseils, lireSons } from '../preferences';
 import { activerSons, jouerSon, type SonId } from '../sons';
 import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
-import { DECOR } from './ChargementScene';
+import { DECOR, ILLUSTRATIONS, JOSIANE } from './ChargementScene';
+import { Gelee, rendreVivant } from '../ui/gelee';
 
 const RAYON_ILOT = 48;
 const TAILLE_BADGE = 62;
@@ -272,15 +272,19 @@ export class PartieScene extends Phaser.Scene {
       gi.beginPath();
       gi.arc(p.x, p.y, RAYON_ILOT - 10, Math.PI * 1.1, Math.PI * 1.4);
       gi.strokePath();
-      // Le nom passe devant les pieds de l'élève : on le pose après la boucle.
-      etiquettes.push(() =>
-        this.etiquette(
-          p.x,
-          p.y + RAYON_ILOT + 8,
-          special ? `★ ${n?.nom ?? id}` : (n?.nom ?? id),
-          special ? COULEURS.jaune : COULEURS.papier,
-        ),
-      );
+      // Illustration de l'équipement, posée sur l'îlot derrière l'élève.
+      const illustration = special && n?.equipement ? ILLUSTRATIONS[n.equipement] : undefined;
+      if (illustration && this.textures.exists(illustration)) {
+        const im = this.add.image(p.x, p.y + RAYON_ILOT * 0.35, illustration).setOrigin(0.5, 1);
+        im.setScale((RAYON_ILOT * 1.7) / im.width);
+        this.ajouter(im);
+      }
+      // Seuls les îlots spéciaux ont un nom (demande de Clément) ; il passe devant les pieds.
+      if (special) {
+        etiquettes.push(() =>
+          this.etiquette(p.x, p.y + RAYON_ILOT + 8, `★ ${n?.nom ?? id}`, COULEURS.jaune),
+        );
+      }
 
       // Élèves plaqués : petits badges en colonne à gauche de l'îlot (le plus haut = juste dessous).
       const pileIlot = e.piles[id] ?? [];
@@ -312,7 +316,6 @@ export class PartieScene extends Phaser.Scene {
     }
 
     for (const poser of etiquettes) poser();
-    this.marcheSurveillante();
     this.dessinerSurveillante();
     if (!this.zonesTactiles()) this.zonesInformation();
     this.bulleEffet();
@@ -350,15 +353,14 @@ export class PartieScene extends Phaser.Scene {
     }
     // La surveillante : le goûter qu'elle garde, celui qu'elle gardera ensuite.
     const garde = gouterSurveille(this.etat);
-    const suivant = gouterSuivant(this.etat);
-    if (garde && suivant) {
+    if (garde) {
       const m = this.positionSurveillante(garde);
       const zs = this.ajouter(this.add.circle(m.x, m.y - 10, 34, 0xffffff, 0.001));
       zs.setInteractive();
       zs.on('pointerup', () =>
         this.montrerFiche(
           TEXTES.surveillante,
-          TEXTES.fiche.surveillante(nomGouter(this.cour, garde), nomGouter(this.cour, suivant)),
+          TEXTES.fiche.surveillante(nomGouter(this.cour, garde)),
         ),
       );
     }
@@ -399,7 +401,8 @@ export class PartieScene extends Phaser.Scene {
         ? aide(F.ilotVide, FUN.fiche.ilotVide, this.etat.tour)
         : F.pile(pile.map((el) => F.elevePile(el.role, el.bande, valeur(el.role)))),
     );
-    this.montrerFiche(n.nom, morceaux.join(' '));
+    const special = this.etat.equipements && n.equipement;
+    this.montrerFiche(special ? n.nom : TEXTES.fiche.titreIlot, morceaux.join(' '));
   }
 
   /** Bulle « Pouvoir ! » au-dessus de l'îlot qui déclenche le choix en cours. */
@@ -469,36 +472,24 @@ export class PartieScene extends Phaser.Scene {
     return { x: c.x + 42, y: c.y + 4 };
   }
 
-  /**
-   * Prochaine étape de la ronde : traces de pas qui partent de la surveillante, passent par
-   * le coin commun aux deux allées et mènent à sa silhouette pâle, là où elle sera ensuite.
-   */
-  /**
-   * Prochaine étape de la ronde : traces de pas qui partent de la surveillante et mènent à sa
-   * silhouette pâle, à côté du goûter qu'elle gardera après le tour.
-   */
-  private marcheSurveillante(): void {
-    const garde = gouterSurveille(this.etat);
-    const suivant = gouterSuivant(this.etat);
-    if (!garde || !suivant || garde === suivant) return;
-    const depart = this.positionSurveillante(garde);
-    const arrivee = this.positionSurveillante(suivant);
-    const total = Math.hypot(arrivee.x - depart.x, arrivee.y - depart.y);
-    const angle = Math.atan2(arrivee.y - depart.y, arrivee.x - depart.x);
-    let k = 0;
-    for (let d = 44; d < total - 50; d += 30, k++) {
-      const cote = k % 2 === 0 ? 6 : -6;
-      const x = depart.x + Math.cos(angle) * d - Math.sin(angle) * cote;
-      const y = depart.y + Math.sin(angle) * d + Math.cos(angle) * cote;
-      const pas = this.ajouter(this.add.ellipse(x, y + 20, 16, 9, COULEURS.surveillante, 0.9));
-      pas.setRotation(angle);
-      pas.setStrokeStyle(2, COULEURS.encre, 0.8);
-    }
-    this.silhouette(arrivee.x, arrivee.y, 0.45);
-  }
-
-  /** Mme Josiane : robe lilas, chignon, sifflet ; dessinée au trait comme les élèves. */
+  /** Mme Josiane : l'illustration générée, ou à défaut un dessin au trait (robe lilas, chignon). */
   private silhouette(x: number, y: number, alpha: number): void {
+    if (this.textures.exists(JOSIANE)) {
+      const ombre = this.ajouter(this.add.graphics());
+      ombre.fillStyle(COULEURS.encre, 0.25);
+      ombre.fillEllipse(x + 2, y + 30, 46, 12);
+      const hauteur = 100;
+      const source = this.textures.getFrame(JOSIANE);
+      const corps = new Gelee(this, {
+        cle: JOSIANE,
+        echelle: hauteur / (source?.height ?? hauteur),
+        pivot: source?.height ?? hauteur,
+      });
+      const josiane = this.add.container(x, y + 30, corps.objets).setAlpha(alpha);
+      this.ajouter(josiane);
+      rendreVivant(this, corps, josiane, { hauteur });
+      return;
+    }
     const g = this.ajouter(this.add.graphics());
     g.setAlpha(alpha);
     const graine = graineDe(x, y);
@@ -986,7 +977,7 @@ export class PartieScene extends Phaser.Scene {
       } else if (o.type === 'infirmerie') {
         options.push({ texte: TEXTES.boutons.infirmerie, action: () => this.choisir(o) });
       } else if (o.type === 'surveillante') {
-        options.push({ texte: TEXTES.choix.pas(o.pas), action: () => this.choisir(o) });
+        options.push({ texte: TEXTES.boutons.motExcuse, action: () => this.choisir(o) });
       } else if (o.type === 'repecher') {
         const el = this.etat.joueurs[this.etat.courant].cpe.find((x) => x.id === o.eleveId);
         if (el && !vusRoles.has(el.role)) {
@@ -1085,8 +1076,12 @@ export class PartieScene extends Phaser.Scene {
       ombre: 5,
       trait: 3,
     });
-    const badge = skinActif().eleve(this, el.bande, el.role, 56);
-    badge.setPosition(0, -24);
+    // Tête et débardeur seulement : la carte montre la chasuble de l'élève.
+    const skin = skinActif();
+    const badge = skin.buste
+      ? skin.buste(this, el.bande, el.role, l - 8, h - 44)
+      : skin.eleve(this, el.bande, el.role, 56);
+    badge.setPosition(0, skin.buste ? -18 : -24);
     const nom = this.add
       .text(0, 52, TEXTES.rolesCourts[el.role], {
         fontFamily: POLICE,

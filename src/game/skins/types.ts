@@ -62,6 +62,17 @@ export interface Skin {
     role: RoleId,
     taille: number,
   ): Phaser.GameObjects.Container;
-  /** Le dessin de l'élève qu'on tient par la main. */
+  /**
+   * Portrait pour les cartes du rang : tête et débardeur, tenant dans `largeur` × `hauteur`,
+   * centré. Facultatif : sans lui, la carte montre l'élève entier.
+   */
+  buste?(
+    scene: Phaser.Scene,
+    bande: Bande,
+    role: RoleId,
+    largeur: number,
+    hauteur: number,
+  ): Phaser.GameObjects.Container;
+  /** Le dessin de l'élève qu'on tient pendant qu'on le glisse. */
   pantin(scene: Phaser.Scene, eleve: Eleve): RenduPantin;
 }

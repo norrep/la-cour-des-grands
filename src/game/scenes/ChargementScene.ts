@@ -5,6 +5,9 @@ import { TEXTES } from '../../data/textes';
 
 /** Clé du décor de la cour (image plein écran derrière le plateau). */
 export const DECOR = 'decor-cour';
+/** Mme Josiane, la surveillante, et les illustrations des îlots spéciaux (par équipement). */
+export const JOSIANE = 'decor-josiane';
+export const ILLUSTRATIONS: Partial<Record<string, string>> = { banc: 'decor-banc' };
 
 /** La police ronde du jeu doit être prête avant d'écrire quoi que ce soit (2 s au plus). */
 function chargerPolice(): Promise<unknown> {
@@ -24,6 +27,10 @@ export class ChargementScene extends Phaser.Scene {
 
   preload(): void {
     this.load.image(DECOR, 'decor/cour.jpg');
+    this.load.image(JOSIANE, 'decor/josiane.png');
+    for (const [equipement, cle] of Object.entries(ILLUSTRATIONS)) {
+      if (cle) this.load.image(cle, `decor/${equipement}.png`);
+    }
   }
 
   create(): void {

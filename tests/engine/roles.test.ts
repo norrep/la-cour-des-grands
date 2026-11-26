@@ -8,7 +8,7 @@ import {
   valeur,
   type EtatPartie,
 } from '../../src/engine/index';
-import { courTest, idRang, pile, situation } from './aide';
+import { cour1, courTest, idRang, pile, situation } from './aide';
 
 const envoyer = (e: EtatPartie, role: Parameters<typeof idRang>[2], cible: string) =>
   jouer(e, { type: 'envoyer', eleveId: idRang(e, e.courant, role), cible });
@@ -113,8 +113,10 @@ describe('2 — Le Chouchou', () => {
     e = jouer(e, { type: 'choisir', option: { type: 'poser', eleveId: id, cible: 'Q' } });
     expect(pile(e, 'Q')).toEqual(['rouge:delegue']);
     expect(e.attente?.effet).toMatchObject({ type: 'pouvoir', role: 'delegue' });
-    e = jouer(e, { type: 'choisir', option: { type: 'surveillante', pas: 1 } });
-    expect(e.surveillante).toBe(1);
+    e = jouer(e, { type: 'choisir', option: { type: 'surveillante' } });
+    expect(e.journal).toContainEqual(
+      expect.objectContaining({ type: 'surveillante', parDelegue: true }),
+    );
     expect(e.courant).toBe('bleu');
   });
 
@@ -294,36 +296,34 @@ describe('5 — Le Contagieux', () => {
 });
 
 describe('6 — Le Délégué', () => {
-  it('fait avancer ou reculer la surveillante de 1 ou 2 goûters', () => {
-    const e = envoyer(situation({ rang: { rouge: ['delegue'] } }), 'delegue', 'P');
-    expect(e.attente?.options).toEqual([
-      { type: 'surveillante', pas: -2 },
-      { type: 'surveillante', pas: -1 },
-      { type: 'surveillante', pas: 1 },
-      { type: 'surveillante', pas: 2 },
-    ]);
+  it('fait avancer la surveillante de 1 ou 2 goûters, au hasard (D2.19)', () => {
+    const vus = new Set<number>();
+    for (let graine = 1; graine <= 20; graine++) {
+      const base = situation({ cour: cour1(), rang: { rouge: ['delegue'] } });
+      base.rng = graine;
+      const e = envoyer(base, 'delegue', 'B1');
+      expect(e.attente?.options).toEqual([{ type: 'surveillante' }]);
+      const apres = jouer(e, { type: 'choisir', option: { type: 'surveillante' } });
+      const ev = apres.journal.find((x) => x.type === 'surveillante' && x.parDelegue);
+      const pas = ev?.type === 'surveillante' ? ev.pas : 0;
+      expect([1, 2]).toContain(pas);
+      vus.add(pas);
+    }
+    expect([...vus].sort()).toEqual([1, 2]);
   });
 
-  it('boucle sur la ronde dans les deux sens', () => {
-    const cour = courRonde(); // ronde de 2 goûters
-    expect(cour.ronde).toHaveLength(2);
-    const recul = jouer(
-      envoyer(situation({ cour, rang: { rouge: ['delegue'] } }), 'delegue', 'P'),
-      {
-        type: 'choisir',
-        option: { type: 'surveillante', pas: -1 },
-      },
-    );
-    expect(recul.surveillante).toBe(1);
-    expect(recul.journal).toContainEqual(
-      expect.objectContaining({ type: 'surveillante', parDelegue: true, pas: -1 }),
-    );
+  it('n’a rien à faire sans goûter à garder', () => {
+    const e = envoyer(situation({ rang: { rouge: ['delegue'] } }), 'delegue', 'P');
+    expect(e.attente).toBeNull();
   });
 
   it('est facultatif', () => {
-    const e = jouer(envoyer(situation({ rang: { rouge: ['delegue'] } }), 'delegue', 'P'), {
-      type: 'passer',
-    });
+    const e = jouer(
+      envoyer(situation({ cour: courRonde(), rang: { rouge: ['delegue'] } }), 'delegue', 'P'),
+      {
+        type: 'passer',
+      },
+    );
     expect(e.surveillante).toBe(0);
   });
 });

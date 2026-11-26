@@ -3,12 +3,13 @@
  * fin, membres en nouilles, débardeur numéroté). Ce sont des images détourées
  * (`public/skins/dessin/`), une par rôle et par bande.
  *
- * Le pantin garde l'image entière : l'élève pend à sa propre main, et son bras s'étire comme un
- * spaghetti jusqu'au doigt du joueur.
+ * Les élèves sont des « gelées » (voir `ui/gelee.ts`) : l'image découpée en tranches respire, se
+ * dandine et sautille. Le pantin est attrapé par le col et ballotte en se pliant.
  */
 import Phaser from 'phaser';
 import { ROLES, type Bande, type RoleId } from '../../../engine/index';
 import { creerBadge } from '../../ui/badge';
+import { Gelee, rendreVivant } from '../../ui/gelee';
 import type { P, RenduPantin, Skin, TextureSkin } from '../types';
 import { MESURES, type MesureDessin } from './mesures';
 
@@ -42,28 +43,8 @@ function textures(): TextureSkin[] {
   );
 }
 
-/** Bras en spaghetti : un trait noir, la couleur de la peau par-dessus, un peu courbé. */
-function nouille(g: Phaser.GameObjects.Graphics, de: P, vers: P, c: number, ep: number): void {
-  const dx = vers.x - de.x;
-  const dy = vers.y - de.y;
-  const courbe = new Phaser.Curves.QuadraticBezier(
-    new Phaser.Math.Vector2(de.x, de.y),
-    new Phaser.Math.Vector2((de.x + vers.x) / 2 + dy * 0.12, (de.y + vers.y) / 2 - dx * 0.12),
-    new Phaser.Math.Vector2(vers.x, vers.y),
-  );
-  const points = courbe.getPoints(12);
-  for (const [largeur, teinte] of [
-    [ep + 4, NOIR],
-    [ep, c],
-  ] as const) {
-    g.lineStyle(largeur, teinte, 1);
-    g.strokePoints(points, false, false);
-    g.fillStyle(teinte, 1);
-    for (const p of [points[0], points[points.length - 1]]) {
-      if (p) g.fillCircle(p.x, p.y, largeur / 2);
-    }
-  }
-}
+/** Angle d'un segment depuis la verticale (même convention que le squelette). */
+const angleDe = (a: P, b: P): number => Math.atan2(b.x - a.x, b.y - a.y);
 
 export const SKIN_CARTOON: Skin = {
   id: 'cartoon',
@@ -73,42 +54,80 @@ export const SKIN_CARTOON: Skin = {
     const echelle = (HAUTEUR_REF * taille) / PIXELS_REF;
     // Tous les élèves ont les pieds au même niveau : le Grand dépasse, le Petit est plus bas.
     const pieds = (1 - NUMERO) * PIXELS_REF * echelle - taille * REMONTE;
-    const img = scene.add.image(0, pieds, cle(bande, role)).setOrigin(0.5, 1).setScale(echelle);
+    const corps = new Gelee(scene, { cle: cle(bande, role), echelle, pivot: m.hauteur });
+    const boite = scene.add.container(0, pieds, corps.objets);
     // Pastille de valeur au niveau de la taille : le numéro du débardeur est trop petit sur l'îlot.
     const pastille = creerBadge(scene, bande, role, taille * PASTILLE);
     pastille.setPosition(
       (m.largeur / 2) * echelle + taille * 0.08,
       pieds - m.hauteur * echelle * 0.4,
     );
-    return scene.add.container(0, 0, [img, pastille]);
+    const eleve = scene.add.container(0, 0, [boite, pastille]);
+    rendreVivant(scene, corps, eleve, { hauteur: m.hauteur * echelle });
+    return eleve;
+  },
+  buste(scene, bande, role, largeur, hauteur) {
+    const m = mesure(bande, role);
+    const bas = Math.min(m.hauteur, m.basMaillot + 6);
+    const echelle = Math.min(hauteur / bas, largeur / m.largeur);
+    const corps = new Gelee(scene, {
+      cle: cle(bande, role),
+      echelle,
+      a: bas,
+      pivot: bas,
+      tranches: 10,
+    });
+    const boite = scene.add.container(0, hauteur / 2, corps.objets);
+    const pastille = creerBadge(scene, bande, role, 24);
+    pastille.setPosition(largeur / 2 - 10, hauteur / 2 - 14);
+    const buste = scene.add.container(0, 0, [boite, pastille]);
+    rendreVivant(scene, corps, buste, { hauteur: bas * echelle, calme: true });
+    return buste;
   },
   pantin(scene, eleve): RenduPantin {
     const m = mesure(eleve.bande, eleve.role);
     const echelle = HAUTEUR_PANTIN / PIXELS_REF;
-    const bras = scene.add.graphics();
-    const img = scene.add.image(0, 0, cle(eleve.bande, eleve.role));
-    // L'image tourne autour de la main gauche de l'élève.
-    img.setOrigin(m.main.x / m.largeur, m.main.y / m.hauteur).setScale(echelle);
-    const devant = scene.add.graphics();
     const peau = Phaser.Display.Color.HexStringToColor(m.peau).color;
+    // On l'attrape par le col du débardeur, comme un chaton : le corps pend sous le doigt.
+    const corps = new Gelee(scene, {
+      cle: cle(eleve.bande, eleve.role),
+      echelle,
+      pivot: m.col,
+      tranches: 18,
+    });
+    const boite = scene.add.container(0, 0, corps.objets);
+    const hanches = (m.basMaillot - m.col) * echelle;
+    const pince = scene.add.graphics();
     return {
-      objets: [bras, img, devant],
+      objets: [boite, pince],
       dessiner(s) {
-        // La main de l'image est sous l'épaule du squelette, assez bas pour que la tête passe
-        // sous la main tenue ; le corps se balance avec le tronc.
-        const bas = m.main.y * echelle * 0.75;
-        const main = { x: s.epaule.x, y: s.epaule.y + bas };
-        img.setPosition(main.x, main.y);
-        img.setRotation(-s.angle * 0.6);
-        bras.clear();
-        devant.clear();
-        nouille(bras, s.main, main, peau, 7);
-        devant.lineStyle(3, 0xffe066, 0.9);
-        devant.strokeCircle(s.main.x, s.main.y, 14);
-        devant.fillStyle(NOIR, 1);
-        devant.fillCircle(s.main.x, s.main.y, 8);
-        devant.fillStyle(peau, 1);
-        devant.fillCircle(s.main.x, s.main.y, 6);
+        // Tout le corps suit le balancier « bras tenu » ; le tronc et les jambes, plus lents,
+        // traînent derrière et plient le dessin.
+        const aCorps = angleDe(s.main, s.epaule) * 0.8;
+        const [j1, j2] = s.jambes;
+        const aJambes = (angleDe(j1[0], j1[1]) + angleDe(j2[0], j2[1])) / 2;
+        const pliTronc = Math.sin(s.angle - aCorps) * 0.55;
+        const pliJambes = Math.sin(aJambes - s.angle) * 0.7;
+        boite.setPosition(s.main.x, s.main.y).setRotation(-aCorps);
+        corps.plier((d) => {
+          if (d <= 0) return 0;
+          return pliTronc * Math.min(d, hanches) + pliJambes * Math.max(0, d - hanches);
+        });
+        // Le pouce et l'index qui pincent le col.
+        pince.clear();
+        pince.lineStyle(2, 0xffe066, 0.9);
+        pince.strokeCircle(s.main.x, s.main.y - 4, 12);
+        for (const [dx, dy, r] of [
+          [-4, -5, 5],
+          [4, -7, 6],
+        ] as const) {
+          pince.fillStyle(NOIR, 1);
+          pince.fillCircle(s.main.x + dx, s.main.y + dy, r + 2);
+          pince.fillStyle(peau, 1);
+          pince.fillCircle(s.main.x + dx, s.main.y + dy, r);
+        }
+        pince.fillStyle(0xffffff, 0.7);
+        pince.fillCircle(s.main.x + 5, s.main.y - 10, 2);
       },
     };
   },

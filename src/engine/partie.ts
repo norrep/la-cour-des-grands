@@ -306,7 +306,7 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
         return j.rang.some((el) => !j.infirmerie.includes(el.id)) ? [{ type: 'infirmerie' }] : [];
       }
       case 'delegue':
-        return ([-2, -1, 1, 2] as const).map((pas) => ({ type: 'surveillante', pas }));
+        return e.cour.ronde.length > 1 ? [{ type: 'surveillante' }] : [];
       default:
         // Petit de maternelle, Fouine (pouvoir appliqué à la pose), Grand de CM2.
         return [];
@@ -394,7 +394,7 @@ function memeOption(a: Option, b: Option): boolean {
     case 'cpe':
       return b.type === 'cpe' && a.ilot === b.ilot;
     case 'surveillante':
-      return b.type === 'surveillante' && a.pas === b.pas;
+      return b.type === 'surveillante';
     case 'rappeler':
       return b.type === 'rappeler' && a.ilot === b.ilot;
     case 'repecher':
@@ -563,9 +563,12 @@ function appliquerOption(e: EtatPartie, effet: Effet, option: Option): void {
       noter(e, { type: 'infirmerie', tour: e.tour, bande: malade.bande, eleveId: malade.id });
       break;
     }
-    case 'surveillante':
-      deplacerSurveillante(e, option.pas, true);
+    case 'surveillante': {
+      const [i, suivant] = tirerEntier(e.rng, 2);
+      e.rng = suivant;
+      deplacerSurveillante(e, i + 1, true);
       break;
+    }
     case 'rappeler': {
       const eleve = (e.piles[option.ilot] as Eleve[]).pop() as Eleve;
       moi.rang.push(eleve);

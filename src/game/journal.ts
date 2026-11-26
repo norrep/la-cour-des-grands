@@ -10,8 +10,7 @@ const J = TEXTES.journal;
  */
 export function phraseEvenement(ev: Evenement, cour: Cour, fun = false, graine = 0): string | null {
   if (fun) return phraseDrole(ev, cour, graine);
-  const lieu = (id: string) =>
-    cour.noeuds[id]?.type === 'cabane' ? J.cabane : (cour.noeuds[id]?.nom ?? id);
+  const lieu = (id: string) => nomLieu(cour, id);
   switch (ev.type) {
     case 'appel':
       return J.appel(ev.bande, ev.nombre);
@@ -46,8 +45,7 @@ export function phraseEvenement(ev: Evenement, cour: Cour, fun = false, graine =
 function phraseDrole(ev: Evenement, cour: Cour, g: number): string | null {
   const F = FUN.journal;
   const v = (liste: readonly string[]) => variante(liste, g);
-  const lieu = (id: string) =>
-    cour.noeuds[id]?.type === 'cabane' ? J.cabane : (cour.noeuds[id]?.nom ?? id);
+  const lieu = (id: string) => nomLieu(cour, id);
   switch (ev.type) {
     case 'appel':
       return v(F.appel(ev.bande, ev.nombre));
@@ -76,6 +74,13 @@ function phraseDrole(ev: Evenement, cour: Cour, g: number): string | null {
     case 'fin':
       return v(F.fin(ev.gagnant));
   }
+}
+
+/** Nom d'un lieu dans le journal : seuls la cabane et les îlots spéciaux ont un nom affiché. */
+function nomLieu(cour: Cour, id: string): string {
+  const n = cour.noeuds[id];
+  if (n?.type === 'cabane') return J.cabane;
+  return n?.equipement ? n.nom : J.ilot;
 }
 
 /** Les dernières lignes du journal, de la plus ancienne à la plus récente. */

@@ -46,7 +46,7 @@ const POUVOIRS: Record<RoleId, string> = {
   rapporteuse: '« Madame, c’est lui ! » : un adversaire voisin part chez la CPE.',
   fouine: 'Passe par les buissons : se pose même loin de ton chemin.',
   contagieux: 'Atchoum ! Un élève adverse au hasard rate son prochain tour.',
-  delegue: 'Mot d’excuse : envoie la surveillante garder un autre goûter (1 ou 2 plus loin).',
+  delegue: 'Mot d’excuse : la surveillante file 1 ou 2 goûters plus loin (au hasard).',
   grand: 'Pas de pouvoir : c’est le plus fort.',
 };
 
@@ -108,6 +108,7 @@ export const TEXTES = {
   boutons: {
     appeler: (n: number) => (n > 1 ? `Appeler ${n} copains` : 'Appeler 1 copain'),
     passer: 'Passer',
+    motExcuse: 'Mot d’excuse !',
     piocher: 'Piocher',
     infirmerie: 'Éternuer',
     rejouer: 'Rejouer',
@@ -119,14 +120,13 @@ export const TEXTES = {
     chouchou: 'Chouchou : glisse un 2e élève de 5 ou plus (cartes claires).',
     rapporteuse: 'Rapporteuse : touche l’adversaire qui tremble pour l’envoyer chez la CPE.',
     contagieux: 'Contagieux : un élève adverse au hasard rate son prochain tour ?',
-    delegue: 'Délégué : envoie la surveillante garder un autre goûter (+ avance, − recule).',
+    delegue: 'Délégué : sortir le mot d’excuse ? La surveillante file 1 ou 2 goûters plus loin.',
     banc: '★ Banc : touche un de tes élèves pour le reprendre dans ton rang.',
     cabanePerchee: '★ Cabane perchée : piocher 1 élève ?',
     porteVieScolaire: '★ Vie scolaire : reprends un élève de chez la CPE.',
     buts: '★ Buts : touche l’adversaire (1 ou 2) à envoyer chez la CPE.',
     tobogganDepart: '★ Toboggan : touche l’adversaire à faire glisser.',
     tobogganArrivee: '★ Toboggan : touche l’îlot d’arrivée.',
-    pas: (n: number) => (n > 0 ? `+${n}` : `−${-n}`),
     bulle: 'Pouvoir !',
   },
   fiche: {
@@ -136,6 +136,7 @@ export const TEXTES = {
     infirmerie: 'À l’infirmerie : il ne peut pas jouer ce tour-ci.',
     nonJouable: 'Il ne peut se poser nulle part pour l’instant.',
     ilotVide: 'Îlot vide.',
+    titreIlot: 'Un îlot',
     pile: (lignes: string[]) => `Pile, du dessus au dessous : ${lignes.join(', ')}.`,
     elevePile: (role: RoleId, b: Bande, valeur: number | null) =>
       `${ROLES_COURTS[role]} ${b === 'rouge' ? 'rouge' : 'bleu'} (${valeur === null ? 'J' : valeur})`,
@@ -143,8 +144,8 @@ export const TEXTES = {
     cabane: (b: Bande) =>
       `Cabane de la ${BANDES[b]}. L’adversaire qui y pose un élève relié à sa cabane gagne aussitôt.`,
     special: '★ Îlot spécial : ',
-    surveillante: (actuelle: string, prochaine: string) =>
-      `Elle garde ${actuelle.charAt(0).toLowerCase()}${actuelle.slice(1)} : personne ne peut le ramasser. Quand les deux bandes auront joué, elle ira garder ${prochaine.charAt(0).toLowerCase()}${prochaine.slice(1)} (traces de pas → silhouette pâle). Dès qu’elle part, un goûter déjà entouré est ramassé.`,
+    surveillante: (actuelle: string) =>
+      `Elle garde ${actuelle.charAt(0).toLowerCase()}${actuelle.slice(1)} : personne ne peut le ramasser. Après chaque tour complet, elle part garder le goûter suivant. Dès qu’elle s’en va, un goûter déjà entouré est ramassé.`,
   },
   /** Les zones à bons points sont des goûters à ramasser, un par zone, dans l'ordre de la cour. */
   gouters: ['La tablette de chocolat', 'Le paquet de biscuits', 'Le bonbon', 'La sucette'],
@@ -193,7 +194,7 @@ export const TEXTES = {
       'Un adversaire plus faible peut être plaqué : ton élève se pose dessus, l’autre reste coincé dessous.',
     pouvoir: 'Cet élève a un pouvoir en arrivant. Tu peux l’utiliser ou passer.',
     surveillante:
-      'La surveillante garde un goûter (rond lilas) : personne ne peut le ramasser tant qu’elle est là. Après chaque tour complet, elle suit ses traces de pas vers le goûter suivant.',
+      'La surveillante garde un goûter (rond lilas) : personne ne peut le ramasser tant qu’elle est là. Après chaque tour complet, elle passe au goûter suivant.',
     zones:
       'Les friandises +1 / +2 sont des goûters : occupe tous les îlots autour pour les ramasser. Touche une friandise pour voir lesquels.',
   },
@@ -206,7 +207,7 @@ export const TEXTES = {
     legende: [
       'Rond = bande rouge, carré = bande bleue.',
       'Petits badges à gauche d’un îlot = élèves plaqués dessous ; « ×3 » = hauteur de la pile.',
-      'Rond lilas autour d’un goûter = la surveillante le garde : personne ne le ramasse. Traces de pas et silhouette pâle = le goûter qu’elle gardera après le tour. Touche-la pour le détail.',
+      'Rond lilas autour d’un goûter = la surveillante le garde : personne ne le ramasse. Elle change de goûter après chaque tour. Touche-la pour le détail.',
       'Trait épais rouge ou bleu = chemin d’une bande depuis sa cabane : elle pose autour.',
       'Friandises +1 / +2 = goûters : touche-les pour voir quels îlots occuper.',
     ],
@@ -247,5 +248,6 @@ export const TEXTES = {
       `${BANDES_TITRE[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} : +${n} !`,
     fin: (b: Bande) => `Victoire de la ${BANDES[b]} !`,
     cabane: 'la cabane adverse',
+    ilot: 'un îlot',
   },
 } as const;

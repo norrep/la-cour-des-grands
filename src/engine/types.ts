@@ -154,7 +154,8 @@ export type Option =
   | { type: 'poser'; eleveId: string; cible: string }
   | { type: 'cpe'; ilot: string }
   | { type: 'infirmerie' }
-  | { type: 'surveillante'; pas: -2 | -1 | 1 | 2 }
+  /** Mot d'excuse du Délégué : la surveillante avance de 1 ou 2 goûters, au hasard (D2.19). */
+  | { type: 'surveillante' }
   | { type: 'rappeler'; ilot: string }
   | { type: 'repecher'; eleveId: string }
   | { type: 'glisser'; depart: string; arrivee: string };
