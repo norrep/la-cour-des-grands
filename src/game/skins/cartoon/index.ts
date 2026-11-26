@@ -137,27 +137,18 @@ export const SKIN_CARTOON: Skin = {
     fond.fillStyle(clair, 1);
     dessiner(fond, 0, 0, r - 5);
     const m = new Marionnette(scene, cle(bande, role), rg, echelle);
-    // Le bas du débardeur au bas du cercle ; la tête dépasse en haut.
+    // Le bas du débardeur au bas de la pastille ; la tête dépasse en haut.
     m.racine.setY(r - 4 - basBuste(rg) * echelle);
-    // Le bas du buste est rentré dans la pastille : un liseré repasse dessus.
-    const bord = scene.add.graphics();
-    bord.lineStyle(5, couleur, 1);
-    bord.beginPath();
-    bord.arc(0, 0, r - 2.5, 0.15, Math.PI - 0.15);
-    bord.strokePath();
-    bord.lineStyle(3, COULEURS.encre, 1);
-    bord.beginPath();
-    bord.arc(0, 0, r + 1.5, 0.1, Math.PI - 0.1);
-    bord.strokePath();
     const valeur = creerBadge(scene, bande, role, diametre * 0.36);
     valeur.setPosition(r * 0.78, r * 0.72);
-    const pastille = scene.add.container(0, 0, [fond, m.racine, bord, valeur]);
-    // Dans le cercle en bas, libre au-dessus : la tête sort de la pastille.
+    const pastille = scene.add.container(0, 0, [fond, m.racine, valeur]);
+    // Le corps est coupé au bord intérieur du liseré (rond ou carré selon la bande), libre au-dessus :
+    // la tête sort de la pastille. Les bras ne sont pas coupés : ils passent par-dessus la pastille.
     const { masque, suivre } = masqueQuiSuit(scene, pastille, (g) => {
-      g.fillCircle(0, 0, r - 3);
+      dessiner(g, 0, 0, r - 5);
       g.fillRect(-r * 1.8, -r * 4, r * 3.6, r * 4);
     });
-    m.racine.setMask(masque);
+    for (const p of ['jambeG', 'jambeD', 'tronc', 'tete'] as const) m.pieces[p].setMask(masque);
     animerMarionnette(scene, m, pastille, { caractere: role, calme: true, apres: suivre });
     return pastille;
   },
