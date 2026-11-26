@@ -71,7 +71,13 @@ export class Gelee {
    * située à `d` pixels de jeu du pivot (positif vers le bas) ; `sy` étire en hauteur, `sx` en
    * largeur ; (`x`, `y`) déplace le tout.
    */
+  /** La corde a été détruite avec son conteneur : il ne faut plus la plier. */
+  get detruite(): boolean {
+    return !this.corde.points;
+  }
+
   plier(dx: (d: number) => number, sx = 1, sy = 1, x = 0, y = 0): void {
+    if (this.detruite) return;
     const e = this.o.echelle;
     const points = this.corde.points as Phaser.Types.Math.Vector2Like[];
     this.lignes.forEach((ligne, i) => {
@@ -350,7 +356,14 @@ export function rendreVivant(
       pose.saut * h,
     );
   };
-  const ecouteur = (temps: number): void => maj(temps);
+  const ecouteur = (temps: number): void => {
+    // Le porteur peut disparaître sans que la corde le sache (écran redessiné) : on s'arrête.
+    if (gelee.detruite) {
+      scene.events.off(Phaser.Scenes.Events.UPDATE, ecouteur);
+      return;
+    }
+    maj(temps);
+  };
   scene.events.on(Phaser.Scenes.Events.UPDATE, ecouteur);
   porteur.once(Phaser.GameObjects.Events.DESTROY, () =>
     scene.events.off(Phaser.Scenes.Events.UPDATE, ecouteur),

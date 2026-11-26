@@ -172,6 +172,12 @@ export const TEXTES = {
   },
   animations: {
     plaque: 'Plaqué !',
+    boum: 'BOUM !',
+    victoire: 'Victoire !',
+    sifflet: 'Tuuut !',
+    atchoum: 'Atchoum !',
+    apercuPlaque: (role: RoleId) =>
+      `${ROLES_COURTS[role]} plaqué${role === 'populaire' || role === 'rapporteuse' || role === 'fouine' ? 'e' : ''} !`,
     gouter: (n: number) => `+${n} goûter${n > 1 ? 's' : ''} !`,
   },
   sons: (actifs: boolean) => `Sons : ${actifs ? 'oui' : 'non'}`,
@@ -227,6 +233,23 @@ export const TEXTES = {
     tours: (n: number) => `Partie en ${n} tours`,
   },
   surveillante: 'Mme Josiane',
+  /** Les lieux autour de la cour : chaque bande a son portail (le couloir) et son bureau de CPE. */
+  lieux: {
+    portail: 'Portail',
+    cpe: 'CPE',
+    fichePortail: (b: Bande) => `Portail de la ${BANDES[b]}`,
+    texteCouloir: (n: number) =>
+      n === 0
+        ? 'Plus personne n’attend au portail : on ne peut plus appeler de copains.'
+        : `${n} copain${n > 1 ? 's attendent' : ' attend'} au portail. « Appeler des copains » en fait venir 2 dans le rang.`,
+    ficheCpe: (b: Bande) => `Bureau de la CPE (${BANDES[b]})`,
+    texteCpe: (n: number) =>
+      n === 0
+        ? 'Personne n’est puni pour l’instant. La Rapporteuse et les buts y envoient les adversaires.'
+        : `${n} élève${n > 1 ? 's sont punis' : ' est puni'} ici. La porte de la vie scolaire permet d’en récupérer un.`,
+    texteInfirmerie: (n: number) =>
+      `${n} élève${n > 1 ? 's sont enrhumés' : ' est enrhumé'} : ${n > 1 ? 'ils ratent' : 'il rate'} le prochain tour.`,
+  },
   journal: {
     titre: 'Journal',
     vide: 'La récré commence !',
