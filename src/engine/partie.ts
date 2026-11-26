@@ -596,6 +596,7 @@ function appliquerOption(e: EtatPartie, effet: Effet, option: Option): void {
         type: 'glissade',
         tour: e.tour,
         eleveId: eleve.id,
+        role: eleve.role,
         depart: option.depart,
         arrivee: option.arrivee,
       });

@@ -193,7 +193,14 @@ export type Evenement =
   | { type: 'surveillante'; tour: number; position: number; pas: number; parDelegue: boolean }
   | { type: 'rappel'; tour: number; bande: Bande; eleveId: string; ilot: string }
   | { type: 'repechage'; tour: number; bande: Bande; eleveId: string }
-  | { type: 'glissade'; tour: number; eleveId: string; depart: string; arrivee: string }
+  | {
+      type: 'glissade';
+      tour: number;
+      eleveId: string;
+      role: RoleId;
+      depart: string;
+      arrivee: string;
+    }
   | { type: 'passe'; tour: number; bande: Bande; effet: RoleId | EquipementId }
   | { type: 'region'; tour: number; bande: Bande; region: string; bonsPoints: number }
   | { type: 'fin'; tour: number; gagnant: Bande; raison: RaisonFin };
