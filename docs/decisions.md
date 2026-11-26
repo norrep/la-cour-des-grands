@@ -44,3 +44,10 @@ Le prompt de Clément fait foi ; le document de conception sert de complément.
 - **D2.5 — Équipements.** Ils se désactivent depuis l'écran d'accueil (« Équipements spéciaux : non »).
 - **D2.6 — Pouvoirs à cible.** Rapporteuse, banc, buts et toboggan se jouent en touchant l'îlot qui s'allume ; Populaire, Contagieux, Délégué, cabane perchée et porte de la vie scolaire par des boutons ; le 2e élève du Chouchou se glisse depuis le rang.
 - **D2.7 — Débogage.** `window.__partie` expose le contrôleur, pour vérifier l'écran avec des tests automatisés.
+
+### Lisibilité (retour de Clément sur l'étape 2)
+
+- **D2.8 — Fiches.** Toucher un élève du rang ouvre sa fiche (valeur et pouvoir) ; elle s'affiche aussi pendant qu'on le glisse. Toucher un îlot ou une cabane montre son effet, sa surveillance et sa pile complète, du dessus au dessous.
+- **D2.9 — Piles visibles.** Les élèves plaqués apparaissent en petits badges à gauche de l'îlot (jusqu'à 4), en plus du compteur « ×n ».
+- **D2.10 — Consignes.** Chaque choix dit d'où il vient (« Pouvoir du… », « Tu as posé sur le banc… ») et une bulle s'affiche au-dessus de l'îlot qui le déclenche. L'îlot spécial porte des étoiles ★.
+- **D2.11 — Aide.** Le bouton « ? » ouvre « Comment jouer » : le but, le tour, les 8 élèves, l'îlot spécial et la légende.

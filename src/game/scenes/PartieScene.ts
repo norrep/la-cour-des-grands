@@ -9,7 +9,9 @@ import {
   chargerCour,
   ciblesPossibles,
   ilotsSurveilles,
+  ROLES,
   sommet,
+  valeur,
   type Bande,
   type Cour,
   type CourData,
@@ -51,6 +53,9 @@ export class PartieScene extends Phaser.Scene {
   /** Surbrillances des cibles pendant un glisser-déposer. */
   private surbrillances: Phaser.GameObjects.GameObject[] = [];
   private departToboggan: string | null = null;
+  /** Fiche d'information affichée à la place du journal (élève ou îlot touché). */
+  private fiche: { titre: string; texte: string } | null = null;
+  private aideOuverte = false;
 
   constructor() {
     super('partie');
@@ -64,6 +69,8 @@ export class PartieScene extends Phaser.Scene {
       equipements: donnees.equipements,
     });
     this.departToboggan = null;
+    this.fiche = null;
+    this.aideOuverte = false;
     // Accès de débogage, utilisé aussi par les tests automatisés de l'écran.
     (window as unknown as { __partie?: unknown }).__partie = {
       ctrl: this.ctrl,
@@ -76,11 +83,14 @@ export class PartieScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(COULEURS.fond);
     this.dyn = this.add.container(0, 0);
+    // Un toucher bref ouvre la fiche ; il faut bouger un peu le doigt pour glisser.
+    this.input.dragDistanceThreshold = 12;
     this.rafraichir();
   }
 
-  /** Redessine tout l'écran à partir de l'état. */
-  rafraichir(): void {
+  /** Redessine tout l'écran à partir de l'état. La fiche ouverte est fermée, sauf demande. */
+  rafraichir(garderFiche = false): void {
+    if (!garderFiche) this.fiche = null;
     this.tweens.killAll();
     this.dyn.removeAll(true);
     this.badges.clear();
@@ -96,6 +106,12 @@ export class PartieScene extends Phaser.Scene {
     if (this.ctrl.phase === 'aConfirmer') this.dessinerRangCache();
     if (this.ctrl.phase === 'passe') this.dessinerPasse();
     if (this.ctrl.phase === 'fin') this.dessinerFin();
+    if (this.aideOuverte) this.dessinerAide();
+  }
+
+  private montrerFiche(titre: string, texte: string): void {
+    this.fiche = { titre, texte };
+    this.rafraichir(true);
   }
 
   // -------------------------------------------------------------------------
@@ -231,10 +247,28 @@ export class PartieScene extends Phaser.Scene {
           gi.strokePath();
         }
       }
-      this.texte(p.x, p.y + RAYON_ILOT + 4, n?.nom ?? id, 16, COULEURS.texteClair, {
-        stroke: COULEURS.texteSombre,
-        strokeThickness: 4,
-      }).setOrigin(0.5, 0);
+      this.texte(
+        p.x,
+        p.y + RAYON_ILOT + 4,
+        special ? `★ ${n?.nom ?? id} ★` : (n?.nom ?? id),
+        special ? 18 : 16,
+        special ? '#ffe066' : COULEURS.texteClair,
+        {
+          stroke: COULEURS.texteSombre,
+          strokeThickness: 4,
+          fontStyle: special ? 'bold' : 'normal',
+        },
+      ).setOrigin(0.5, 0);
+
+      // Élèves plaqués : petits badges en colonne à gauche de l'îlot (le plus haut = juste dessous).
+      const pileIlot = e.piles[id] ?? [];
+      const dessous = pileIlot.slice(0, -1).reverse();
+      dessous.slice(0, 4).forEach((el, k) => {
+        const mini = creerBadge(this, el.bande, el.role, 26);
+        mini.setPosition(p.x - RAYON_ILOT - 24, p.y - 30 + k * 22);
+        mini.setAlpha(0.95);
+        this.ajouter(mini);
+      });
 
       const dessus = sommet(e, id);
       if (dessus) {
@@ -257,7 +291,63 @@ export class PartieScene extends Phaser.Scene {
     }
 
     this.dessinerSurveillante(bloquee);
-    this.zonesTactiles();
+    if (!this.zonesTactiles()) this.zonesInformation();
+    this.bulleEffet();
+  }
+
+  /** En dehors des choix, toucher un îlot ou une cabane ouvre sa fiche. */
+  private zonesInformation(): void {
+    if (this.ctrl.phase !== 'jeu' && this.ctrl.phase !== 'aConfirmer') return;
+    for (const id of Object.keys(this.cour.noeuds)) {
+      const p = this.pos(id);
+      const cabane = this.cour.noeuds[id]?.type === 'cabane';
+      const zone = this.ajouter(
+        cabane
+          ? this.add.rectangle(p.x, p.y - 15, 150, 100, 0xffffff, 0.001)
+          : this.add.circle(p.x, p.y, RAYON_ILOT + 10, 0xffffff, 0.001),
+      );
+      zone.setInteractive();
+      zone.on('pointerup', () => this.ficheNoeud(id));
+    }
+  }
+
+  private ficheNoeud(id: string): void {
+    const n = this.cour.noeuds[id];
+    if (!n) return;
+    const F = TEXTES.fiche;
+    if (n.type === 'cabane' && n.bande) {
+      this.montrerFiche(TEXTES.bandesTitre[n.bande], F.cabane(n.bande));
+      return;
+    }
+    const morceaux: string[] = [];
+    if (this.etat.equipements && n.equipement) {
+      morceaux.push(F.special + TEXTES.effetsEquipements[n.equipement]);
+    }
+    if (ilotsSurveilles(this.etat).includes(id)) morceaux.push(F.surveille);
+    const pile = (this.etat.piles[id] ?? []).slice().reverse();
+    morceaux.push(
+      pile.length === 0
+        ? F.ilotVide
+        : F.pile(pile.map((el) => F.elevePile(el.role, el.bande, valeur(el.role)))),
+    );
+    this.montrerFiche(n.nom, morceaux.join(' '));
+  }
+
+  /** Bulle « Pouvoir ! » au-dessus de l'îlot qui déclenche le choix en cours. */
+  private bulleEffet(): void {
+    const a = this.ctrl.phase === 'jeu' ? this.etat.attente : null;
+    if (!a) return;
+    const p = this.pos(a.effet.ilot);
+    const titre =
+      a.effet.type === 'pouvoir'
+        ? `${TEXTES.rolesCourts[a.effet.role]} : ${TEXTES.choix.bulle}`
+        : `★ ${TEXTES.equipements[a.effet.equipement]}`;
+    const t = this.texte(p.x, p.y - RAYON_ILOT - 26, titre, 18, COULEURS.texteSombre, {
+      fontStyle: 'bold',
+      backgroundColor: '#ffe066',
+      padding: { x: 8, y: 4 },
+    }).setOrigin(0.5);
+    this.tweens.add({ targets: t, y: t.y - 6, duration: 400, yoyo: true, repeat: -1 });
   }
 
   private dessinerCabane(id: string, bande: Bande): void {
@@ -323,10 +413,10 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /** Îlots touchables pendant certains choix (Rapporteuse, banc, buts, toboggan). */
-  private zonesTactiles(): void {
-    if (this.ctrl.phase !== 'jeu') return;
+  private zonesTactiles(): boolean {
+    if (this.ctrl.phase !== 'jeu') return false;
     const attente = this.etat.attente;
-    if (!attente) return;
+    if (!attente) return false;
     const touchables = new Map<string, () => void>();
     for (const o of attente.options) {
       if (o.type === 'cpe' || o.type === 'rappeler') {
@@ -351,6 +441,7 @@ export class PartieScene extends Phaser.Scene {
       zone.setInteractive({ useHandCursor: true });
       zone.on('pointerup', action);
     }
+    return true;
   }
 
   private anneauCible(p: Point, rayon: number): Phaser.GameObjects.Arc {
@@ -411,6 +502,21 @@ export class PartieScene extends Phaser.Scene {
     }).setOrigin(1, 0.5);
 
     this.texte(LARGEUR / 2, 24, TEXTES.hud.seuil(this.cour.seuilBonsPoints), 20).setOrigin(0.5);
+    if (this.ctrl.phase === 'jeu' || this.ctrl.phase === 'aConfirmer') {
+      this.ajouter(
+        creerBouton(
+          this,
+          LARGEUR - 152,
+          24,
+          TEXTES.hud.aide,
+          () => {
+            this.aideOuverte = true;
+            this.rafraichir();
+          },
+          { largeur: 44, hauteur: 36, taille: 24, couleur: COULEURS.allume },
+        ),
+      );
+    }
     if (this.ctrl.phase !== 'fin') {
       const b = this.bandeActive;
       this.texte(LARGEUR / 2, 62, TEXTES.hud.tourDe(b), 28, b === 'rouge' ? '#ff8a80' : '#8ab4ff', {
@@ -422,13 +528,17 @@ export class PartieScene extends Phaser.Scene {
   private dessinerJournal(): void {
     const g = this.ajouter(this.add.graphics());
     g.fillStyle(COULEURS.fondSombre, 0.55);
-    g.fillRoundedRect(16, Y_JOURNAL - 12, LARGEUR - 32, 76, 12);
+    g.fillRoundedRect(16, Y_JOURNAL - 14, LARGEUR - 32, 80, 12);
+    if (this.fiche) {
+      this.dessinerFiche(this.fiche.titre, this.fiche.texte);
+      return;
+    }
     const attente = this.ctrl.phase === 'jeu' ? this.etat.attente : null;
     if (attente) {
-      this.texte(LARGEUR / 2, Y_JOURNAL + 26, this.consigne(), 22, '#ffe066', {
+      this.texte(LARGEUR / 2, Y_JOURNAL + 26, this.consigne(), 19, '#ffe066', {
         fontStyle: 'bold',
         align: 'center',
-        wordWrap: { width: LARGEUR - 60 },
+        wordWrap: { width: LARGEUR - 56 },
       }).setOrigin(0.5);
       return;
     }
@@ -443,6 +553,30 @@ export class PartieScene extends Phaser.Scene {
       if (t.height <= 70 || lignes.length === 1) break;
       lignes.shift();
     }
+  }
+
+  /** Fiche dans le cadre du journal : un titre jaune et une explication. */
+  private dessinerFiche(titre: string, texte: string): Phaser.GameObjects.Container {
+    const fond = this.add.graphics();
+    fond.fillStyle(0x14201a, 0.97);
+    fond.lineStyle(3, COULEURS.allume, 1);
+    fond.fillRoundedRect(16, Y_JOURNAL - 14, LARGEUR - 32, 80, 12);
+    fond.strokeRoundedRect(16, Y_JOURNAL - 14, LARGEUR - 32, 80, 12);
+    const t1 = this.add.text(30, Y_JOURNAL - 8, titre, {
+      fontFamily: POLICE,
+      fontSize: '19px',
+      color: '#ffe066',
+      fontStyle: 'bold',
+    });
+    const t2 = this.add.text(30, Y_JOURNAL + 16, texte, {
+      fontFamily: POLICE,
+      fontSize: '16px',
+      color: '#ffffff',
+      wordWrap: { width: LARGEUR - 60 },
+    });
+    const c = this.add.container(0, 0, [fond, t1, t2]);
+    this.ajouter(c);
+    return c;
   }
 
   private consigne(): string {
@@ -543,6 +677,31 @@ export class PartieScene extends Phaser.Scene {
         });
       }
       if (ctrl.peutAnnuler) boutons.push(annuler);
+      const j = this.etat.joueurs[this.etat.courant];
+      const peutPoser = j.rang.some(
+        (el) => !j.infirmerie.includes(el.id) && ciblesPossibles(this.etat, el.id).length > 0,
+      );
+      if (boutons.length === 1 && n > 0) {
+        // Consigne à gauche, bouton « Appeler » à droite.
+        this.texte(
+          30,
+          Y_ACTIONS,
+          peutPoser ? TEXTES.hud.consigneTour : TEXTES.hud.consigneSansPose,
+          18,
+          COULEURS.texteClair,
+          { wordWrap: { width: 330 }, fontStyle: 'bold' },
+        ).setOrigin(0, 0.5);
+        const b = boutons[0] as (typeof boutons)[number];
+        this.ajouter(
+          creerBouton(this, LARGEUR - 185, Y_ACTIONS, b.texte, b.action, {
+            largeur: 320,
+            hauteur: 58,
+            taille: 24,
+            couleur: COULEURS.allume,
+          }),
+        );
+        return;
+      }
       this.rangeeBoutons(Y_ACTIONS, boutons);
       return;
     }
@@ -601,6 +760,15 @@ export class PartieScene extends Phaser.Scene {
       `${TEXTES.hud.couloir(j.couloir.length)}   ·   ${TEXTES.hud.cpe(j.cpe.length)}`,
       18,
     );
+    if (j.rang.length > 0) {
+      this.texte(
+        LARGEUR - 30,
+        RANG.y - RANG.hauteurCarte / 2 - 28,
+        TEXTES.hud.toucherCarte,
+        16,
+        '#c8d6c0',
+      ).setOrigin(1, 0);
+    }
     if (j.rang.length === 0) {
       this.texte(LARGEUR / 2, RANG.y, TEXTES.hud.rangVide, 22).setOrigin(0.5);
       return;
@@ -618,6 +786,7 @@ export class PartieScene extends Phaser.Scene {
           ? []
           : ciblesPossibles(e, el.id);
       const carte = this.carte(el, xCarteRang(i, j.rang.length), RANG.y, malade, cibles.length > 0);
+      this.rendreTouchable(carte, el, malade, cibles.length > 0);
       if (cibles.length > 0) this.rendreDeplacable(carte, el, cibles, optionsChouchou !== null);
     });
   }
@@ -642,7 +811,7 @@ export class PartieScene extends Phaser.Scene {
     const nom = this.add
       .text(0, 36, TEXTES.rolesCourts[el.role], {
         fontFamily: POLICE,
-        fontSize: '15px',
+        fontSize: TEXTES.rolesCourts[el.role].length > 9 ? '13px' : '15px',
         color: COULEURS.texteSombre,
         fontStyle: 'bold',
         align: 'center',
@@ -675,16 +844,47 @@ export class PartieScene extends Phaser.Scene {
     return carte;
   }
 
+  private texteFicheEleve(el: Eleve, malade: boolean, jouable: boolean): string {
+    const F = TEXTES.fiche;
+    const suite = malade ? F.infirmerie : jouable ? F.glisser : F.nonJouable;
+    return `${TEXTES.pouvoirs[el.role]} ${suite}`;
+  }
+
+  /** Toucher une carte (sans la glisser) ouvre la fiche de l'élève. */
+  private rendreTouchable(
+    carte: Phaser.GameObjects.Container,
+    el: Eleve,
+    malade: boolean,
+    jouable: boolean,
+  ): void {
+    if (!carte.input) carte.setInteractive({ useHandCursor: true });
+    let glisse = false;
+    carte.on('pointerdown', () => (glisse = false));
+    carte.on('dragstart', () => (glisse = true));
+    carte.on('pointerup', () => {
+      if (glisse) return;
+      this.montrerFiche(
+        TEXTES.fiche.eleve(el.role, valeur(el.role)),
+        this.texteFicheEleve(el, malade, jouable),
+      );
+    });
+  }
+
   private rendreDeplacable(
     carte: Phaser.GameObjects.Container,
     el: Eleve,
     cibles: string[],
     chouchou: boolean,
   ): void {
-    carte.setInteractive({ useHandCursor: true, draggable: true });
+    this.input.setDraggable(carte, true);
     const depart = { x: carte.x, y: carte.y };
+    let ficheGlisse: Phaser.GameObjects.Container | null = null;
 
     carte.on('dragstart', () => {
+      ficheGlisse = this.dessinerFiche(
+        TEXTES.fiche.eleve(el.role, valeur(el.role)),
+        this.texteFicheEleve(el, false, true),
+      );
       this.dyn.bringToTop(carte);
       carte.setScale(1.15);
       this.montrerCibles(el, cibles);
@@ -694,6 +894,8 @@ export class PartieScene extends Phaser.Scene {
     });
     carte.on('dragend', (p: Phaser.Input.Pointer) => {
       this.cacherCibles();
+      ficheGlisse?.destroy();
+      ficheGlisse = null;
       const cible = noeudSous(this.cour, cibles, { x: p.worldX, y: p.worldY - 30 }, RAYON_DEPOT);
       let ok = false;
       if (cible) {
@@ -787,6 +989,79 @@ export class PartieScene extends Phaser.Scene {
           this.rafraichir();
         },
         { largeur: 440, hauteur: 96, taille: 32, couleur: COULEURS.allume },
+      ),
+    );
+  }
+
+  private dessinerAide(): void {
+    const A = TEXTES.aide;
+    this.voile(0.97);
+    const x0 = 34;
+    const largeur = LARGEUR - 68;
+    let y = 40;
+    this.texte(LARGEUR / 2, y, A.titre, 40, COULEURS.texteClair, {
+      fontFamily: POLICE_TITRE,
+    }).setOrigin(0.5, 0);
+    y += 62;
+    for (const para of [A.but, A.tour]) {
+      const t = this.texte(x0, y, para, 18, COULEURS.texteClair, { wordWrap: { width: largeur } });
+      y += t.height + 10;
+    }
+    this.texte(x0, y, A.eleves, 21, '#ffe066', { fontStyle: 'bold' });
+    y += 32;
+    for (const r of ROLES) {
+      const badge = creerBadge(this, 'rouge', r.id, 40);
+      badge.setPosition(x0 + 20, y + 22);
+      this.ajouter(badge);
+      const nom = this.texte(x0 + 52, y, TEXTES.roles[r.id], 17, '#ffe066', { fontStyle: 'bold' });
+      const t = this.texte(
+        x0 + 52,
+        y + nom.height,
+        TEXTES.pouvoirs[r.id],
+        15,
+        COULEURS.texteClair,
+        {
+          wordWrap: { width: largeur - 52 },
+        },
+      );
+      y += Math.max(48, nom.height + t.height + 6);
+    }
+    const speciaux = this.cour.ilots
+      .map((id) => this.cour.noeuds[id])
+      .filter((n) => n?.equipement && this.etat.equipements);
+    if (speciaux.length > 0) {
+      y += 4;
+      this.texte(x0, y, A.special, 21, '#ffe066', { fontStyle: 'bold' });
+      y += 30;
+      for (const n of speciaux) {
+        if (!n?.equipement) continue;
+        const t = this.texte(
+          x0,
+          y,
+          `★ ${n.nom} : ${TEXTES.effetsEquipements[n.equipement]}`,
+          16,
+          COULEURS.texteClair,
+          { wordWrap: { width: largeur } },
+        );
+        y += t.height + 8;
+      }
+    }
+    y += 6;
+    for (const l of A.legende) {
+      const t = this.texte(x0, y, `• ${l}`, 15, '#c8d6c0', { wordWrap: { width: largeur } });
+      y += t.height + 4;
+    }
+    this.ajouter(
+      creerBouton(
+        this,
+        LARGEUR / 2,
+        Math.min(HAUTEUR - 50, y + 46),
+        A.fermer,
+        () => {
+          this.aideOuverte = false;
+          this.rafraichir();
+        },
+        { largeur: 300, hauteur: 64, couleur: COULEURS.allume },
       ),
     );
   }
