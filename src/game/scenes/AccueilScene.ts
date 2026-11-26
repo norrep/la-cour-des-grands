@@ -7,6 +7,7 @@ import { activerSons } from '../sons';
 import { creerBouton } from '../ui/bouton';
 import { contourRect, forme } from '../ui/style';
 import { cadrer, decorPlein } from '../ui/ecran';
+import { VERSION } from '../../version';
 import { DECOR } from './ChargementScene';
 
 export interface DonneesPartie {
@@ -183,5 +184,16 @@ export class AccueilScene extends Phaser.Scene {
       contourRect(50, 1170 - regle.height / 2 - 18, LARGEUR - 100, regle.height + 36, 22, 13),
       { remplissage: COULEURS.papier, ombre: 6 },
     );
+    // Numéro de version, discret : pour savoir d'un coup d'œil si le téléphone a la dernière.
+    this.add
+      .text(cx, 1170 + regle.height / 2 + 36, `v ${VERSION}`, {
+        fontFamily: POLICE,
+        fontSize: '15px',
+        color: COULEURS.texteSombre,
+        backgroundColor: '#fff4dccc',
+        padding: { x: 6, y: 2 },
+      })
+      .setOrigin(0.5)
+      .setDepth(1);
   }
 }

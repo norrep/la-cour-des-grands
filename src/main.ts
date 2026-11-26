@@ -7,6 +7,9 @@ import { AccueilScene } from './game/scenes/AccueilScene';
 import { ChargementScene } from './game/scenes/ChargementScene';
 import { PartieScene } from './game/scenes/PartieScene';
 import { textesNets } from './game/ui/ecran';
+import { verifierMiseAJour } from './version';
+
+void verifierMiseAJour();
 
 textesNets();
 
