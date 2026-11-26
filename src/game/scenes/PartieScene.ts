@@ -30,7 +30,7 @@ import {
   xCarteRang,
   type Point,
 } from '../disposition';
-import { dernieresLignes } from '../journal';
+import { dernieresLignes, nomGouter } from '../journal';
 import { creerBadge } from '../ui/badge';
 import { creerBouton } from '../ui/bouton';
 import { ecrireConseils } from '../preferences';
@@ -221,25 +221,14 @@ export class PartieScene extends Phaser.Scene {
         g.lineStyle(5, COULEURS.craie, 0.75);
         this.pointilles(g, pa, pb);
       }
-      if (i === suivante) this.tracesDePas(pa, pb);
     });
 
-    // Régions : jeton de bons points au centre, coloré quand la région est prise.
-    for (const r of this.cour.regions) {
+    // Zones à bons points : un goûter à ramasser au centre, entouré de la couleur du gagnant.
+    this.cour.regions.forEach((r, i) => {
       const c = centreRegion(this.cour, r.ilots);
-      const prise = e.regionsPrises[r.id];
-      const jeton = this.ajouter(this.add.graphics());
-      const couleur =
-        prise === 'rouge' ? COULEURS.rouge : prise === 'bleu' ? COULEURS.bleu : COULEURS.papier;
-      jeton.fillStyle(couleur, prise ? 1 : 0.9);
-      jeton.lineStyle(3, COULEURS.fondSombre, 0.8);
-      const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? 18 : 0;
-      jeton.fillCircle(c.x, c.y + decalage, 20);
-      jeton.strokeCircle(c.x, c.y + decalage, 20);
-      this.texte(c.x, c.y + decalage, `+${r.bonsPoints}`, 18, prise ? '#ffffff' : '#1d2b22', {
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
-    }
+      const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? -22 : 0;
+      this.dessinerGouter(i, c.x, c.y + decalage, r.bonsPoints, e.regionsPrises[r.id]);
+    });
 
     // Cabanes.
     for (const b of ['rouge', 'bleu'] as const) {
@@ -313,6 +302,7 @@ export class PartieScene extends Phaser.Scene {
       }
     }
 
+    this.marcheSurveillante(bloquee, suivante);
     this.dessinerSurveillante(bloquee);
     if (!this.zonesTactiles()) this.zonesInformation();
     this.bulleEffet();
@@ -332,17 +322,31 @@ export class PartieScene extends Phaser.Scene {
       zone.setInteractive();
       zone.on('pointerup', () => this.ficheNoeud(id));
     }
-    // Jetons de bons points : toucher montre les îlots de la zone.
+    // La surveillante : où elle bloque, où elle ira.
+    const ronde = this.etat;
+    const m = this.milieuAllee(alleeSurveillante(ronde));
+    const zs = this.ajouter(this.add.circle(m.x, m.y, 34, 0xffffff, 0.001));
+    zs.setInteractive();
+    zs.on('pointerup', () =>
+      this.montrerFiche(
+        TEXTES.surveillante,
+        TEXTES.fiche.surveillante(
+          this.nomAllee(alleeSurveillante(ronde)),
+          this.nomAllee(alleeSuivante(ronde)),
+        ),
+      ),
+    );
+    // Goûters : toucher montre les îlots de la zone.
     for (const r of this.cour.regions) {
       const c = centreRegion(this.cour, r.ilots);
-      const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? 18 : 0;
-      const zone = this.ajouter(this.add.circle(c.x, c.y + decalage, 30, 0xffffff, 0.001));
+      const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? -22 : 0;
+      const zone = this.ajouter(this.add.circle(c.x, c.y + decalage, 34, 0xffffff, 0.001));
       zone.setInteractive();
       zone.on('pointerup', () => {
         const prise = this.etat.regionsPrises[r.id];
         const noms = r.ilots.map((id) => this.cour.noeuds[id]?.nom ?? id);
         this.montrerFiche(
-          TEXTES.regionTitre(r.bonsPoints),
+          TEXTES.regionTitre(nomGouter(this.cour, r.id), r.bonsPoints),
           prise ? TEXTES.regionPrise(prise, r.bonsPoints) : TEXTES.region(r.bonsPoints, noms),
         );
       });
@@ -408,31 +412,90 @@ export class PartieScene extends Phaser.Scene {
     else g.fillRect(p.x - 45, p.y - 1, 18, 18);
   }
 
-  private tracesDePas(a: Point, b: Point): void {
-    const g = this.ajouter(this.add.graphics());
-    g.fillStyle(COULEURS.surveillante, 0.85);
-    const angle = Math.atan2(b.y - a.y, b.x - a.x);
-    const nx = -Math.sin(angle);
-    const ny = Math.cos(angle);
-    for (let k = 0; k < 4; k++) {
-      const t = 0.28 + k * 0.15;
-      const cote = k % 2 === 0 ? 7 : -7;
-      const x = a.x + (b.x - a.x) * t + nx * cote;
-      const y = a.y + (b.y - a.y) * t + ny * cote;
-      const pas = this.add.ellipse(x, y, 14, 8, COULEURS.surveillante, 0.85);
-      pas.setRotation(angle);
-      this.ajouter(pas);
-    }
-    g.destroy();
-  }
-
-  private dessinerSurveillante(allee: number): void {
+  private milieuAllee(allee: number): Point {
     const [a, b] = this.cour.allees[allee] as [string, string];
     const pa = this.pos(a);
     const pb = this.pos(b);
-    const x = (pa.x + pb.x) / 2;
-    const y = (pa.y + pb.y) / 2;
+    return { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 };
+  }
+
+  private nomAllee(allee: number): string {
+    const [a, b] = this.cour.allees[allee] as [string, string];
+    const nom = (id: string) => this.cour.noeuds[id]?.nom ?? id;
+    return `${nom(a)} – ${nom(b)}`;
+  }
+
+  /**
+   * Prochaine étape de la ronde : traces de pas qui partent de la surveillante, passent par
+   * le coin commun aux deux allées et mènent à sa silhouette pâle, là où elle sera ensuite.
+   */
+  private marcheSurveillante(actuelle: number, suivante: number): void {
+    const depart = this.milieuAllee(actuelle);
+    const arrivee = this.milieuAllee(suivante);
+    const [a, b] = this.cour.allees[actuelle] as [string, string];
+    const autre = this.cour.allees[suivante] as [string, string];
+    const commun = autre.includes(a) ? a : autre.includes(b) ? b : null;
+    const points = commun ? [depart, this.pos(commun), arrivee] : [depart, arrivee];
+
+    // Longueur du trajet, puis un pas tous les ~34 px, sans marcher sur les deux silhouettes.
+    const segments = points.slice(1).map((p, i) => {
+      const q = points[i] as Point;
+      return { de: q, a: p, long: Math.hypot(p.x - q.x, p.y - q.y) };
+    });
+    const total = segments.reduce((t, sg) => t + sg.long, 0);
+    const surChemin = (d: number): { x: number; y: number; angle: number } | null => {
+      let reste = d;
+      for (const sg of segments) {
+        if (reste <= sg.long) {
+          const t = reste / sg.long;
+          return {
+            x: sg.de.x + (sg.a.x - sg.de.x) * t,
+            y: sg.de.y + (sg.a.y - sg.de.y) * t,
+            angle: Math.atan2(sg.a.y - sg.de.y, sg.a.x - sg.de.x),
+          };
+        }
+        reste -= sg.long;
+      }
+      return null;
+    };
+    const cache = (x: number, y: number): boolean => {
+      if (!commun) return false;
+      const c = this.pos(commun);
+      return Math.hypot(x - c.x, y - c.y) < RAYON_ILOT + 4;
+    };
+    let k = 0;
+    for (let d = 40; d < total - 56; d += 30, k++) {
+      const p = surChemin(d);
+      if (!p) break;
+      const cote = k % 2 === 0 ? 6 : -6;
+      const x = p.x - Math.sin(p.angle) * cote;
+      const y = p.y + Math.cos(p.angle) * cote;
+      if (cache(x, y)) continue; // Pas cachés sous l'îlot du coin.
+      const pas = this.ajouter(this.add.ellipse(x, y, 18, 10, COULEURS.surveillante, 1));
+      pas.setRotation(p.angle);
+      pas.setStrokeStyle(2, COULEURS.craie, 1);
+    }
+    // Flèche juste avant la silhouette pâle, dans le sens de la marche.
+    const bout = surChemin(Math.max(0, total - 38));
+    if (bout && !cache(bout.x, bout.y)) {
+      const { x, y, angle } = bout;
+      const f = this.ajouter(this.add.graphics());
+      f.fillStyle(COULEURS.surveillante, 1);
+      f.lineStyle(2, COULEURS.craie, 1);
+      const pt = (d: number, o: number) => ({
+        x: x + Math.cos(angle) * d - Math.sin(angle) * o,
+        y: y + Math.sin(angle) * d + Math.cos(angle) * o,
+      });
+      const [p1, p2, p3] = [pt(11, 0), pt(-7, 10), pt(-7, -10)];
+      f.fillTriangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+      f.strokeTriangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+    }
+    this.silhouette(arrivee.x, arrivee.y, 0.5);
+  }
+
+  private silhouette(x: number, y: number, alpha: number): void {
     const g = this.ajouter(this.add.graphics());
+    g.setAlpha(alpha);
     g.fillStyle(0x000000, 0.25);
     g.fillEllipse(x + 2, y + 26, 40, 12);
     g.fillStyle(COULEURS.surveillante, 1);
@@ -444,6 +507,88 @@ export class PartieScene extends Phaser.Scene {
     g.strokeCircle(x, y - 14, 12);
     g.fillStyle(0x5a3a22, 1);
     g.fillCircle(x, y - 24, 7);
+  }
+
+  /** Une friandise par zone (chocolat, biscuits, bonbon, sucette) avec sa valeur. */
+  private dessinerGouter(
+    index: number,
+    x: number,
+    y: number,
+    points: number,
+    prise: Bande | undefined,
+  ): void {
+    const g = this.ajouter(this.add.graphics());
+    if (prise) {
+      g.fillStyle(prise === 'rouge' ? COULEURS.rouge : COULEURS.bleu, 1);
+      g.lineStyle(3, COULEURS.craie, 1);
+      g.fillCircle(x, y, 30);
+      g.strokeCircle(x, y, 30);
+    }
+    g.setAlpha(prise ? 0.75 : 1);
+    const contour = (): void => {
+      g.lineStyle(3, COULEURS.fondSombre, 1);
+    };
+    switch (index % 4) {
+      case 0: // Tablette de chocolat
+        g.fillStyle(0x6b3e1f, 1);
+        contour();
+        g.fillRoundedRect(x - 26, y - 17, 52, 34, 5);
+        g.strokeRoundedRect(x - 26, y - 17, 52, 34, 5);
+        g.lineStyle(2, 0x4a2a14, 1);
+        for (const dx of [-9, 9]) g.lineBetween(x + dx, y - 15, x + dx, y + 15);
+        g.lineBetween(x - 24, y, x + 24, y);
+        g.fillStyle(0xd9d9d9, 1);
+        g.fillTriangle(x + 10, y + 17, x + 26, y + 17, x + 26, y + 3);
+        break;
+      case 1: // Paquet de biscuits : deux biscuits ronds
+        g.fillStyle(0xd9a25a, 1);
+        contour();
+        for (const dx of [-12, 12]) {
+          g.fillCircle(x + dx, y, 17);
+          g.strokeCircle(x + dx, y, 17);
+        }
+        g.fillStyle(0x7a4a22, 1);
+        for (const [dx, dy] of [
+          [-17, -5],
+          [-8, 6],
+          [9, -6],
+          [17, 5],
+        ] as const)
+          g.fillCircle(x + dx, y + dy, 3);
+        break;
+      case 2: // Bonbon emballé
+        g.fillStyle(0xe86aa6, 1);
+        contour();
+        g.fillTriangle(x - 30, y - 12, x - 30, y + 12, x - 12, y);
+        g.strokeTriangle(x - 30, y - 12, x - 30, y + 12, x - 12, y);
+        g.fillTriangle(x + 30, y - 12, x + 30, y + 12, x + 12, y);
+        g.strokeTriangle(x + 30, y - 12, x + 30, y + 12, x + 12, y);
+        g.fillCircle(x, y, 16);
+        g.strokeCircle(x, y, 16);
+        break;
+      default: // Sucette
+        g.lineStyle(5, COULEURS.craie, 1);
+        g.lineBetween(x, y + 6, x, y + 30);
+        g.fillStyle(0xf2994a, 1);
+        contour();
+        g.fillCircle(x, y - 4, 18);
+        g.strokeCircle(x, y - 4, 18);
+        g.lineStyle(3, 0xffe066, 1);
+        g.beginPath();
+        g.arc(x, y - 4, 9, 0, Math.PI * 1.5);
+        g.strokePath();
+        break;
+    }
+    this.texte(x + 22, y - 22, `+${points}`, 18, '#ffe066', {
+      fontStyle: 'bold',
+      stroke: COULEURS.texteSombre,
+      strokeThickness: 5,
+    }).setOrigin(0.5);
+  }
+
+  private dessinerSurveillante(allee: number): void {
+    const { x, y } = this.milieuAllee(allee);
+    this.silhouette(x, y, 1);
     this.texte(x, y + 30, TEXTES.surveillante, 14, COULEURS.texteClair, {
       stroke: COULEURS.texteSombre,
       strokeThickness: 4,

@@ -38,12 +38,12 @@ describe('Journal des actions', () => {
     );
   });
 
-  it('nomme les régions par leur nom', () => {
+  it('nomme le goûter ramassé sur la zone', () => {
     const p = phraseEvenement(
       { type: 'region', tour: 1, bande: 'rouge', region: 'haut', bonsPoints: 2 },
       cour,
     );
-    expect(p).toContain('Le haut de la cour');
+    expect(p).toBe('Bande rouge ramasse la tablette de chocolat : +2 !');
   });
 
   it('ignore l’avance normale de la surveillante, mais pas le Délégué', () => {

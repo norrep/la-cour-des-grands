@@ -31,8 +31,7 @@ export function phraseEvenement(ev: Evenement, cour: Cour): string | null {
     case 'passe':
       return J.passe(ev.bande);
     case 'region': {
-      const nom = cour.regions.find((r) => r.id === ev.region)?.nom ?? ev.region;
-      return J.region(ev.bande, nom, ev.bonsPoints);
+      return J.region(ev.bande, nomGouter(cour, ev.region), ev.bonsPoints);
     }
     case 'fin':
       return J.fin(ev.gagnant);
@@ -47,4 +46,13 @@ export function dernieresLignes(journal: readonly Evenement[], cour: Cour, n: nu
     if (p) lignes.unshift(p);
   }
   return lignes.length > 0 ? lignes : [J.vide];
+}
+
+/** Le goûter posé sur une zone à bons points (un par zone, dans l'ordre de la cour). */
+export function nomGouter(cour: Cour, regionId: string): string {
+  const i = Math.max(
+    0,
+    cour.regions.findIndex((r) => r.id === regionId),
+  );
+  return TEXTES.gouters[i % TEXTES.gouters.length] as string;
 }

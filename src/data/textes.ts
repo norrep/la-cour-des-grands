@@ -67,7 +67,7 @@ const BANDES_TITRE: Record<Bande, string> = { rouge: 'Bande rouge', bleu: 'Bande
 
 const RAISONS: Record<RaisonFin, string> = {
   cabane: 'a pris la cabane adverse !',
-  bonsPoints: 'a récolté assez de bons points !',
+  bonsPoints: 'a ramassé assez de goûters !',
   sonnerie: 'gagne à la sonnerie !',
 };
 
@@ -89,11 +89,11 @@ export const TEXTES = {
     sousJouerADeux: 'sur ce téléphone',
     equipements: (actifs: boolean) => `Équipements spéciaux : ${actifs ? 'oui' : 'non'}`,
     regle:
-      'À ton tour : appelle des copains ou envoie un élève dans la cour. Atteins la cabane adverse ou récolte les bons points.',
+      'À ton tour : appelle des copains ou envoie un élève dans la cour. Atteins la cabane adverse ou ramasse les goûters.',
   },
   hud: {
     tourDe: (b: Bande) => `Au tour de la ${BANDES[b]}`,
-    seuil: (n: number) => `Objectif : ${n} bons points`,
+    seuil: (n: number) => `Objectif : ${n} goûters`,
     points: (n: number) => `${n}`,
     couloir: (n: number) => `Couloir : ${n}`,
     cpe: (n: number) => `CPE : ${n}`,
@@ -144,18 +144,22 @@ export const TEXTES = {
     cabane: (b: Bande) =>
       `Cabane de la ${BANDES[b]}. L’adversaire qui y pose un élève relié à sa cabane gagne aussitôt.`,
     special: '★ Îlot spécial : ',
+    surveillante: (actuelle: string, prochaine: string) =>
+      `Elle bloque l’allée ${actuelle} et protège ses 2 îlots. Quand les deux bandes auront joué, elle avancera sur l’allée ${prochaine} (traces de pas → silhouette pâle).`,
   },
+  /** Les zones à bons points sont des goûters à ramasser, un par zone, dans l'ordre de la cour. */
+  gouters: ['La tablette de chocolat', 'Le paquet de biscuits', 'Le bonbon', 'La sucette'],
   region: (points: number, noms: string[]) =>
-    `Occupe ${noms.join(', ')} (tous à la fois) pour gagner ${points} bon${points > 1 ? 's' : ''} point${points > 1 ? 's' : ''}.`,
-  regionTitre: (points: number) => `Zone à +${points}`,
+    `Occupe ${noms.join(', ')} (tous à la fois) pour le ramasser : +${points} goûter${points > 1 ? 's' : ''}.`,
+  regionTitre: (nom: string, points: number) => `${nom} (+${points})`,
   regionPrise: (b: Bande, points: number) =>
-    `Zone déjà gagnée par la ${BANDES[b]} (+${points}). Elle ne rapporte plus rien.`,
+    `Déjà ramassé par la ${BANDES[b]} (+${points}). Il n’y a plus rien à prendre ici.`,
   conseils: {
     accueil: (actifs: boolean) => `Conseils pour débuter : ${actifs ? 'oui' : 'non'}`,
     titre: 'Conseil',
     compris: 'Compris !',
     couper: 'Plus de conseils',
-    but: 'Deux façons de gagner : entrer dans la cabane adverse, ou gagner 3 bons points en occupant des zones.',
+    but: 'Deux façons de gagner : entrer dans la cabane adverse, ou ramasser 3 goûters en entourant les friandises de la cour.',
     glisser:
       'Glisse un élève de ton rang vers la cour. Il ne peut aller que sur un îlot touchant ta cabane ou ton chemin.',
     appeler: '« Appeler des copains » pioche 2 élèves. Ton tour s’arrête là.',
@@ -165,24 +169,24 @@ export const TEXTES = {
       'Un adversaire plus faible peut être plaqué : ton élève se pose dessus, l’autre reste coincé dessous.',
     pouvoir: 'Cet élève a un pouvoir en arrivant. Tu peux l’utiliser ou passer.',
     surveillante:
-      'La surveillante bloque son allée (violette, en trait plein) et protège les 2 îlots voisins. Ses traces de pas montrent où elle va.',
+      'La surveillante bloque son allée (violet plein) et protège les 2 îlots au bout. Après chaque tour complet, elle suit ses traces de pas jusqu’à sa silhouette pâle.',
     zones:
-      'Les jetons +1 / +2 sont des zones : occupe tous les îlots autour pour gagner leurs bons points. Touche un jeton pour voir lesquels.',
+      'Les friandises +1 / +2 sont des goûters : occupe tous les îlots autour pour les ramasser. Touche une friandise pour voir lesquels.',
     valider: 'Pas content ? « Annuler » reprend ton tour. Sinon, valide et passe le téléphone.',
   },
   aide: {
     titre: 'Comment jouer',
-    but: 'But : poser un élève dans la cabane adverse, ou gagner les bons points (+1, +2) en occupant tous les îlots autour d’une zone.',
+    but: 'But : poser un élève dans la cabane adverse, ou ramasser les goûters (+1, +2) en occupant tous les îlots autour d’une friandise.',
     tour: 'À ton tour, une seule action : appeler des copains (piocher 2) ou envoyer un élève sur un îlot relié à ta cabane par tes élèves. Tu peux plaquer un adversaire plus faible : il reste dessous.',
     eleves: 'Les 8 élèves (3 de chaque par bande)',
     special: 'L’îlot spécial de cette cour',
     legende: [
       'Rond = bande rouge, carré = bande bleue.',
       'Petits badges à gauche d’un îlot = élèves plaqués dessous ; « ×3 » = hauteur de la pile.',
-      'Allée violette pleine = la surveillante bloque le chemin ; traces de pas = sa prochaine allée.',
+      'Allée violette pleine = la surveillante bloque le chemin ; traces de pas et silhouette pâle = où elle ira après le tour. Touche-la pour le détail.',
       'Cercle violet = îlot surveillé : on ne peut pas y plaquer un adversaire.',
       'Trait épais rouge ou bleu = chemin d’une bande depuis sa cabane : elle pose autour.',
-      'Jetons +1 / +2 = zones : touche-les pour voir quels îlots occuper.',
+      'Friandises +1 / +2 = goûters : touche-les pour voir quels îlots occuper.',
     ],
     fermer: 'Fermer',
   },
@@ -196,7 +200,7 @@ export const TEXTES = {
     titre: 'DRIIIIING !',
     gagnant: (b: Bande) => `La ${BANDES[b]}`,
     raison: (r: RaisonFin) => RAISONS[r],
-    score: (rouge: number, bleu: number) => `Bons points : rouge ${rouge}, bleu ${bleu}`,
+    score: (rouge: number, bleu: number) => `Goûters : rouge ${rouge}, bleu ${bleu}`,
     tours: (n: number) => `Partie en ${n} tours`,
   },
   surveillante: 'Mme Josiane',
@@ -217,7 +221,7 @@ export const TEXTES = {
     glissade: (role: RoleId) => `${ROLES[role]} glisse sur le toboggan !`,
     passe: (b: Bande) => `${BANDES_TITRE[b]} renonce à son pouvoir.`,
     region: (b: Bande, nom: string, n: number) =>
-      `${BANDES_TITRE[b]} prend « ${nom} » : +${n} bon${n > 1 ? 's' : ''} point${n > 1 ? 's' : ''} !`,
+      `${BANDES_TITRE[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} : +${n} !`,
     fin: (b: Bande) => `Victoire de la ${BANDES[b]} !`,
     cabane: 'la cabane adverse',
   },
