@@ -154,6 +154,21 @@ export const TEXTES = {
   regionTitre: (nom: string, points: number) => `${nom} (+${points})`,
   regionPrise: (b: Bande, points: number) =>
     `Déjà ramassé par la ${BANDES[b]} (+${points}). Il n’y a plus rien à prendre ici.`,
+  cinematiques: {
+    cpe: { titre: 'Direction la CPE !', sous: 'Dénoncé par la Rapporteuse…' },
+    infirmerie: { titre: 'Atchoum !', sous: 'Un élève file à l’infirmerie.' },
+    grandsFreres: {
+      titre: 'Les grands frères arrivent !',
+      sous: 'Le Chouchou appelle du renfort.',
+    },
+    sonnerie: { titre: 'DRIIIIING !', sous: 'La récré est finie.' },
+    passer: 'Touche pour passer',
+  },
+  animations: {
+    plaque: 'Plaqué !',
+    gouter: (n: number) => `+${n} goûter${n > 1 ? 's' : ''} !`,
+  },
+  sons: (actifs: boolean) => `Sons : ${actifs ? 'oui' : 'non'}`,
   conseils: {
     accueil: (actifs: boolean) => `Conseils pour débuter : ${actifs ? 'oui' : 'non'}`,
     titre: 'Conseil',

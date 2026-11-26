@@ -16,10 +16,12 @@ import {
   type Cour,
   type CourData,
   type Eleve,
+  type Evenement,
   type Option,
 } from '../../engine/index';
 import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
 import { alleesDuChemin } from '../chemins';
+import { cinematiquesPour, type CinematiqueId } from '../cinematiques';
 import { prochainConseil, type ConseilId } from '../conseils';
 import { Controleur } from '../controleur';
 import {
@@ -33,7 +35,9 @@ import {
 import { dernieresLignes, nomGouter } from '../journal';
 import { creerBadge } from '../ui/badge';
 import { creerBouton } from '../ui/bouton';
-import { ecrireConseils } from '../preferences';
+import { ecrireConseils, lireSons } from '../preferences';
+import { activerSons, jouerSon } from '../sons';
+import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
 
 const RAYON_ILOT = 48;
@@ -64,6 +68,12 @@ export class PartieScene extends Phaser.Scene {
   private conseilsVus: Record<Bande, Set<ConseilId>> = { rouge: new Set(), bleu: new Set() };
   /** Dernier tour où chaque joueur a lu un conseil de préparation. */
   private tourDernierConseil: Record<Bande, number> = { rouge: 0, bleu: 0 };
+  /** Animations et cinématiques (coupées par les tests automatisés de l'écran). */
+  private animations = true;
+  /** Cinématiques en attente, jouées l'une après l'autre. */
+  private cinematiques: CinematiqueId[] = [];
+  private cinematiqueEnCours: Phaser.GameObjects.Container | null = null;
+  private tweensCinematique = new Set<Phaser.Tweens.Tween>();
 
   constructor() {
     super('partie');
@@ -82,6 +92,10 @@ export class PartieScene extends Phaser.Scene {
     this.conseilsActifs = donnees.conseils;
     this.conseilsVus = { rouge: new Set(), bleu: new Set() };
     this.tourDernierConseil = { rouge: 0, bleu: 0 };
+    this.cinematiques = [];
+    this.cinematiqueEnCours = null;
+    this.animations = !(window as unknown as { __sansAnimations?: boolean }).__sansAnimations;
+    activerSons(lireSons());
     // Accès de débogage, utilisé aussi par les tests automatisés de l'écran.
     (window as unknown as { __partie?: unknown }).__partie = {
       ctrl: this.ctrl,
@@ -102,7 +116,8 @@ export class PartieScene extends Phaser.Scene {
   /** Redessine tout l'écran à partir de l'état. La fiche ouverte est fermée, sauf demande. */
   rafraichir(garderFiche = false): void {
     if (!garderFiche) this.fiche = null;
-    this.tweens.killAll();
+    // Les animations du plateau s'arrêtent ; celles d'une cinématique continuent.
+    for (const t of this.tweens.getTweens()) if (!this.tweensCinematique.has(t)) t.stop();
     this.dyn.removeAll(true);
     this.badges.clear();
     this.surbrillances = [];
@@ -225,9 +240,8 @@ export class PartieScene extends Phaser.Scene {
 
     // Zones à bons points : un goûter à ramasser au centre, entouré de la couleur du gagnant.
     this.cour.regions.forEach((r, i) => {
-      const c = centreRegion(this.cour, r.ilots);
-      const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? -22 : 0;
-      this.dessinerGouter(i, c.x, c.y + decalage, r.bonsPoints, e.regionsPrises[r.id]);
+      const c = this.positionGouter(r.id);
+      this.dessinerGouter(i, c.x, c.y, r.bonsPoints, e.regionsPrises[r.id]);
     });
 
     // Cabanes.
@@ -338,9 +352,8 @@ export class PartieScene extends Phaser.Scene {
     );
     // Goûters : toucher montre les îlots de la zone.
     for (const r of this.cour.regions) {
-      const c = centreRegion(this.cour, r.ilots);
-      const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? -22 : 0;
-      const zone = this.ajouter(this.add.circle(c.x, c.y + decalage, 34, 0xffffff, 0.001));
+      const c = this.positionGouter(r.id);
+      const zone = this.ajouter(this.add.circle(c.x, c.y, 34, 0xffffff, 0.001));
       zone.setInteractive();
       zone.on('pointerup', () => {
         const prise = this.etat.regionsPrises[r.id];
@@ -410,6 +423,15 @@ export class PartieScene extends Phaser.Scene {
     g.fillStyle(COULEURS.craie, 1);
     if (bande === 'rouge') g.fillCircle(p.x - 36, p.y + 8, 9);
     else g.fillRect(p.x - 45, p.y - 1, 18, 18);
+  }
+
+  /** Centre d'une zone, légèrement décalé pour ne pas gêner les allées. */
+  private positionGouter(regionId: string): Point {
+    const r = this.cour.regions.find((x) => x.id === regionId);
+    if (!r) return { x: 0, y: 0 };
+    const c = centreRegion(this.cour, r.ilots);
+    const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? -22 : 0;
+    return { x: c.x, y: c.y + decalage };
   }
 
   private milieuAllee(allee: number): Point {
@@ -655,8 +677,20 @@ export class PartieScene extends Phaser.Scene {
 
   private choisir(option: Option): void {
     this.departToboggan = null;
-    this.ctrl.choisir(option);
+    this.agir(() => this.ctrl.choisir(option));
+  }
+
+  /**
+   * Joue une action du contrôleur, redessine, puis anime ce qui vient d'arriver
+   * (d'après les nouvelles lignes du journal).
+   */
+  private agir(action: () => boolean, grandsFreres = false): boolean {
+    const avant = this.etat.journal.length;
+    if (!action()) return false;
+    const nouveaux = this.etat.journal.slice(avant);
     this.rafraichir();
+    this.animer(nouveaux, grandsFreres);
+    return true;
   }
 
   // -------------------------------------------------------------------------
@@ -854,8 +888,7 @@ export class PartieScene extends Phaser.Scene {
           texte: TEXTES.boutons.appeler(n),
           couleur: COULEURS.allume,
           action: () => {
-            ctrl.appeler();
-            this.rafraichir();
+            this.agir(() => ctrl.appeler());
           },
         });
       }
@@ -914,8 +947,7 @@ export class PartieScene extends Phaser.Scene {
         texte: TEXTES.boutons.passer,
         action: () => {
           this.departToboggan = null;
-          ctrl.passer();
-          this.rafraichir();
+          this.agir(() => ctrl.passer());
         },
       },
       annuler,
@@ -1062,39 +1094,81 @@ export class PartieScene extends Phaser.Scene {
     this.input.setDraggable(carte, true);
     const depart = { x: carte.x, y: carte.y };
     let ficheGlisse: Phaser.GameObjects.Container | null = null;
+    let pantin: PantinVisuel | null = null;
+    let doigt = { x: carte.x, y: carte.y };
+    // Pastille sous l'élève tenu : l'îlot où il tombera si on le lâche maintenant.
+    let survol: Phaser.GameObjects.Arc | null = null;
+    const animer = (_t: number, delta: number): void => {
+      pantin?.suivre(doigt.x, doigt.y, Math.min(delta, 50) / 1000);
+      const vise = noeudSous(this.cour, cibles, { x: doigt.x, y: doigt.y - VISEE }, RAYON_DEPOT);
+      if (survol) {
+        survol.setVisible(vise !== null);
+        if (vise) survol.setPosition(this.pos(vise).x, this.pos(vise).y);
+      }
+    };
+    const lacher = (): void => {
+      this.events.off('update', animer);
+      pantin?.destroy();
+      pantin = null;
+      survol?.destroy();
+      survol = null;
+    };
 
-    carte.on('dragstart', () => {
+    carte.on('dragstart', (p: Phaser.Input.Pointer) => {
       ficheGlisse = this.dessinerFiche(
         TEXTES.fiche.eleve(el.role, valeur(el.role)),
         this.texteFicheEleve(el, false, true),
       );
-      this.dyn.bringToTop(carte);
-      carte.setScale(1.15);
       this.montrerCibles(el, cibles);
+      jouerSon('prise');
+      doigt = { x: p.worldX, y: p.worldY };
+      if (this.animations) {
+        // La carte s'efface : c'est l'élève lui-même qu'on tient par le col.
+        carte.setAlpha(0.01);
+        survol = this.ajouter(this.add.circle(0, 0, RAYON_ILOT + 4, COULEURS.allume, 0.45));
+        survol.setVisible(false);
+        pantin = new PantinVisuel(this, el, doigt.x, doigt.y);
+        this.ajouter(pantin.conteneur);
+        this.events.on('update', animer);
+      } else {
+        this.dyn.bringToTop(carte);
+        carte.setScale(1.15);
+      }
     });
-    carte.on('drag', (_p: Phaser.Input.Pointer, x: number, y: number) => {
-      carte.setPosition(x, y - 30);
+    carte.on('drag', (p: Phaser.Input.Pointer, x: number, y: number) => {
+      doigt = { x: p.worldX, y: p.worldY };
+      if (!pantin) carte.setPosition(x, y - 30);
     });
     carte.on('dragend', (p: Phaser.Input.Pointer) => {
       this.cacherCibles();
       ficheGlisse?.destroy();
       ficheGlisse = null;
-      const cible = noeudSous(this.cour, cibles, { x: p.worldX, y: p.worldY - 30 }, RAYON_DEPOT);
-      let ok = false;
-      if (cible) {
-        ok = chouchou
-          ? this.ctrl.choisir({ type: 'poser', eleveId: el.id, cible })
-          : this.ctrl.envoyer(el.id, cible);
-      }
-      if (ok) {
-        this.rafraichir();
-      } else {
+      const avecPantin = pantin !== null;
+      lacher();
+      const visee = { x: p.worldX, y: p.worldY - (avecPantin ? VISEE : 30) };
+      const cible = noeudSous(this.cour, cibles, visee, RAYON_DEPOT);
+      const ok =
+        cible !== null &&
+        this.agir(
+          () =>
+            chouchou
+              ? this.ctrl.choisir({ type: 'poser', eleveId: el.id, cible })
+              : this.ctrl.envoyer(el.id, cible),
+          chouchou,
+        );
+      if (!ok) {
+        // Retour au rang : la carte revient en rebondissant.
+        if (avecPantin) {
+          carte.setPosition(p.worldX, p.worldY - HAUTEUR_PRISE / 2);
+          carte.setAlpha(1);
+          carte.setScale(0.8);
+        }
         this.tweens.add({
           targets: carte,
           x: depart.x,
           y: depart.y,
           scale: 1,
-          duration: 220,
+          duration: 260,
           ease: 'Back.easeOut',
         });
       }
@@ -1330,6 +1404,287 @@ export class PartieScene extends Phaser.Scene {
         { largeur: largeur * 0.4, hauteur: 70, taille: 28, couleur: COULEURS.allume },
       ),
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // Sensations : atterrissage, plaquage, secousses, goûters, cinématiques, sons
+  // -------------------------------------------------------------------------
+
+  private animer(nouveaux: Evenement[], grandsFreres: boolean): void {
+    for (const ev of nouveaux) {
+      switch (ev.type) {
+        case 'pose':
+          if (this.cour.noeuds[ev.cible]?.type === 'ilot') {
+            this.atterrissage(ev.cible, ev.plaque !== undefined);
+          }
+          break;
+        case 'glissade':
+          jouerSon('glissade');
+          this.atterrissage(ev.arrivee, false);
+          break;
+        case 'region':
+          this.ramasserGouter(ev.region, ev.bonsPoints);
+          break;
+        case 'appel':
+        case 'pioche':
+          jouerSon('pioche');
+          break;
+        case 'fin':
+          this.victoire(ev.raison === 'cabane');
+          break;
+        default:
+          break;
+      }
+    }
+    if (!this.animations) return;
+    const suite = cinematiquesPour(nouveaux, grandsFreres);
+    if (suite.length === 0) return;
+    this.cinematiques.push(...suite);
+    if (!this.cinematiqueEnCours) this.cinematiqueSuivante();
+  }
+
+  private secousse(force: number, duree = 180): void {
+    if (this.animations) this.cameras.main.shake(duree, force);
+  }
+
+  /** L'élève tombe sur l'îlot, rebondit, et s'écrase un peu ; s'il plaque, tout tremble. */
+  private atterrissage(id: string, plaque: boolean): void {
+    const badge = this.badges.get(id);
+    if (!badge || !this.animations) {
+      jouerSon(plaque ? 'plaque' : 'pose');
+      return;
+    }
+    const y0 = badge.y;
+    badge.setY(y0 - 70).setScale(1.2);
+    this.tweens.add({
+      targets: badge,
+      y: y0,
+      scale: 1,
+      duration: plaque ? 260 : 480,
+      ease: plaque ? 'Quad.easeIn' : 'Bounce.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: badge,
+          scaleX: 1.22,
+          scaleY: 0.8,
+          duration: 80,
+          yoyo: true,
+        });
+        if (plaque) this.plaquage(id);
+      },
+    });
+    if (!plaque) this.time.delayedCall(120, () => jouerSon('pose'));
+  }
+
+  private plaquage(id: string): void {
+    const p = this.pos(id);
+    jouerSon('plaque');
+    this.secousse(0.012, 220);
+    // Nuage de poussière.
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      const nuage = this.ajouter(this.add.circle(p.x, p.y + 20, 9, 0xd8c9a3, 0.9));
+      this.tweens.add({
+        targets: nuage,
+        x: p.x + Math.cos(a) * 62,
+        y: p.y + 20 + Math.sin(a) * 30,
+        scale: 1.8,
+        alpha: 0,
+        duration: 420,
+        ease: 'Quad.easeOut',
+        onComplete: () => nuage.destroy(),
+      });
+    }
+    const t = this.texte(p.x, p.y - 60, TEXTES.animations.plaque, 30, '#ffe066', {
+      fontStyle: 'bold',
+      stroke: COULEURS.texteSombre,
+      strokeThickness: 7,
+    })
+      .setOrigin(0.5)
+      .setScale(0.3)
+      .setAngle(-8);
+    this.tweens.add({ targets: t, scale: 1, duration: 220, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, alpha: 0, y: p.y - 90, delay: 650, duration: 300 });
+  }
+
+  private ramasserGouter(regionId: string, n: number): void {
+    jouerSon('gouter');
+    if (!this.animations) return;
+    const c = this.positionGouter(regionId);
+    this.secousse(0.005, 140);
+    const anneau = this.ajouter(this.add.circle(c.x, c.y, 20));
+    anneau.setStrokeStyle(5, COULEURS.allume, 1);
+    this.tweens.add({
+      targets: anneau,
+      scale: 3.2,
+      alpha: 0,
+      duration: 500,
+      ease: 'Quad.easeOut',
+      onComplete: () => anneau.destroy(),
+    });
+    const t = this.texte(c.x, c.y - 30, TEXTES.animations.gouter(n), 30, '#ffe066', {
+      fontStyle: 'bold',
+      stroke: COULEURS.texteSombre,
+      strokeThickness: 7,
+    }).setOrigin(0.5);
+    this.tweens.add({ targets: t, y: c.y - 110, alpha: 0, duration: 1300, ease: 'Quad.easeOut' });
+  }
+
+  private victoire(parCabane: boolean): void {
+    jouerSon('victoire');
+    if (!this.animations) return;
+    if (parCabane) this.secousse(0.02, 400);
+    const couleurs = [COULEURS.rouge, COULEURS.bleu, COULEURS.allume, COULEURS.craie, 0x8fbf6a];
+    for (let k = 0; k < 50; k++) {
+      const x = Phaser.Math.Between(20, LARGEUR - 20);
+      const c = this.ajouter(
+        this.add.rectangle(x, -20, 10, 16, couleurs[k % couleurs.length] as number),
+      );
+      c.setAngle(Phaser.Math.Between(0, 180));
+      this.tweens.add({
+        targets: c,
+        y: HAUTEUR + 30,
+        x: x + Phaser.Math.Between(-80, 80),
+        angle: c.angle + Phaser.Math.Between(200, 600),
+        delay: Phaser.Math.Between(0, 700),
+        duration: Phaser.Math.Between(1600, 2600),
+        onComplete: () => c.destroy(),
+      });
+    }
+  }
+
+  private tweenCinematique(config: Phaser.Types.Tweens.TweenBuilderConfig): void {
+    const t = this.tweens.add(config);
+    this.tweensCinematique.add(t);
+    t.once('complete', () => this.tweensCinematique.delete(t));
+  }
+
+  /**
+   * Cinématique provisoire : un bandeau qui traverse l'écran avec un pictogramme. L'emplacement
+   * (`dessinerPictogramme`) est prêt à recevoir l'animation définitive. Toucher la passe.
+   */
+  private cinematiqueSuivante(): void {
+    const id = this.cinematiques.shift();
+    if (!id) {
+      this.cinematiqueEnCours = null;
+      return;
+    }
+    const C = TEXTES.cinematiques[id];
+    jouerSon(id);
+    const fond = this.add.rectangle(0, 0, LARGEUR, HAUTEUR, COULEURS.fondSombre, 0.55);
+    fond.setOrigin(0, 0).setInteractive();
+    const bandeau = this.add.graphics();
+    const couleur =
+      id === 'cpe'
+        ? 0x7d2fa0
+        : id === 'infirmerie'
+          ? 0xc0392b
+          : id === 'sonnerie'
+            ? 0xe0b84a
+            : 0x3b6fd9;
+    bandeau.fillStyle(couleur, 1);
+    bandeau.fillRect(-40, 470, LARGEUR + 80, 340);
+    bandeau.lineStyle(8, COULEURS.craie, 1);
+    bandeau.lineBetween(-40, 470, LARGEUR + 40, 470);
+    bandeau.lineBetween(-40, 810, LARGEUR + 40, 810);
+    const picto = this.add.graphics();
+    this.dessinerPictogramme(picto, id, 150, 640);
+    const style = { fontFamily: POLICE, color: COULEURS.texteClair, stroke: COULEURS.texteSombre };
+    const titre = this.add
+      .text(270, 610, C.titre, {
+        ...style,
+        fontSize: '42px',
+        fontStyle: 'bold',
+        strokeThickness: 8,
+        wordWrap: { width: LARGEUR - 290 },
+      })
+      .setOrigin(0, 0.5);
+    const sous = this.add
+      .text(270, 700, C.sous, { ...style, fontSize: '24px', strokeThickness: 5 })
+      .setOrigin(0, 0.5);
+    const passer = this.add
+      .text(LARGEUR / 2, 850, TEXTES.cinematiques.passer, { ...style, fontSize: '18px' })
+      .setOrigin(0.5)
+      .setAlpha(0.8);
+    const scene = this.add.container(-LARGEUR, 0, [bandeau, picto, titre, sous]);
+    const tout = this.add.container(0, 0, [fond, scene, passer]).setDepth(1000);
+    this.cinematiqueEnCours = tout;
+
+    let fini = false;
+    const finir = (): void => {
+      if (fini) return;
+      fini = true;
+      this.tweenCinematique({
+        targets: scene,
+        x: LARGEUR,
+        duration: 220,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          tout.destroy();
+          this.cinematiqueSuivante();
+        },
+      });
+      this.tweenCinematique({ targets: [fond, passer], alpha: 0, duration: 220 });
+    };
+    this.tweenCinematique({ targets: scene, x: 0, duration: 280, ease: 'Back.easeOut' });
+    this.tweenCinematique({
+      targets: picto,
+      angle: { from: -6, to: 6 },
+      duration: 180,
+      yoyo: true,
+      repeat: 5,
+    });
+    if (id === 'sonnerie') this.secousse(0.01, 700);
+    fond.on('pointerup', finir);
+    this.time.delayedCall(1500, finir);
+  }
+
+  /** Emplacement de l'animation de chaque cinématique : pictogramme provisoire. */
+  private dessinerPictogramme(
+    g: Phaser.GameObjects.Graphics,
+    id: CinematiqueId,
+    x: number,
+    y: number,
+  ): void {
+    g.setPosition(x, y);
+    g.lineStyle(5, COULEURS.fondSombre, 1);
+    switch (id) {
+      case 'cpe': // Porte du bureau
+        g.fillStyle(0x8a5a2b, 1);
+        g.fillRoundedRect(-55, -90, 110, 180, 8);
+        g.strokeRoundedRect(-55, -90, 110, 180, 8);
+        g.fillStyle(COULEURS.papier, 1);
+        g.fillRect(-35, -70, 70, 30);
+        g.fillStyle(0xffe066, 1);
+        g.fillCircle(35, 10, 8);
+        break;
+      case 'infirmerie': // Croix rouge
+        g.fillStyle(0xffffff, 1);
+        g.fillCircle(0, 0, 80);
+        g.strokeCircle(0, 0, 80);
+        g.fillStyle(0xc0392b, 1);
+        g.fillRect(-18, -55, 36, 110);
+        g.fillRect(-55, -18, 110, 36);
+        break;
+      case 'grandsFreres': // Deux grandes silhouettes
+        for (const dx of [-38, 38]) {
+          g.fillStyle(COULEURS.bleu, 1);
+          g.fillRoundedRect(dx - 30, -30, 60, 110, 14);
+          g.strokeRoundedRect(dx - 30, -30, 60, 110, 14);
+          g.fillStyle(0xf2c9a0, 1);
+          g.fillCircle(dx, -60, 28);
+          g.strokeCircle(dx, -60, 28);
+        }
+        break;
+      default: // Cloche de la sonnerie
+        g.fillStyle(0xffe066, 1);
+        g.fillTriangle(-70, 50, 70, 50, 0, -80);
+        g.fillCircle(0, -20, 55);
+        g.strokeCircle(0, -20, 55);
+        g.fillStyle(COULEURS.fondSombre, 1);
+        g.fillCircle(0, 65, 16);
+        break;
+    }
   }
 
   private dessinerFin(): void {

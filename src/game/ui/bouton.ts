@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { COULEURS, POLICE } from '../config';
+import { jouerSon } from '../sons';
 
 export interface StyleBouton {
   largeur?: number;
@@ -50,6 +51,7 @@ export function creerBouton(
     bouton.on('pointerout', () => bouton.setScale(1));
     bouton.on('pointerup', () => {
       bouton.setScale(1);
+      jouerSon('bouton');
       action();
     });
   } else {

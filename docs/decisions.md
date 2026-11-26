@@ -60,3 +60,11 @@ Le prompt de Clément fait foi ; le document de conception sert de complément.
 - **D2.15 — Jetons de zones.** Toucher un jeton +1/+2 montre les îlots à occuper, ou qui a déjà gagné la zone.
 - **D2.16 — Goûters (idée de Clément).** À l'écran, les bons points deviennent des goûters à ramasser : une friandise par zone, dans l'ordre de la cour (tablette de chocolat, paquet de biscuits, bonbon, sucette), avec sa valeur +1/+2. Seul le vocabulaire affiché change ; le moteur garde `bonsPoints`.
 - **D2.17 — Direction de la surveillante.** Ses traces de pas partent d'elle, passent par le coin commun aux deux allées et finissent par une flèche vers sa silhouette pâle, posée sur sa prochaine allée. La toucher ouvre sa fiche : l'allée bloquée, la suivante, et le moment où elle bouge (après le tour des deux bandes).
+
+## Étape 4 — Sensations de jeu
+
+- **D4.1 — Pantin.** Pendant le glisser, la carte s'efface et l'élève pend par le col au-dessus du doigt (pour rester visible) : tronc, bras et jambes sont des pendules amortis qui réagissent à l'accélération du doigt (`src/game/pantin.ts`). On vise avec le corps de l'élève ; une pastille jaune montre l'îlot où il tombera.
+- **D4.2 — Atterrissage et plaquage.** L'élève posé tombe sur l'îlot et rebondit. S'il plaque un adversaire, il tombe plus sec, l'écran tremble, un nuage de poussière et « Plaqué ! » apparaissent.
+- **D4.3 — Secousses.** Fortes pour une victoire par la cabane, moyennes pour un plaquage et la sonnerie, légères pour un goûter ramassé.
+- **D4.4 — Cinématiques.** CPE, infirmerie, grands frères (2e élève du Chouchou) et sonnerie ont un emplacement (`cinematiques.ts` et `dessinerPictogramme`) : pour l'instant un bandeau provisoire d'1,5 s avec un pictogramme, qu'on passe d'un toucher. Les animations définitives se brancheront là avec les visuels.
+- **D4.5 — Sons.** Chaque événement a son emplacement (`sons.ts`, `FICHIERS_SONS`) ; en attendant des fichiers, de petits bruitages synthétisés provisoires. Réglage « Sons : oui/non » sur l'accueil, gardé sur le téléphone.

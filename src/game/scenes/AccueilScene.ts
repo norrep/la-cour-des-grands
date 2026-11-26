@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { TEXTES } from '../../data/textes';
 import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
 import { creerBadge } from '../ui/badge';
-import { ecrireConseils, lireConseils } from '../preferences';
+import { ecrireConseils, ecrireSons, lireConseils, lireSons } from '../preferences';
+import { activerSons } from '../sons';
 import { creerBouton } from '../ui/bouton';
 
 export interface DonneesPartie {
@@ -21,6 +22,7 @@ export class AccueilScene extends Phaser.Scene {
   }
 
   create(): void {
+    activerSons(lireSons());
     this.cameras.main.setBackgroundColor(COULEURS.fond);
     const cx = LARGEUR / 2;
 
@@ -75,13 +77,13 @@ export class AccueilScene extends Phaser.Scene {
       creerBouton(
         this,
         cx,
-        920,
+        895,
         TEXTES.accueil.equipements(this.equipements),
         () => {
           this.equipements = !this.equipements;
           bascule();
         },
-        { largeur: 420, hauteur: 70, taille: 26 },
+        { largeur: 420, hauteur: 64, taille: 25 },
       );
     let boutonEquip = creerBoutonEquip();
 
@@ -89,19 +91,35 @@ export class AccueilScene extends Phaser.Scene {
       creerBouton(
         this,
         cx,
-        1040,
+        975,
         TEXTES.conseils.accueil(lireConseils()),
         () => {
           ecrireConseils(!lireConseils());
           boutonConseils.destroy();
           boutonConseils = creerBoutonConseils();
         },
-        { largeur: 420, hauteur: 70, taille: 26 },
+        { largeur: 420, hauteur: 64, taille: 25 },
       );
     let boutonConseils = creerBoutonConseils();
 
+    const creerBoutonSons = () =>
+      creerBouton(
+        this,
+        cx,
+        1055,
+        TEXTES.sons(lireSons()),
+        () => {
+          ecrireSons(!lireSons());
+          activerSons(lireSons());
+          boutonSons.destroy();
+          boutonSons = creerBoutonSons();
+        },
+        { largeur: 420, hauteur: 64, taille: 25 },
+      );
+    let boutonSons = creerBoutonSons();
+
     this.add
-      .text(cx, 1170, TEXTES.accueil.regle, {
+      .text(cx, 1175, TEXTES.accueil.regle, {
         fontFamily: POLICE,
         fontSize: '24px',
         color: COULEURS.texteClair,
