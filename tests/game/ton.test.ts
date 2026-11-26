@@ -40,7 +40,7 @@ describe('Ton des aides', () => {
         bande: 'rouge',
         eleveId: 'x',
         role: 'grand',
-        cible: 'M2',
+        cible: 'M1',
         plaque: 'fouine',
       },
       cour,

@@ -11,85 +11,54 @@ const avecP = (s: Situation): Situation => ({
   piles: { P: [['rouge', 'grand']], ...(s.piles ?? {}) },
 });
 
-describe('1 — Le banc (cour du premier jour)', () => {
+describe('1 — Le banc : une planque (DF.13)', () => {
   const cour = courTest({ equipementQ: 'banc' });
 
-  it('remet un autre de ses élèves visibles de la cour dans son rang', () => {
-    let e = envoyer(situation(avecP({ cour, rang: { rouge: ['grand'] } })), 'grand', 'Q');
-    expect(e.attente?.options).toEqual([{ type: 'rappeler', ilot: 'P' }]);
-    e = jouer(e, { type: 'choisir', option: { type: 'rappeler', ilot: 'P' } });
-    expect(pile(e, 'P')).toEqual([]);
-    expect(e.joueurs.rouge.rang.map((el) => el.role)).toEqual(['grand']);
+  it('ne déclenche aucun choix', () => {
+    const e = envoyer(situation(avecP({ cour, rang: { rouge: ['grand'] } })), 'grand', 'Q');
+    expect(e.attente).toBeNull();
     expect(pile(e, 'Q')).toEqual(['rouge:grand']);
   });
 
-  it('ne reprend pas l’élève qui vient d’être posé sur le banc', () => {
-    const e = envoyer(situation({ cour, rang: { rouge: ['fouine'] } }), 'fouine', 'Q');
-    expect(e.attente).toBeNull();
-  });
-
-  it('ne reprend pas un élève adverse', () => {
-    const e = envoyer(
-      situation(avecP({ cour, rang: { rouge: ['grand'] }, piles: { S: [['bleu', 'grand']] } })),
-      'grand',
-      'Q',
+  it('un adversaire planqué ne peut pas être recouvert, même par un plus fort ou un joker', () => {
+    const e = situation(
+      avecP({ cour, rang: { rouge: ['grand', 'petit'] }, piles: { Q: [['bleu', 'populaire']] } }),
     );
-    expect(e.attente?.options).toEqual([{ type: 'rappeler', ilot: 'P' }]);
+    expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).not.toContain('Q');
+    expect(ciblesPossibles(e, idRang(e, 'rouge', 'petit'))).not.toContain('Q');
   });
 
-  it('révèle l’élève du dessous, qui reprend l’îlot', () => {
-    let e = envoyer(
-      situation({
-        cour,
-        rang: { rouge: ['grand'] },
-        piles: {
-          P: [
-            ['bleu', 'populaire'],
-            ['rouge', 'grand'],
-          ],
-          L: [['rouge', 'grand']],
-        },
-      }),
-      'grand',
-      'Q',
+  it('on peut toujours se poser sur son propre élève planqué', () => {
+    const e = situation(
+      avecP({ cour, rang: { rouge: ['grand'] }, piles: { Q: [['rouge', 'populaire']] } }),
     );
-    e = jouer(e, { type: 'choisir', option: { type: 'rappeler', ilot: 'P' } });
-    expect(pile(e, 'P')).toEqual(['bleu:populaire']);
+    expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).toContain('Q');
   });
 
-  it('ne fait rien si le rang est plein', () => {
-    const e = situation(avecP({ cour }));
-    e.joueurs.rouge.rang = Array.from({ length: 8 }, (_, i) => ({
-      id: `r${i}`,
-      bande: 'rouge' as const,
-      role: 'grand' as const,
-    }));
+  it('la Rapporteuse ne peut pas l’envoyer chez la CPE', () => {
+    const e = situation(avecP({ cour, piles: { Q: [['bleu', 'populaire']] } }));
     expect(
-      optionsEffet(e, { type: 'equipement', equipement: 'banc', ilot: 'Q', eleveId: 'x' }),
+      optionsEffet(e, { type: 'pouvoir', role: 'rapporteuse', ilot: 'P', eleveId: 'x' }),
     ).toEqual([]);
   });
 
-  it('est désactivé quand on joue sans équipements', () => {
-    const e = envoyer(
-      situation(avecP({ cour, equipements: false, rang: { rouge: ['grand'] } })),
-      'grand',
-      'Q',
+  it('sans équipements, le banc est un îlot comme un autre', () => {
+    const e = situation(
+      avecP({
+        cour,
+        equipements: false,
+        rang: { rouge: ['grand'] },
+        piles: { Q: [['bleu', 'populaire']] },
+      }),
     );
-    expect(e.attente).toBeNull();
+    expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).toContain('Q');
   });
 
-  it('cour n°1 : le banc est en M2', () => {
-    const e = envoyer(
-      situation({
-        cour: cour1(),
-        rang: { rouge: ['grand'] },
-        piles: { B1: [['rouge', 'grand']] },
-        surveillante: 3,
-      }),
-      'grand',
-      'M2',
-    );
-    expect(e.attente?.effet).toMatchObject({ type: 'equipement', equipement: 'banc' });
+  it('cour n°1 : un banc de chaque côté, en M1 et M3', () => {
+    const c = cour1();
+    expect(c.noeuds.M1?.equipement).toBe('banc');
+    expect(c.noeuds.M3?.equipement).toBe('banc');
+    expect(c.noeuds.M2?.equipement).toBeUndefined();
   });
 });
 

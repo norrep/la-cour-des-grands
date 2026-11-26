@@ -14,7 +14,8 @@ export const ZONE_COUR = {
   x: 40,
   y: 100 + MONTEE,
   largeur: LARGEUR - 80,
-  hauteur: 940 + DESCENTE - MONTEE,
+  // La cour descend jusqu'au bouton d'appel : plus de feuille de cahier en bas (DF.14).
+  hauteur: 985 + DESCENTE - MONTEE,
 } as const;
 
 export interface Point {

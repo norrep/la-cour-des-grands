@@ -14,6 +14,7 @@ import {
   type CourData,
   type Eleve,
   type Evenement,
+  estPlanque,
   type Action,
   type Option,
   type RoleId,
@@ -192,7 +193,6 @@ export class PartieScene extends Phaser.Scene {
     // Plus de zone de notes : le rang reste toujours visible, et les explications viennent en
     // bulles près de ce qu'elles décrivent (demande de Clément).
     if (this.ctrl.phase === 'jeu') {
-      this.dessinerPupitre();
       this.dessinerActions();
       // Pendant un choix hors du rang, le rang reste visible mais ne se glisse pas.
       this.dessinerRang(this.bandeActive, !this.attenteHorsRang());
@@ -352,7 +352,13 @@ export class PartieScene extends Phaser.Scene {
       // Seuls les îlots spéciaux ont un nom (demande de Clément) ; il passe devant les pieds.
       if (special) {
         etiquettes.push(() =>
-          this.etiquette(p.x, p.y + RAYON_ILOT + 8, `★ ${n?.nom ?? id}`, COULEURS.jaune),
+          this.etiquette(
+            p.x,
+            p.y + RAYON_ILOT + 8,
+            // Un élève assis sur le banc est planqué : l'étiquette le dit.
+            estPlanque(e, id) ? `★ ${TEXTES.planque}` : `★ ${n?.nom ?? id}`,
+            COULEURS.jaune,
+          ),
         );
       }
 
@@ -1384,23 +1390,6 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /** Le pupitre en bas de l'écran : un grand papier sous les boutons et le rang. */
-  private dessinerPupitre(): void {
-    const g = this.ajouter(this.add.graphics());
-    forme(
-      g,
-      contourRect(GAUCHE - 20, Y_ACTIONS - 42, DROITE - GAUCHE + 40, BAS - Y_ACTIONS + 80, 26, 17),
-      {
-        remplissage: 0xffe9c2,
-        ombre: 0,
-      },
-    );
-    // Lignes de cahier, discrètes.
-    g.lineStyle(2, 0x9fc3e8, 0.5);
-    for (let y = Y_ACTIONS + 52; y < BAS; y += 34) g.lineBetween(GAUCHE, y, DROITE, y);
-    g.lineStyle(2, 0xf0705f, 0.45);
-    g.lineBetween(24, Y_ACTIONS - 40, 24, BAS);
-  }
-
   private dessinerActions(): void {
     const ctrl = this.ctrl;
 
@@ -1417,25 +1406,11 @@ export class PartieScene extends Phaser.Scene {
           },
         });
       }
-      const j = this.etat.joueurs[this.etat.courant];
-      const peutPoser = j.rang.some(
-        (el) => !j.infirmerie.includes(el.id) && ciblesPossibles(this.etat, el.id).length > 0,
-      );
       if (boutons.length === 1 && n > 0) {
-        // Consigne à gauche, bouton « Appeler » à droite.
-        this.texte(
-          30,
-          Y_ACTIONS,
-          peutPoser
-            ? aide(TEXTES.hud.consigneTour, FUN.hud.consigneTour, this.etat.tour)
-            : aide(TEXTES.hud.consigneSansPose, FUN.hud.consigneSansPose, this.etat.tour),
-          18,
-          COULEURS.texteSombre,
-          { wordWrap: { width: 330 }, fontStyle: '600' },
-        ).setOrigin(0, 0.5);
+        // Plus de feuille de cahier (demande de Clément) : le bouton est posé seul sur le décor.
         const b = boutons[0] as (typeof boutons)[number];
         this.ajouter(
-          creerBouton(this, LARGEUR - 185, Y_ACTIONS, b.texte, b.action, {
+          creerBouton(this, LARGEUR / 2, Y_ACTIONS, b.texte, b.action, {
             largeur: 320,
             hauteur: 58,
             taille: 24,
@@ -1453,18 +1428,15 @@ export class PartieScene extends Phaser.Scene {
     const options: { texte: string; action: () => void; couleur?: number }[] = [];
     const lignes: (typeof options)[] = [];
     for (let i = 0; i < options.length; i += 4) lignes.push(options.slice(i, i + 4));
-    // « Passer » ne sert presque jamais (demande de Clément) : on le garde pour le banc, où
-    // reprendre un de ses propres élèves est un vrai choix, et pour le Délégué. Ailleurs, on touche
-    // la cible.
+    // « Passer » ne sert presque jamais (demande de Clément) : on le garde pour le Délégué.
+    // Ailleurs, on touche la cible.
     // Filet de sécurité : sans surveillante à toucher, le mot d'excuse se passe aussi.
     const sansCible =
       attente.options.every((o) => o.type === 'surveillante') && !gouterSurveille(this.etat);
     // Le mot d'excuse du Délégué peut aussi se garder (demande de Clément) : éloigner Mme Josiane
     // n'arrange pas toujours.
     const passerUtile =
-      (attente.effet.type === 'equipement' && attente.effet.equipement === 'banc') ||
-      (attente.effet.type === 'pouvoir' && attente.effet.role === 'delegue') ||
-      sansCible;
+      (attente.effet.type === 'pouvoir' && attente.effet.role === 'delegue') || sansCible;
     const fin = passerUtile
       ? [
           {
@@ -1502,9 +1474,9 @@ export class PartieScene extends Phaser.Scene {
         LARGEUR - 30,
         RANG.y - RANG.hauteurCarte / 2 - 28,
         aide(TEXTES.hud.toucherCarte, FUN.hud.toucherCarte, this.etat.tour),
-        15,
-        '#6b6152',
-        { fontStyle: '500' },
+        16,
+        COULEURS.texteSombre,
+        { fontStyle: '600', stroke: '#fff6e4', strokeThickness: 5 },
       ).setOrigin(1, 0);
     }
     if (j.rang.length === 0 && interactif) {
@@ -1514,7 +1486,13 @@ export class PartieScene extends Phaser.Scene {
         aide(TEXTES.hud.rangVide, FUN.hud.rangVide, this.etat.tour),
         22,
         COULEURS.texteSombre,
-        { fontStyle: '600', align: 'center', wordWrap: { width: LARGEUR - 80 } },
+        {
+          fontStyle: '600',
+          align: 'center',
+          wordWrap: { width: LARGEUR - 80 },
+          stroke: '#fff6e4',
+          strokeThickness: 6,
+        },
       ).setOrigin(0.5);
       return;
     }
@@ -1886,7 +1864,6 @@ export class PartieScene extends Phaser.Scene {
   private dessinerFinDeTour(): void {
     // La bande qui vient de jouer voit encore son rang (le téléphone est toujours dans ses mains) :
     // les copains appelés y arrivent.
-    this.dessinerPupitre();
     const joueur: Bande = this.etat.courant === 'rouge' ? 'bleu' : 'rouge';
     this.dessinerRang(joueur, false);
     this.texte(
@@ -1895,9 +1872,7 @@ export class PartieScene extends Phaser.Scene {
       TEXTES.passe.bientot(this.etat.courant),
       24,
       COULEURS.texteSombre,
-      {
-        fontStyle: '700',
-      },
+      { fontStyle: '700', stroke: '#fff6e4', strokeThickness: 6 },
     ).setOrigin(0.5);
     const bloc = this.ajouter(
       this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 0.001),
