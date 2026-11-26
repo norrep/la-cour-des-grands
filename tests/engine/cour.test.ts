@@ -15,10 +15,10 @@ describe('Cour n°1 : la cour du premier jour', () => {
   });
 
   it('a les coordonnées du cahier des charges', () => {
-    expect(cour.noeuds.CabBleue).toMatchObject({ x: 0.5, y: 0.06 });
-    expect(cour.noeuds.CabRouge).toMatchObject({ x: 0.5, y: 0.82 });
-    expect(cour.noeuds.M1).toMatchObject({ x: 0.1, y: 0.44 });
-    expect(cour.noeuds.B2).toMatchObject({ x: 0.72, y: 0.66 });
+    expect(cour.noeuds.CabBleue).toMatchObject({ x: 0.5, y: 0.05 });
+    expect(cour.noeuds.CabRouge).toMatchObject({ x: 0.5, y: 0.88 });
+    expect(cour.noeuds.M1).toMatchObject({ x: 0.1, y: 0.475 });
+    expect(cour.noeuds.B2).toMatchObject({ x: 0.72, y: 0.69 });
   });
 
   it('a deux bancs, un de chaque côté (M1 et M3)', () => {

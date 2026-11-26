@@ -69,7 +69,7 @@ const TAILLE_BADGE = 70;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
 const DIAMETRE_PASTILLE = 92;
 const RAYON_DEPOT = 75;
-const Y_ACTIONS = 1040 + DESCENTE;
+const Y_ACTIONS = 1052 + DESCENTE;
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
 const DUREE_FIN_DE_TOUR = 900;
 /** Annonce d'une arrivée : l'élève se ramasse en l'air avant de tomber (ms). */
