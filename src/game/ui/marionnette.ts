@@ -25,7 +25,17 @@ export interface Rig {
   /** Bout de la main gauche (à l'écran), depuis l'épaule gauche, bras tendu (pixels de texture). */
   main: [number, number];
   pieces: Record<NomPiece, PieceRig>;
+  /**
+   * Pièces en plus, pour qui en a : avant-bras (le bras a alors un coude, l'avant-bras plié devant
+   * le corps) et objet tenu contre la poitrine.
+   */
+  extras?: Partial<Record<NomExtra, PieceRig>>;
 }
+
+export type NomExtra = 'avantBrasG' | 'avantBrasD' | 'cahier';
+
+/** Avant-bras repliés devant le corps (radians, par rapport au bras), pour qui a des coudes. */
+const COUDE = 1.64;
 
 /** Ordre d'affichage : jambes et bras derrière le tronc, la tête devant. */
 const ORDRE: NomPiece[] = ['jambeG', 'jambeD', 'brasG', 'brasD', 'tronc', 'tete'];
@@ -80,9 +90,13 @@ const sansCle = (cle: string, nom: NomPiece) => `${cle}#${nom}`;
 /** Crée (une fois) les cadres des pièces dans la texture de l'élève. */
 function cadres(scene: Phaser.Scene, cle: string, rig: Rig): void {
   const texture = scene.textures.get(cle);
-  for (const nom of ORDRE) {
-    const [x, y, l, h] = rig.pieces[nom].cadre;
-    if (!texture.has(sansCle(cle, nom))) texture.add(sansCle(cle, nom), 0, x, y, l, h);
+  const toutes: [string, PieceRig][] = [
+    ...ORDRE.map((n): [string, PieceRig] => [n, rig.pieces[n]]),
+    ...Object.entries(rig.extras ?? {}),
+  ];
+  for (const [nom, p] of toutes) {
+    const [x, y, l, h] = p.cadre;
+    if (!texture.has(`${cle}#${nom}`)) texture.add(`${cle}#${nom}`, 0, x, y, l, h);
   }
 }
 
@@ -92,6 +106,8 @@ export class Marionnette {
   /** Haut du corps et jambes, tournant autour des hanches. */
   readonly corps: Phaser.GameObjects.Container;
   readonly pieces: Record<NomPiece, Phaser.GameObjects.Image>;
+  /** Avant-bras et objet tenu, s'il y en a. */
+  readonly extras: Partial<Record<NomExtra, Phaser.GameObjects.Image>> = {};
   private readonly hanches: [number, number];
   /** Angle du bras au repos, pour chaque côté (radians). */
   readonly reposBras = { brasG: -(Math.PI / 2 - ECART), brasD: Math.PI / 2 - ECART };
@@ -113,11 +129,20 @@ export class Marionnette {
         .setOrigin(p.pivot[0] / p.cadre[2], p.pivot[1] / p.cadre[3]);
     }
     this.pieces = images;
-    this.corps = scene.add.container(
-      hx,
-      hy,
-      ORDRE.map((n) => images[n]),
-    );
+    const devant: Phaser.GameObjects.Image[] = [];
+    for (const nom of ['cahier', 'avantBrasG', 'avantBrasD'] as const) {
+      const p = rig.extras?.[nom];
+      if (!p) continue;
+      const img = scene.add
+        .image(p.pos[0] - hx, p.pos[1] - hy, cle, `${cle}#${nom}`)
+        .setOrigin(p.pivot[0] / p.cadre[2], p.pivot[1] / p.cadre[3]);
+      this.extras[nom] = img;
+      devant.push(img);
+    }
+    // Avant-bras et objet devant le tronc, sous la tête.
+    const ordre = ORDRE.map((n) => images[n]);
+    ordre.splice(ordre.indexOf(images.tete), 0, ...devant);
+    this.corps = scene.add.container(hx, hy, ordre);
     this.racine = scene.add.container(0, 0, [this.corps]).setScale(echelle);
     this.poser(poseRepos());
   }
@@ -143,10 +168,30 @@ export class Marionnette {
       this.pieces[nom]
         .setPosition(bx - hx, by - hy + p.rebond * h * 0.8)
         .setRotation(this.reposBras[nom] + p[nom]);
+      this.plierCoude(nom);
     }
+    const cahier = this.extras.cahier;
+    const pc = this.rig.extras?.cahier;
+    if (cahier && pc) cahier.setY(pc.pos[1] - hy + p.rebond * h * 0.8);
     // Les jambes restent au sol quand le haut du corps penche : elles compensent la bascule.
     this.pieces.jambeG.setRotation(p.jambeG - p.tronc * (p.saut < 0 ? 0 : 1));
     this.pieces.jambeD.setRotation(p.jambeD - p.tronc * (p.saut < 0 ? 0 : 1));
+  }
+
+  /** Place l'avant-bras au bout du bras (s'il y en a un), replié devant le corps. */
+  plierCoude(nom: 'brasG' | 'brasD'): void {
+    const cleA = nom === 'brasG' ? 'avantBrasG' : 'avantBrasD';
+    const av = this.extras[cleA];
+    const pa = this.rig.extras?.[cleA];
+    if (!av || !pa) return;
+    const bras = this.pieces[nom];
+    const pb = this.rig.pieces[nom].pos;
+    const ex = pa.pos[0] - pb[0];
+    const ey = pa.pos[1] - pb[1];
+    const c = Math.cos(bras.rotation);
+    const sn = Math.sin(bras.rotation);
+    av.setPosition(bras.x + ex * c - ey * sn, bras.y + ex * sn + ey * c);
+    av.setRotation(bras.rotation + (nom === 'brasG' ? -COUDE : COUDE));
   }
 
   /** Oriente une pièce (dans le repère du corps) pour que son bout vise une direction du monde. */
