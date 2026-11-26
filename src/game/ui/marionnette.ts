@@ -71,6 +71,12 @@ export interface PoseMarionnette {
   saut: number;
   /** -1 : regarde de l'autre côté (la tête se retourne). */
   regard: number;
+  /** Pour qui a des coudes : dépli de l'avant-bras replié (radians ; positif vers le bas, négatif le lève). */
+  coudeG: number;
+  coudeD: number;
+  /** Objet tenu (cahier) : levée (fraction de la hauteur, vers le haut si négatif) et inclinaison. */
+  objetY: number;
+  objetRot: number;
 }
 
 export const poseRepos = (): PoseMarionnette => ({
@@ -83,6 +89,10 @@ export const poseRepos = (): PoseMarionnette => ({
   rebond: 0,
   saut: 0,
   regard: 1,
+  coudeG: 0,
+  coudeD: 0,
+  objetY: 0,
+  objetRot: 0,
 });
 
 const sansCle = (cle: string, nom: NomPiece) => `${cle}#${nom}`;
@@ -168,18 +178,20 @@ export class Marionnette {
       this.pieces[nom]
         .setPosition(bx - hx, by - hy + p.rebond * h * 0.8)
         .setRotation(this.reposBras[nom] + p[nom]);
-      this.plierCoude(nom);
+      this.plierCoude(nom, nom === 'brasG' ? p.coudeG : p.coudeD);
     }
     const cahier = this.extras.cahier;
     const pc = this.rig.extras?.cahier;
-    if (cahier && pc) cahier.setY(pc.pos[1] - hy + p.rebond * h * 0.8);
+    if (cahier && pc) {
+      cahier.setY(pc.pos[1] - hy + p.rebond * h * 0.8 + p.objetY * h).setRotation(p.objetRot);
+    }
     // Les jambes restent au sol quand le haut du corps penche : elles compensent la bascule.
     this.pieces.jambeG.setRotation(p.jambeG - p.tronc * (p.saut < 0 ? 0 : 1));
     this.pieces.jambeD.setRotation(p.jambeD - p.tronc * (p.saut < 0 ? 0 : 1));
   }
 
   /** Place l'avant-bras au bout du bras (s'il y en a un), replié devant le corps. */
-  plierCoude(nom: 'brasG' | 'brasD'): void {
+  plierCoude(nom: 'brasG' | 'brasD', depli = 0): void {
     const cleA = nom === 'brasG' ? 'avantBrasG' : 'avantBrasD';
     const av = this.extras[cleA];
     const pa = this.rig.extras?.[cleA];
@@ -191,7 +203,7 @@ export class Marionnette {
     const c = Math.cos(bras.rotation);
     const sn = Math.sin(bras.rotation);
     av.setPosition(bras.x + ex * c - ey * sn, bras.y + ex * sn + ey * c);
-    av.setRotation(bras.rotation + (nom === 'brasG' ? -COUDE : COUDE));
+    av.setRotation(bras.rotation + (nom === 'brasG' ? -(COUDE - depli) : COUDE - depli));
   }
 
   /** Oriente une pièce (dans le repère du corps) pour que son bout vise une direction du monde. */
@@ -310,6 +322,60 @@ const GESTES: Record<string, Geste> = {
     o.brasD -= q * (2 + Math.sin(p * 16) * 0.2);
     return p < 1.2;
   },
+  /* Mme Josiane, la surveillante : rien ne lui échappe. */
+  // Note quelqu'un dans son cahier : le lève, baisse la tête, griffonne.
+  note(p, o) {
+    const q = cloche(p / 2.2);
+    o.objetY -= q * 0.04;
+    o.objetRot -= q * 0.12;
+    o.coudeG -= q * 0.35;
+    o.coudeD -= q * 0.35 + Math.sin(p * 30) * 0.12 * q;
+    o.brasD -= Math.sin(p * 30) * 0.05 * q;
+    o.tete += q * 0.22;
+    o.tronc += q * 0.03;
+    return p < 2.2;
+  },
+  // Scrute la cour, penchée en avant, d'un côté puis de l'autre.
+  scrute(p, o) {
+    const q = cloche(p / 2.6);
+    const cote = p < 1.3 ? 1 : -1;
+    o.regard = cote;
+    o.tronc += cote * q * 0.09;
+    o.tete += cote * q * 0.12 - q * 0.05;
+    o.rebond += q * 0.012;
+    return p < 2.6;
+  },
+  // « Tss tss tss » : l'index levé qui gronde, la tête qui dit non.
+  gronde(p, o) {
+    const q = cloche(p / 1.8);
+    o.brasD -= q * 0.5;
+    o.coudeD -= q * (2.1 + Math.sin(p * 22) * 0.25);
+    o.tete += Math.sin(p * 11) * 0.12 * q;
+    o.tronc += q * 0.04;
+    return p < 1.8;
+  },
+  // « Toi, là-bas ! » : le bras tendu vers le coupable, tout le corps penché vers lui.
+  pointe(p, o) {
+    const q = cloche(p / 1.6);
+    const vif = Math.min(1, p / 0.15) * (p < 1.45 ? 1 : (1.6 - p) / 0.15);
+    o.brasD -= vif * 1.3;
+    o.coudeD += vif * 1.64 + Math.sin(p * 18) * 0.08 * vif;
+    o.tronc += q * 0.1;
+    o.tete += q * 0.1;
+    o.jambeD -= q * 0.1;
+    return p < 1.6;
+  },
+  // S'indigne : inspire, se redresse, tête en arrière, cahier serré.
+  indigne(p, o) {
+    const q = cloche(p / 1.4);
+    o.rebond -= q * 0.02;
+    o.tete -= q * 0.18;
+    o.objetY -= q * 0.015;
+    o.coudeG -= q * 0.2;
+    o.coudeD -= q * 0.2;
+    o.saut -= cloche((p - 1) / 0.25) * 0.02;
+    return p < 1.4;
+  },
   // Tape du pied, agacée.
   tape(p, o) {
     o.jambeD -= cloche((p % 0.25) / 0.25) * 0.25;
@@ -412,12 +478,17 @@ const PROFILS: Record<Caractere, Profil> = {
     gestes: ['regard', 'regard', 'frisson'],
     pause: [2, 4],
   },
+  // Mme Josiane : surveille sans relâche, note tout, gronde du doigt, désigne les coupables.
   surveillante: {
     souffle: [0.005, 1.8],
     balance: [0.015, 0.7],
-    bras: [0.05, 0.7],
-    gestes: ['tape', 'hoche', 'regard'],
-    pause: [3, 6],
+    bras: [0.04, 0.7],
+    // Elle balaie la cour du regard en permanence.
+    fond: (t, o) => {
+      o.tete += Math.sin(t * 0.8) * 0.06;
+    },
+    gestes: ['scrute', 'note', 'gronde', 'pointe', 'indigne', 'tape', 'scrute', 'note'],
+    pause: [1.2, 2.5],
   },
 };
 
