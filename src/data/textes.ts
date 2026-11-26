@@ -52,7 +52,7 @@ const POUVOIRS: Record<RoleId, string> = {
 
 /** Effet de chaque équipement spécial. */
 const EFFETS_EQUIPEMENTS: Record<EquipementId, string> = {
-  banc: 'Pose un élève ici : tu peux reprendre un autre de tes élèves de la cour dans ton rang.',
+  banc: 'Une planque : l’élève assis ici ne peut plus être plaqué, ni envoyé chez la CPE, ni déplacé.',
   cabanePerchee: 'Quand tu poses un élève ici, tu peux piocher 1 élève.',
   porteVieScolaire:
     'Quand tu poses un élève ici, tu peux reprendre un de tes élèves de chez la CPE.',
@@ -122,7 +122,7 @@ export const TEXTES = {
     contagieux:
       'Contagieux : touche le portail d’en face, un adversaire au hasard rate son prochain tour.',
     delegue: 'Délégué : touche Mme Josiane pour qu’elle file 1 ou 2 goûters plus loin, ou passe.',
-    banc: '★ Banc : touche un de tes élèves pour le reprendre dans ton rang.',
+    banc: '★ Banc : ton élève est planqué, personne ne peut plus le toucher.',
     cabanePerchee: '★ Cabane perchée : touche ton portail pour piocher 1 élève.',
     porteVieScolaire: '★ Vie scolaire : touche l’élève à faire sortir de chez la CPE.',
     buts: '★ Buts : touche l’adversaire (1 ou 2) à envoyer chez la CPE.',
@@ -221,11 +221,13 @@ export const TEXTES = {
     ],
     fermer: 'Fermer',
   },
+  planque: 'Planqué !',
   passe: {
     bientot: (b: Bande) => `À la ${BANDES[b]} de jouer…`,
     titre: 'Passe le téléphone',
     a: (b: Bande) => `à la ${BANDES[b]}`,
     cache: 'Ne regarde pas le rang de l’adversaire !',
+    resume: 'Au tour d’avant :',
   },
   fin: {
     titre: 'DRIIIIING !',

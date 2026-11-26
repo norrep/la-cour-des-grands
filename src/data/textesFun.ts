@@ -36,7 +36,7 @@ export const FUN = {
     rapporteuse: ['« Madaaame ! » Touche l’adversaire qui tremble, direction la CPE.'],
     contagieux: ['Atchoum ! Touche le portail d’en face pour refiler le rhume.'],
     delegue: ['Mot d’excuse en main : touche Mme Josiane pour l’éloigner, ou garde-le pour toi.'],
-    banc: ['★ Banc : touche un de tes élèves, il revient souffler dans ton rang.'],
+    banc: ['★ Banc : planqué sur le banc, il ne bouge plus d’un poil.'],
     cabanePerchee: ['★ Cabane perchée : touche ton portail, un copain grimpe.'],
     porteVieScolaire: ['★ Vie scolaire : touche le copain à faire sortir de chez la CPE.'],
     buts: ['★ Buts : touche le petit (1 ou 2) à envoyer chez la CPE. Tir cadré !'],

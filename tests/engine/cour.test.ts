@@ -21,10 +21,10 @@ describe('Cour n°1 : la cour du premier jour', () => {
     expect(cour.noeuds.B2).toMatchObject({ x: 0.72, y: 0.66 });
   });
 
-  it('a un seul équipement spécial : le banc en M2', () => {
+  it('a deux bancs, un de chaque côté (M1 et M3)', () => {
     const speciaux = cour.ilots.filter((id) => cour.noeuds[id]?.equipement);
-    expect(speciaux).toEqual(['M2']);
-    expect(cour.noeuds.M2?.equipement).toBe('banc');
+    expect(speciaux).toEqual(['M1', 'M3']);
+    expect(cour.noeuds.M1?.equipement).toBe('banc');
   });
 
   it('a 4 régions et un seuil de 3 bons points', () => {
