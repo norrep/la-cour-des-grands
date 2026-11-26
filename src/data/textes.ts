@@ -42,7 +42,7 @@ const POUVOIRS: Record<RoleId, string> = {
   petit:
     'Joker : plaque n’importe qui, mais tout le monde le plaque. Jamais dans la cabane adverse.',
   populaire: 'Arrive avec des copains : pioche 2 élèves.',
-  chouchou: 'Appelle ses grands frères : pose aussitôt un 2e élève de 5 ou plus.',
+  chouchou: 'Appelle son grand frère : pose aussitôt un 2e élève de 5 ou plus.',
   rapporteuse: '« Madame, c’est lui ! » : un adversaire voisin part chez la CPE.',
   fouine: 'Passe par les buissons : se pose même loin de ton chemin.',
   contagieux: 'Atchoum ! Un élève adverse au hasard rate son prochain tour.',
@@ -159,7 +159,7 @@ export const TEXTES = {
     cpe: { titre: 'Direction la CPE !', sous: 'Dénoncé par la Rapporteuse…' },
     infirmerie: { titre: 'Atchoum !', sous: 'Un élève file à l’infirmerie.' },
     grandsFreres: {
-      titre: 'Les grands frères arrivent !',
+      titre: 'Le grand frère arrive !',
       sous: 'Le Chouchou appelle du renfort.',
     },
     sonnerie: { titre: 'DRIIIIING !', sous: 'La récré est finie.' },

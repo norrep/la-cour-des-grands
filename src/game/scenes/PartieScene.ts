@@ -2713,8 +2713,8 @@ export class PartieScene extends Phaser.Scene {
         g.fillRect(-18, -55, 36, 110);
         g.fillRect(-55, -18, 110, 36);
         break;
-      case 'grandsFreres': // Deux grandes silhouettes
-        for (const dx of [-38, 38]) {
+      case 'grandsFreres': // Une grande silhouette : le Chouchou n'appelle qu'un renfort
+        for (const dx of [0]) {
           g.fillStyle(COULEURS.bleu, 1);
           g.fillRoundedRect(dx - 30, -30, 60, 110, 14);
           g.strokeRoundedRect(dx - 30, -30, 60, 110, 14);
