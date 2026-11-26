@@ -63,7 +63,7 @@ Le prompt de Clément fait foi ; le document de conception sert de complément.
 
 ## Étape 4 — Sensations de jeu
 
-- **D4.1 — Pantin.** Pendant le glisser, la carte s'efface et l'élève pend par le col au-dessus du doigt (pour rester visible) : tronc, bras et jambes sont des pendules amortis qui réagissent à l'accélération du doigt (`src/game/pantin.ts`). On vise avec le corps de l'élève ; une pastille jaune montre l'îlot où il tombera.
+- **D4.1 — Pantin.** Pendant le glisser, la carte s'efface et l'élève pend par la main (demande de Clément), au-dessus du doigt pour rester visible : bras tenu, tronc, autre bras et jambes sont des pendules amortis qui réagissent à l'accélération du doigt (`src/game/pantin.ts`). On vise avec le corps de l'élève ; une pastille jaune montre l'îlot où il tombera.
 - **D4.2 — Atterrissage et plaquage.** L'élève posé tombe sur l'îlot et rebondit. S'il plaque un adversaire, il tombe plus sec, l'écran tremble, un nuage de poussière et « Plaqué ! » apparaissent.
 - **D4.3 — Secousses.** Fortes pour une victoire par la cabane, moyennes pour un plaquage et la sonnerie, légères pour un goûter ramassé.
 - **D4.4 — Cinématiques.** CPE, infirmerie, grands frères (2e élève du Chouchou) et sonnerie ont un emplacement (`cinematiques.ts` et `dessinerPictogramme`) : pour l'instant un bandeau provisoire d'1,5 s avec un pictogramme, qu'on passe d'un toucher. Les animations définitives se brancheront là avec les visuels.
