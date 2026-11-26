@@ -35,7 +35,7 @@ export const FUN = {
     chouchou: ['« Mes grands frères vont venir ! » Glisse un 5 ou plus (cartes claires).'],
     rapporteuse: ['« Madaaame ! » Touche l’adversaire qui tremble, direction la CPE.'],
     contagieux: ['Atchoum ! Touche le portail d’en face pour refiler le rhume.'],
-    delegue: ['Mot d’excuse en main : touche Mme Josiane, elle file 1 ou 2 goûters plus loin.'],
+    delegue: ['Mot d’excuse en main : touche Mme Josiane pour l’éloigner, ou garde-le pour toi.'],
     banc: ['★ Banc : touche un de tes élèves, il revient souffler dans ton rang.'],
     cabanePerchee: ['★ Cabane perchée : touche ton portail, un copain grimpe.'],
     porteVieScolaire: ['★ Vie scolaire : touche le copain à faire sortir de chez la CPE.'],
