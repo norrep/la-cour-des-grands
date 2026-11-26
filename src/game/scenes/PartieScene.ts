@@ -862,7 +862,129 @@ export class PartieScene extends Phaser.Scene {
       zone.setInteractive({ useHandCursor: true });
       zone.on('pointerup', action);
     }
+    this.ciblesDesPouvoirs();
     return true;
+  }
+
+  /**
+   * Les pouvoirs sans îlot à viser se jouent aussi sur la cour : on touche le lieu ou le
+   * personnage concerné. Piocher = son portail ; éternuer = le portail adverse ; mot d'excuse =
+   * Mme Josiane ; récupérer un puni = son badge, qui sort du bureau de la CPE.
+   */
+  private ciblesDesPouvoirs(): void {
+    const attente = this.etat.attente;
+    if (!attente) return;
+    const bande = this.bandeActive;
+    const adverse: Bande = bande === 'rouge' ? 'bleu' : 'rouge';
+    const source = this.pos(attente.effet.ilot);
+    const T = TEXTES.pouvoirsSurLaCour;
+    const repeches: Option[] = [];
+    for (const o of attente.options) {
+      if (o.type === 'piocher') {
+        this.cibleLieu(source, positionLieu(this.cour, bande, 'portail'), 72, T.piocher, () =>
+          this.choisir(o),
+        );
+      } else if (o.type === 'infirmerie') {
+        this.cibleLieu(source, positionLieu(this.cour, adverse, 'portail'), 72, T.eternuer, () =>
+          this.choisir(o),
+        );
+      } else if (o.type === 'surveillante') {
+        const garde = gouterSurveille(this.etat);
+        if (garde) {
+          const m = this.positionSurveillante(garde);
+          this.cibleLieu(source, { x: m.x, y: m.y - 6 }, 54, T.motExcuse, () => this.choisir(o));
+        }
+      } else if (o.type === 'repecher') {
+        repeches.push(o);
+      }
+    }
+    // Les punis qu'on peut récupérer sortent du bureau de la CPE, un badge par rôle.
+    if (repeches.length > 0) {
+      const cpe = positionLieu(this.cour, bande, 'cpe');
+      const punis = this.etat.joueurs[bande].cpe;
+      const vus = new Set<string>();
+      const choix: { role: RoleId; option: Option }[] = [];
+      for (const o of repeches) {
+        const el = o.type === 'repecher' ? punis.find((x) => x.id === o.eleveId) : undefined;
+        if (el && !vus.has(el.role)) {
+          vus.add(el.role);
+          choix.push({ role: el.role, option: o });
+        }
+      }
+      // Au-dessus du bureau pour la bande du bas, en dessous pour celle du haut.
+      const sens = bande === 'rouge' ? -1 : 1;
+      choix.forEach(({ role, option }, i) => {
+        const x = cpe.x + (i - (choix.length - 1) / 2) * 62;
+        const y = cpe.y + sens * 96;
+        const b = this.ajouter(creerBadge(this, bande, role, 46));
+        b.setPosition(x, y);
+        this.anneauCible({ x, y }, 32);
+        this.tweens.add({ targets: b, y: y - 6, duration: 380, yoyo: true, repeat: -1 });
+        const zone = this.ajouter(this.add.circle(x, y, 34, 0xffffff, 0.001));
+        zone.setInteractive({ useHandCursor: true });
+        zone.on('pointerup', () => this.choisir(option));
+      });
+      this.etiquetteVerbe(cpe.x, cpe.y + sens * 150, T.recuperer);
+    }
+  }
+
+  /** Une cible du pouvoir : anneau qui pulse, flèche depuis l'élève, verbe sur une étiquette. */
+  private cibleLieu(
+    depuis: Point,
+    p: Point,
+    rayon: number,
+    verbe: string,
+    action: () => void,
+  ): void {
+    this.flecheCraie(depuis, p, rayon);
+    this.anneauCible(p, rayon);
+    // Sous la cible quand elle est tout en haut de la cour (le bandeau la cacherait).
+    const dessus = p.y - rayon - 22 > 150 + MONTEE;
+    this.etiquetteVerbe(p.x, dessus ? p.y - rayon - 22 : p.y + rayon + 22, verbe);
+    const zone = this.ajouter(this.add.circle(p.x, p.y, rayon + 8, 0xffffff, 0.001));
+    zone.setInteractive({ useHandCursor: true });
+    zone.on('pointerup', action);
+  }
+
+  /** Flèche en pointillés jaunes, de l'élève qui a le pouvoir vers sa cible. */
+  private flecheCraie(a: Point, b: Point, marge: number): void {
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    if (d < marge + RAYON_ILOT + 20) return;
+    const ux = (b.x - a.x) / d;
+    const uy = (b.y - a.y) / d;
+    const debut = { x: a.x + ux * (RAYON_ILOT + 8), y: a.y + uy * (RAYON_ILOT + 8) };
+    const fin = { x: b.x - ux * (marge + 10), y: b.y - uy * (marge + 10) };
+    const g = this.ajouter(this.add.graphics());
+    g.lineStyle(10, COULEURS.encre, 0.55);
+    this.pointilles(g, debut, fin, 18, 12);
+    g.lineStyle(6, COULEURS.allume, 1);
+    this.pointilles(g, debut, fin, 18, 12);
+    // Pointe de la flèche.
+    const px = -uy;
+    const py = ux;
+    const pointe = [
+      { x: fin.x + ux * 16, y: fin.y + uy * 16 },
+      { x: fin.x - ux * 6 + px * 14, y: fin.y - uy * 6 + py * 14 },
+      { x: fin.x - ux * 6 - px * 14, y: fin.y - uy * 6 - py * 14 },
+    ];
+    forme(g, pointe, { remplissage: COULEURS.allume, trait: 3 });
+    this.tweens.add({ targets: g, alpha: 0.55, duration: 420, yoyo: true, repeat: -1 });
+  }
+
+  private etiquetteVerbe(x: number, y: number, verbe: string): void {
+    const t = this.texte(x, y, verbe, 20, COULEURS.texteSombre, { fontStyle: '700' }).setOrigin(
+      0.5,
+    );
+    const l = t.width + 22;
+    const g = this.add.graphics();
+    forme(g, contourRect(x - l / 2, y - 17, l, 34, 14, graineDe(x, y), 0.8), {
+      remplissage: COULEURS.jaune,
+      trait: 3,
+      ombre: 3,
+    });
+    this.dyn.addAt(g, this.dyn.getIndex(t));
+    const groupe = [g, t];
+    this.tweens.add({ targets: groupe, y: '-=5', duration: 420, yoyo: true, repeat: -1 });
   }
 
   private anneauCible(p: Point, rayon: number): Phaser.GameObjects.Arc {
@@ -1275,37 +1397,31 @@ export class PartieScene extends Phaser.Scene {
       return;
     }
 
-    // Choix d'un pouvoir ou d'un équipement : options à boutons, puis « Passer ».
+    // Choix d'un pouvoir ou d'un équipement : il se joue en touchant sa cible sur la cour
+    // (voir `ciblesDesPouvoirs`) ; il ne reste ici que « Passer ».
     const options: { texte: string; action: () => void; couleur?: number }[] = [];
-    const vusRoles = new Set<string>();
-    for (const o of attente.options) {
-      if (o.type === 'piocher') {
-        options.push({ texte: TEXTES.boutons.piocher, action: () => this.choisir(o) });
-      } else if (o.type === 'infirmerie') {
-        options.push({ texte: TEXTES.boutons.infirmerie, action: () => this.choisir(o) });
-      } else if (o.type === 'surveillante') {
-        options.push({ texte: TEXTES.boutons.motExcuse, action: () => this.choisir(o) });
-      } else if (o.type === 'repecher') {
-        const el = this.etat.joueurs[this.etat.courant].cpe.find((x) => x.id === o.eleveId);
-        if (el && !vusRoles.has(el.role)) {
-          vusRoles.add(el.role);
-          options.push({ texte: TEXTES.rolesCourts[el.role], action: () => this.choisir(o) });
-        }
-      }
-    }
     const lignes: (typeof options)[] = [];
     for (let i = 0; i < options.length; i += 4) lignes.push(options.slice(i, i + 4));
-    const fin = [
-      {
-        texte: TEXTES.boutons.passer,
-        action: () => {
-          this.departToboggan = null;
-          this.agir(() => ctrl.passer());
-        },
-      },
-    ];
+    // « Passer » ne sert presque jamais (demande de Clément) : on le garde seulement pour le banc,
+    // où reprendre un de ses propres élèves est un vrai choix. Ailleurs, on touche la cible.
+    // Filet de sécurité : sans surveillante à toucher, le mot d'excuse se passe aussi.
+    const sansCible =
+      attente.options.every((o) => o.type === 'surveillante') && !gouterSurveille(this.etat);
+    const passerUtile =
+      (attente.effet.type === 'equipement' && attente.effet.equipement === 'banc') || sansCible;
+    const fin = passerUtile
+      ? [
+          {
+            texte: TEXTES.boutons.passer,
+            action: () => {
+              this.departToboggan = null;
+              this.agir(() => ctrl.passer());
+            },
+          },
+        ]
+      : [];
     if (this.attenteHorsRang()) {
-      lignes.push(fin);
+      if (fin.length > 0) lignes.push(fin);
       lignes.forEach((l, i) => this.rangeeBoutons(Y_ACTIONS + i * 72, l));
     } else {
       // Chouchou : on garde le rang visible pour y prendre le 2e élève.

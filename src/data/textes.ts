@@ -116,14 +116,15 @@ export const TEXTES = {
     pret: (b: Bande) => `Je suis la ${BANDES[b]}`,
   },
   choix: {
-    populaire: 'Populaire : piocher 2 élèves ?',
+    populaire: 'Populaire : touche ton portail pour faire venir 2 copains.',
     chouchou: 'Chouchou : glisse un 2e élève de 5 ou plus (cartes claires).',
     rapporteuse: 'Rapporteuse : touche l’adversaire qui tremble pour l’envoyer chez la CPE.',
-    contagieux: 'Contagieux : un élève adverse au hasard rate son prochain tour ?',
-    delegue: 'Délégué : sortir le mot d’excuse ? La surveillante file 1 ou 2 goûters plus loin.',
+    contagieux:
+      'Contagieux : touche le portail d’en face, un adversaire au hasard rate son prochain tour.',
+    delegue: 'Délégué : touche Mme Josiane, elle file 1 ou 2 goûters plus loin.',
     banc: '★ Banc : touche un de tes élèves pour le reprendre dans ton rang.',
-    cabanePerchee: '★ Cabane perchée : piocher 1 élève ?',
-    porteVieScolaire: '★ Vie scolaire : reprends un élève de chez la CPE.',
+    cabanePerchee: '★ Cabane perchée : touche ton portail pour piocher 1 élève.',
+    porteVieScolaire: '★ Vie scolaire : touche l’élève à faire sortir de chez la CPE.',
     buts: '★ Buts : touche l’adversaire (1 ou 2) à envoyer chez la CPE.',
     tobogganDepart: '★ Toboggan : touche l’adversaire à faire glisser.',
     tobogganArrivee: '★ Toboggan : touche l’îlot d’arrivée.',
@@ -198,7 +199,8 @@ export const TEXTES = {
       'Le trait de couleur, c’est ton chemin depuis ta cabane. Tu peux poser sur tout îlot qui touche ce chemin.',
     plaquer:
       'Un adversaire plus faible peut être plaqué : ton élève se pose dessus, l’autre reste coincé dessous.',
-    pouvoir: 'Cet élève a un pouvoir en arrivant. Tu peux l’utiliser ou passer.',
+    pouvoir:
+      'Cet élève a un pouvoir en arrivant : touche sa cible sur la cour (elle clignote en jaune).',
     surveillante:
       'La surveillante garde un goûter (rond lilas) : personne ne peut le ramasser tant qu’elle est là. Après chaque tour complet, elle passe au goûter suivant.',
     zones:
@@ -233,6 +235,13 @@ export const TEXTES = {
     tours: (n: number) => `Partie en ${n} tours`,
   },
   surveillante: 'Mme Josiane',
+  /** Verbes posés sur les cibles des pouvoirs qui se jouent en touchant un lieu ou un personnage. */
+  pouvoirsSurLaCour: {
+    piocher: 'Appeler !',
+    eternuer: 'Atchoum !',
+    motExcuse: 'Mot d’excuse !',
+    recuperer: 'Récupérer qui ?',
+  },
   /** Les lieux autour de la cour : chaque bande a son portail (le couloir) et son bureau de CPE. */
   lieux: {
     portail: 'Portail',
