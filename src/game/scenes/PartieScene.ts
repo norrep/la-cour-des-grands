@@ -58,6 +58,8 @@ import { Gelee, rendreVivant } from '../ui/gelee';
 
 const RAYON_ILOT = 48;
 const TAILLE_BADGE = 70;
+/** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
+const DIAMETRE_PASTILLE = 92;
 const RAYON_DEPOT = 75;
 const Y_JOURNAL = 935 + DESCENTE;
 const Y_ACTIONS = 1040 + DESCENTE;
@@ -300,7 +302,7 @@ export class PartieScene extends Phaser.Scene {
       // Illustration de l'équipement, posée sur l'îlot derrière l'élève.
       const illustration = special && n?.equipement ? ILLUSTRATIONS[n.equipement] : undefined;
       if (illustration && this.textures.exists(illustration)) {
-        // Le dessin fait 324 × 275 pixels (contour compris) dans une texture de 512 × 512.
+        // Le dessin fait 324 × 275 pixels (marge des traits comprise) dans une texture de 512 × 512.
         const im = this.add.image(p.x, p.y + RAYON_ILOT * 0.35, illustration);
         im.setOrigin(162 / im.width, 275 / im.height).setScale((RAYON_ILOT * 1.8) / 324);
         this.ajouter(im);
@@ -323,7 +325,11 @@ export class PartieScene extends Phaser.Scene {
 
       const dessus = sommet(e, id);
       if (dessus) {
-        const badge = skinActif().eleve(this, dessus.bande, dessus.role, TAILLE_BADGE);
+        // Sur la cour, l'élève est en buste dans sa pastille ; on ne le voit entier qu'en main.
+        const skin = skinActif();
+        const badge = skin.pastille
+          ? skin.pastille(this, dessus.bande, dessus.role, DIAMETRE_PASTILLE)
+          : skin.eleve(this, dessus.bande, dessus.role, TAILLE_BADGE);
         badge.setPosition(p.x, p.y);
         this.ajouter(badge);
         this.badges.set(id, badge);
@@ -505,8 +511,8 @@ export class PartieScene extends Phaser.Scene {
       ombre.fillStyle(COULEURS.encre, 0.25);
       ombre.fillEllipse(x + 2, y + 30, 46, 12);
       const hauteur = 100;
-      // L'image fait 170 × 444 pixels (contour compris), dans une texture plus grande (puissance de 2,
-      // pour les mipmaps).
+      // L'image fait 170 × 444 pixels (marge des traits comprise), dans une texture plus grande
+      // (puissance de 2, pour les mipmaps).
       const corps = new Gelee(this, {
         cle: JOSIANE,
         echelle: hauteur / 444,

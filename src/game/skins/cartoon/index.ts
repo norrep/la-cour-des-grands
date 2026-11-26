@@ -4,11 +4,12 @@
  * (`public/skins/dessin/`), une par rôle et par bande.
  *
  * Les élèves sont des « gelées » (voir `ui/gelee.ts`) : l'image découpée en tranches respire, se
- * dandine et fait des gestes selon son caractère. Le pantin est tenu par la main : son bras gauche,
- * découpé à part, se lève jusqu'au doigt, et le corps ballotte en se pliant.
+ * dandine et fait des gestes selon son caractère. Le pantin est tenu par la main : son bras gauche
+ * est remplacé par un bras-nouille dessiné qui monte jusqu'au doigt, et le corps ballotte en dessous.
  */
 import Phaser from 'phaser';
 import { ROLES, type Bande, type RoleId } from '../../../engine/index';
+import { COULEURS } from '../../config';
 import { creerBadge } from '../../ui/badge';
 import { Gelee, rendreVivant } from '../../ui/gelee';
 import type { P, RenduPantin, Skin, TextureSkin } from '../types';
@@ -37,8 +38,11 @@ function mesure(bande: Bande, role: RoleId): MesureDessin {
   return m;
 }
 
-/** Pour chaque élève : l'image entière, puis le corps sans bras gauche et ce bras (pantin). */
-const PIECES = ['', '-corps', '-bras'] as const;
+/**
+ * Pour chaque élève : l'image entière, le corps sans bras gauche (pantin) et son buste
+ * pour la pastille du plateau.
+ */
+const PIECES = ['', '-corps', '-pastille'] as const;
 
 function textures(): TextureSkin[] {
   return ROLES.flatMap(({ id }) =>
@@ -98,6 +102,51 @@ export const SKIN_CARTOON: Skin = {
     rendreVivant(scene, corps, buste, { hauteur: bas * echelle, caractere: role, calme: true });
     return buste;
   },
+  pastille(scene, bande, role, diametre) {
+    const r = diametre / 2;
+    // Le buste est dessiné pour un cercle de 80 pixels de rayon, centré à 80 pixels du bas.
+    const echelle = r / 80;
+    const fond = scene.add.graphics();
+    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const clair = bande === 'rouge' ? 0xffd2c8 : 0xd5dcff;
+    // Ombre, fond clair, liseré de la couleur de la bande : rond pour les rouges, carré arrondi pour
+    // les bleus (lisible sans distinguer les couleurs).
+    const dessiner = (g: Phaser.GameObjects.Graphics, dx: number, dy: number, rr: number): void => {
+      if (bande === 'rouge') g.fillCircle(dx, dy, rr);
+      else g.fillRoundedRect(dx - rr, dy - rr, rr * 2, rr * 2, rr * 0.3);
+    };
+    fond.fillStyle(COULEURS.encre, 0.9);
+    dessiner(fond, 2, 5, r + 3);
+    fond.fillStyle(COULEURS.encre, 1);
+    dessiner(fond, 0, 0, r + 3);
+    fond.fillStyle(couleur, 1);
+    dessiner(fond, 0, 0, r);
+    fond.fillStyle(clair, 1);
+    dessiner(fond, 0, 0, r - 5);
+    const corps = new Gelee(scene, {
+      cle: `${cle(bande, role)}-pastille`,
+      echelle,
+      pivot: 256,
+      centreX: 128,
+      tranches: 16,
+    });
+    const boite = scene.add.container(0, r - 2, corps.objets);
+    // Le bas du buste est rentré dans la pastille : un liseré repasse dessus.
+    const bord = scene.add.graphics();
+    bord.lineStyle(5, couleur, 1);
+    bord.beginPath();
+    bord.arc(0, 0, r - 2.5, 0.15, Math.PI - 0.15);
+    bord.strokePath();
+    bord.lineStyle(3, COULEURS.encre, 1);
+    bord.beginPath();
+    bord.arc(0, 0, r + 1.5, 0.1, Math.PI - 0.1);
+    bord.strokePath();
+    const valeur = creerBadge(scene, bande, role, diametre * 0.36);
+    valeur.setPosition(r * 0.78, r * 0.72);
+    const pastille = scene.add.container(0, 0, [fond, boite, bord, valeur]);
+    rendreVivant(scene, corps, pastille, { hauteur: r * 2, caractere: role, calme: true });
+    return pastille;
+  },
   pantin(scene, eleve): RenduPantin {
     const m = mesure(eleve.bande, eleve.role);
     const echelle = HAUTEUR_PANTIN / PIXELS_REF;
@@ -111,31 +160,28 @@ export const SKIN_CARTOON: Skin = {
       tranches: 28,
     });
     const boite = scene.add.container(0, 0, corps.objets);
-    const source = scene.textures.getFrame(`${base}-bras`);
-    const bras = scene.add
-      .image(0, 0, `${base}-bras`)
-      .setOrigin(m.aisselle.x / (source?.width ?? 1), (m.aisselle.y - 6) / (source?.height ?? 1))
-      .setScale(echelle);
     /** Longueur du bras au repos, en pixels de jeu ; il s'étire un peu quand on tire dessus. */
     const longueurBras = (m.basBras - m.aisselle.y) * echelle;
     // Il s'étire comme un spaghetti pour que la main passe au-dessus de la tête.
     const etire = Math.max(1.12, (m.aisselle.y * echelle + 14) / longueurBras);
     const hanches = (m.basMaillot - m.aisselle.y) * echelle;
+    const peau = Phaser.Display.Color.HexStringToColor(m.peau).color;
+    /** Épaisseur du bras, et du trait d'encre autour (le même que sur le dessin). */
+    const largeur = Math.max(5, m.largeurBras * echelle);
+    const trait = 2.6;
+    // Le bras tenu est une nouille dessinée, devant le corps : elle part de l'épaule (et cache la
+    // découpe du dessin) et finit par une main ronde au bout du doigt du joueur.
+    const bras = scene.add.graphics();
     const prise = scene.add.graphics();
     return {
-      objets: [bras, boite, prise],
+      objets: [boite, bras, prise],
       dessiner(s) {
-        // L'épaule est sous la main, dans la direction du balancier « bras tenu ». Le bras passe
-        // derrière la tête.
+        // L'épaule est sous la main, dans la direction du balancier « bras tenu ».
         const aBras = angleDe(s.main, s.epaule);
         const epaule = {
           x: s.main.x + Math.sin(aBras) * longueurBras * etire,
           y: s.main.y + Math.cos(aBras) * longueurBras * etire,
         };
-        bras
-          .setPosition(epaule.x, epaule.y)
-          .setRotation(Math.PI - aBras)
-          .setScale(echelle * (1 - (etire - 1) * 0.5), echelle * etire);
         // Le corps pend dans le prolongement du bras (il ne reste plus droit pendant que le bras
         // balance), avec un peu de retard du tronc ; les jambes, plus lentes, traînent derrière.
         const aCorps = aBras * 0.7 + s.angle * 0.3;
@@ -144,6 +190,33 @@ export const SKIN_CARTOON: Skin = {
         const pliJambes = Math.sin(Phaser.Math.Clamp(aJambes - aCorps, -0.6, 0.6)) * 0.8;
         boite.setPosition(epaule.x, epaule.y).setRotation(-aCorps);
         corps.plier((d) => (d <= hanches ? 0 : pliJambes * (d - hanches)));
+        // Haut de l'épaule, un peu au-dessus de l'aisselle, dans le repère du corps qui penche.
+        const h = largeur * 0.7;
+        const depart = {
+          x: epaule.x - Math.sin(aCorps) * h,
+          y: epaule.y - Math.cos(aCorps) * h,
+        };
+        const dx = s.main.x - depart.x;
+        const dy = s.main.y - depart.y;
+        const courbe = new Phaser.Curves.QuadraticBezier(
+          new Phaser.Math.Vector2(depart.x, depart.y),
+          // Le bras s'arrondit vers l'extérieur, pour ne pas passer devant la tête.
+          new Phaser.Math.Vector2(depart.x + dx / 2 + dy * 0.18, depart.y + dy / 2 - dx * 0.18),
+          new Phaser.Math.Vector2(s.main.x, s.main.y),
+        );
+        const points = courbe.getPoints(14);
+        bras.clear();
+        for (const [ep, couleur] of [
+          [largeur + trait * 2, COULEURS.encre],
+          [largeur, peau],
+        ] as const) {
+          bras.lineStyle(ep, couleur, 1);
+          bras.strokePoints(points, false, false);
+          bras.fillStyle(couleur, 1);
+          bras.fillCircle(depart.x, depart.y, ep / 2);
+          // La main : une moufle ronde.
+          bras.fillCircle(s.main.x, s.main.y, ep / 2 + largeur * 0.35);
+        }
         // Le doigt du joueur qui tient la main.
         prise.clear();
         prise.lineStyle(3, 0xffe066, 0.9);

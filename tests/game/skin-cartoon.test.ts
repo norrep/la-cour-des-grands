@@ -11,7 +11,7 @@ describe('Skin Cartoon', () => {
       for (const b of BANDES) {
         const nom = `${b}-${id}`;
         const fichier = `public/skins/dessin/${nom}.png`;
-        for (const piece of ['', '-corps', '-bras']) {
+        for (const piece of ['', '-corps', '-pastille']) {
           const f = `public/skins/dessin/${nom}${piece}.png`;
           expect(existsSync(f), f).toBe(true);
           // Textures en puissances de 2 (mipmaps : pas de trait qui scintille une fois réduit).

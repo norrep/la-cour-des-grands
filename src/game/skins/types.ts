@@ -73,6 +73,16 @@ export interface Skin {
     largeur: number,
     hauteur: number,
   ): Phaser.GameObjects.Container;
-  /** Le dessin de l'élève qu'on tient pendant qu'on le glisse. */
+  /**
+   * L'élève posé sur la cour : son buste dans une pastille aux couleurs de sa bande, avec sa
+   * valeur. Facultatif : sans elle, la cour montre l'élève entier.
+   */
+  pastille?(
+    scene: Phaser.Scene,
+    bande: Bande,
+    role: RoleId,
+    diametre: number,
+  ): Phaser.GameObjects.Container;
+  /** Le dessin de l'élève qu'on tient pendant qu'on le glisse (le seul où il est entier). */
   pantin(scene: Phaser.Scene, eleve: Eleve): RenduPantin;
 }
