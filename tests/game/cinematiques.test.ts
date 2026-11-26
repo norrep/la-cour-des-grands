@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { cinematiquesPour } from '../../src/game/cinematiques';
+import { cinematiquesPour as brut } from '../../src/game/cinematiques';
+import type { Evenement } from '../../src/engine/index';
+
+const cinematiquesPour = (evs: Evenement[], gf = false) => brut(evs, gf).map((c) => c.id);
 import { dureeBruitage } from '../../src/game/sons';
 
 describe('Cinématiques', () => {
@@ -31,6 +34,26 @@ describe('Cinématiques', () => {
     expect(
       cinematiquesPour([{ type: 'infirmerie', tour: 1, bande: 'bleu', eleveId: 'b' }], true),
     ).toEqual(['grandsFreres', 'infirmerie']);
+  });
+
+  it('panneaux du toboggan, du mot d’excuse et des goûters', () => {
+    expect(
+      cinematiquesPour([
+        { type: 'glissade', tour: 1, eleveId: 'a', role: 'grand', depart: 'A1', arrivee: 'B1' },
+        { type: 'surveillante', tour: 1, position: 1, pas: 1, parDelegue: false },
+        { type: 'surveillante', tour: 1, position: 2, pas: 1, parDelegue: true },
+        { type: 'region', tour: 1, bande: 'rouge', region: 'haut', bonsPoints: 2 },
+      ]),
+    ).toEqual(['toboggan', 'delegue', 'gouter']);
+  });
+
+  it('pas de panneau de goûter quand il fait gagner : l’écran de victoire suffit', () => {
+    expect(
+      cinematiquesPour([
+        { type: 'region', tour: 1, bande: 'rouge', region: 'haut', bonsPoints: 2 },
+        { type: 'fin', tour: 1, gagnant: 'rouge', raison: 'bonsPoints' },
+      ]),
+    ).toEqual([]);
   });
 
   it('chaque bruitage provisoire reste bref', () => {

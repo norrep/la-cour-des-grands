@@ -20,7 +20,7 @@ import {
 } from '../../engine/index';
 import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
 import { alleesDuChemin } from '../chemins';
-import { cinematiquesPour, type CinematiqueId } from '../cinematiques';
+import { cinematiquesPour, type Cinematique, type CinematiqueId } from '../cinematiques';
 import { prochainConseil, type ConseilId } from '../conseils';
 import { Controleur } from '../controleur';
 import {
@@ -35,7 +35,7 @@ import { dernieresLignes, nomGouter } from '../journal';
 import { creerBadge } from '../ui/badge';
 import { creerBouton } from '../ui/bouton';
 import { ecrireConseils, lireSons } from '../preferences';
-import { activerSons, jouerSon } from '../sons';
+import { activerSons, jouerSon, type SonId } from '../sons';
 import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
 
@@ -74,7 +74,7 @@ export class PartieScene extends Phaser.Scene {
   /** Un coup vient de finir : on montre son effet avant l'écran « Passe le téléphone ». */
   private entreDeuxTours = false;
   /** Cinématiques en attente, jouées l'une après l'autre. */
-  private cinematiques: CinematiqueId[] = [];
+  private cinematiques: Cinematique[] = [];
   private cinematiqueEnCours: Phaser.GameObjects.Container | null = null;
   private tweensCinematique = new Set<Phaser.Tweens.Tween>();
 
@@ -536,21 +536,13 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /** Une friandise par zone (chocolat, biscuits, bonbon, sucette) avec sa valeur. */
-  private dessinerGouter(
+  /** La friandise d'une zone : tablette de chocolat, biscuits, bonbon ou sucette. */
+  private dessinerFriandise(
+    g: Phaser.GameObjects.Graphics,
     index: number,
     x: number,
     y: number,
-    points: number,
-    prise: Bande | undefined,
   ): void {
-    const g = this.ajouter(this.add.graphics());
-    if (prise) {
-      g.fillStyle(prise === 'rouge' ? COULEURS.rouge : COULEURS.bleu, 1);
-      g.lineStyle(3, COULEURS.craie, 1);
-      g.fillCircle(x, y, 30);
-      g.strokeCircle(x, y, 30);
-    }
-    g.setAlpha(prise ? 0.75 : 1);
     const contour = (): void => {
       g.lineStyle(3, COULEURS.fondSombre, 1);
     };
@@ -605,6 +597,24 @@ export class PartieScene extends Phaser.Scene {
         g.strokePath();
         break;
     }
+  }
+
+  private dessinerGouter(
+    index: number,
+    x: number,
+    y: number,
+    points: number,
+    prise: Bande | undefined,
+  ): void {
+    const g = this.ajouter(this.add.graphics());
+    if (prise) {
+      g.fillStyle(prise === 'rouge' ? COULEURS.rouge : COULEURS.bleu, 1);
+      g.lineStyle(3, COULEURS.craie, 1);
+      g.fillCircle(x, y, 30);
+      g.strokeCircle(x, y, 30);
+    }
+    g.setAlpha(prise ? 0.75 : 1);
+    this.dessinerFriandise(g, index, x, y);
     this.texte(x + 22, y - 22, `+${points}`, 18, '#ffe066', {
       fontStyle: 'bold',
       stroke: COULEURS.texteSombre,
@@ -1559,31 +1569,51 @@ export class PartieScene extends Phaser.Scene {
    * (`dessinerPictogramme`) est prêt à recevoir l'animation définitive. Toucher la passe.
    */
   private cinematiqueSuivante(): void {
-    const id = this.cinematiques.shift();
-    if (!id) {
+    const cin = this.cinematiques.shift();
+    if (!cin) {
       this.cinematiqueEnCours = null;
       return;
     }
-    const C = TEXTES.cinematiques[id];
-    jouerSon(id);
+    const id = cin.id;
+    const T = TEXTES.cinematiques;
+    const C =
+      id === 'gouter'
+        ? T.gouter(
+            cin.bande ?? 'rouge',
+            nomGouter(this.cour, cin.region ?? ''),
+            cin.bonsPoints ?? 1,
+          )
+        : T[id];
+    const SONS: Record<CinematiqueId, SonId> = {
+      cpe: 'cpe',
+      infirmerie: 'infirmerie',
+      grandsFreres: 'grandsFreres',
+      sonnerie: 'sonnerie',
+      gouter: 'gouter',
+      toboggan: 'glissade',
+      delegue: 'pioche',
+    };
+    jouerSon(SONS[id]);
     const fond = this.add.rectangle(0, 0, LARGEUR, HAUTEUR, COULEURS.fondSombre, 0.55);
     fond.setOrigin(0, 0).setInteractive();
     const bandeau = this.add.graphics();
-    const couleur =
-      id === 'cpe'
-        ? 0x7d2fa0
-        : id === 'infirmerie'
-          ? 0xc0392b
-          : id === 'sonnerie'
-            ? 0xe0b84a
-            : 0x3b6fd9;
+    const COULEURS_PANNEAU: Record<CinematiqueId, number> = {
+      cpe: 0x7d2fa0,
+      infirmerie: 0xc0392b,
+      sonnerie: 0xe0b84a,
+      grandsFreres: 0x3b6fd9,
+      gouter: 0xd9822b,
+      toboggan: 0x2a9d8f,
+      delegue: 0x5b6abf,
+    };
+    const couleur = COULEURS_PANNEAU[id];
     bandeau.fillStyle(couleur, 1);
     bandeau.fillRect(-40, 470, LARGEUR + 80, 340);
     bandeau.lineStyle(8, COULEURS.craie, 1);
     bandeau.lineBetween(-40, 470, LARGEUR + 40, 470);
     bandeau.lineBetween(-40, 810, LARGEUR + 40, 810);
     const picto = this.add.graphics();
-    this.dessinerPictogramme(picto, id, 150, 640);
+    this.dessinerPictogramme(picto, id, 150, 640, cin);
     const style = { fontFamily: POLICE, color: COULEURS.texteClair, stroke: COULEURS.texteSombre };
     const titre = this.add
       .text(270, 610, C.titre, {
@@ -1595,7 +1625,12 @@ export class PartieScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5);
     const sous = this.add
-      .text(270, 700, C.sous, { ...style, fontSize: '24px', strokeThickness: 5 })
+      .text(270, 700, C.sous, {
+        ...style,
+        fontSize: '24px',
+        strokeThickness: 5,
+        wordWrap: { width: LARGEUR - 300 },
+      })
       .setOrigin(0, 0.5);
     const passer = this.add
       .text(LARGEUR / 2, 850, TEXTES.cinematiques.passer, { ...style, fontSize: '18px' })
@@ -1640,6 +1675,7 @@ export class PartieScene extends Phaser.Scene {
     id: CinematiqueId,
     x: number,
     y: number,
+    cin?: Cinematique,
   ): void {
     g.setPosition(x, y);
     g.lineStyle(5, COULEURS.fondSombre, 1);
@@ -1670,6 +1706,34 @@ export class PartieScene extends Phaser.Scene {
           g.fillCircle(dx, -60, 28);
           g.strokeCircle(dx, -60, 28);
         }
+        break;
+      case 'gouter': {
+        // Le goûter ramassé, en grand.
+        const i = Math.max(
+          0,
+          this.cour.regions.findIndex((r) => r.id === cin?.region),
+        );
+        g.setScale(2.6);
+        this.dessinerFriandise(g, i, 0, 0);
+        break;
+      }
+      case 'toboggan':
+        g.fillStyle(0xe0b84a, 1);
+        g.fillRect(-70, -80, 14, 160);
+        g.strokeRect(-70, -80, 14, 160);
+        g.fillStyle(COULEURS.rouge, 1);
+        g.fillTriangle(-56, -80, -56, -60, 80, 80);
+        g.fillTriangle(-56, -60, 80, 80, 60, 80);
+        g.lineBetween(-56, -80, 80, 80);
+        break;
+      case 'delegue': // Mot d'excuse
+        g.fillStyle(COULEURS.papier, 1);
+        g.fillRect(-60, -75, 120, 150);
+        g.strokeRect(-60, -75, 120, 150);
+        g.lineStyle(4, 0x8a8a7a, 1);
+        for (let k = 0; k < 5; k++) g.lineBetween(-45, -45 + k * 25, 45, -45 + k * 25);
+        g.lineStyle(5, COULEURS.rouge, 1);
+        g.lineBetween(10, 50, 45, 30);
         break;
       default: // Cloche de la sonnerie
         g.fillStyle(0xffe066, 1);
