@@ -14,47 +14,27 @@ describe('Contrôleur de partie à deux', () => {
     expect(c.phase).toBe('jeu');
   });
 
-  it('un coup terminé attend une confirmation, puis on passe le téléphone', () => {
+  it('un coup joué est définitif : on passe aussitôt le téléphone', () => {
     const c = nouveau();
     c.reprendre();
     expect(c.appeler()).toBe(true);
-    expect(c.phase).toBe('aConfirmer');
-    c.valider();
     expect(c.phase).toBe('passe');
+    expect(c.appeler()).toBe(false);
     c.reprendre();
     expect(c.phase).toBe('jeu');
     expect(c.etat.courant).toBe('bleu');
   });
 
-  it('annule le dernier coup non confirmé', () => {
+  it('un choix de pouvoir garde la main au même joueur jusqu’à la fin du coup', () => {
     const c = nouveau();
     c.reprendre();
-    const avant = c.etat;
-    c.appeler();
-    expect(c.peutAnnuler).toBe(true);
-    c.annuler();
-    expect(c.etat).toBe(avant);
-    expect(c.phase).toBe('jeu');
-  });
-
-  it('annule aussi un coup en plein choix de pouvoir', () => {
-    const c = nouveau();
-    c.reprendre();
-    const pose = actionsLegales(c.etat).find((a) => a.type === 'envoyer');
-    if (!pose || pose.type !== 'envoyer') throw new Error('pose attendue');
-    c.envoyer(pose.eleveId, pose.cible);
-    c.annuler();
-    expect(c.etat.joueurs.rouge.rang).toHaveLength(3);
-    expect(c.etat.attente).toBeNull();
-  });
-
-  it('ne peut pas annuler un coup confirmé', () => {
-    const c = nouveau();
-    c.reprendre();
-    c.appeler();
-    c.valider();
-    c.reprendre();
-    expect(c.peutAnnuler).toBe(false);
+    let garde = 0;
+    while (c.etat.courant === 'rouge' && c.phase === 'jeu' && garde++ < 50) {
+      const a = actionsLegales(c.etat)[0] as never;
+      c.jouer(a);
+      if (c.etat.attente) expect(c.phase).toBe('jeu');
+    }
+    expect(c.phase).not.toBe('jeu');
   });
 
   it('refuse une action illégale sans changer l’état', () => {
@@ -77,8 +57,7 @@ describe('Contrôleur de partie à deux', () => {
     // Joue des coups au hasard jusqu'à la fin.
     let garde = 0;
     while (c.phase !== 'fin' && garde++ < 2000) {
-      if (c.phase === 'aConfirmer') c.valider();
-      else if (c.phase === 'passe') c.reprendre();
+      if (c.phase === 'passe') c.reprendre();
       else c.jouer(actionsLegales(c.etat)[0] as never);
     }
     expect(c.phase).toBe('fin');

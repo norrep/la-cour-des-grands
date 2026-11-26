@@ -106,8 +106,6 @@ export const TEXTES = {
   },
   boutons: {
     appeler: (n: number) => (n > 1 ? `Appeler ${n} copains` : 'Appeler 1 copain'),
-    annuler: 'Annuler',
-    valider: 'Valider le coup',
     passer: 'Passer',
     piocher: 'Piocher',
     infirmerie: 'Éternuer',
@@ -187,7 +185,6 @@ export const TEXTES = {
       'La surveillante bloque son allée (violet plein) et protège les 2 îlots au bout. Après chaque tour complet, elle suit ses traces de pas jusqu’à sa silhouette pâle.',
     zones:
       'Les friandises +1 / +2 sont des goûters : occupe tous les îlots autour pour les ramasser. Touche une friandise pour voir lesquels.',
-    valider: 'Pas content ? « Annuler » reprend ton tour. Sinon, valide et passe le téléphone.',
   },
   aide: {
     titre: 'Comment jouer',
@@ -205,8 +202,8 @@ export const TEXTES = {
     ],
     fermer: 'Fermer',
   },
-  confirmation: 'Coup joué. Tu peux encore l’annuler.',
   passe: {
+    bientot: (b: Bande) => `À la ${BANDES[b]} de jouer…`,
     titre: 'Passe le téléphone',
     a: (b: Bande) => `à la ${BANDES[b]}`,
     cache: 'Ne regarde pas le rang de l’adversaire !',

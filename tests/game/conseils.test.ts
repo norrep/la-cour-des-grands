@@ -21,7 +21,6 @@ describe('Conseils pour débuter', () => {
   it('un seul conseil de préparation par tour', () => {
     const e = situation({ rang: { rouge: ['grand'] } });
     expect(prochainConseil(e, 'jeu', vus('but'), true)).toBeNull();
-    expect(prochainConseil(e, 'aConfirmer', vus('but'), true)).toBe('valider');
   });
 
   it('saute « glisser » quand aucun élève ne peut être posé', () => {
@@ -52,7 +51,7 @@ describe('Conseils pour débuter', () => {
     expect(prochainConseil(e, 'jeu', vus(...base, 'surveillante'))).toBe('zones');
   });
 
-  it('explique le pouvoir pendant un choix, puis la validation', () => {
+  it('explique le pouvoir pendant un choix', () => {
     const e = situation({ rang: { rouge: ['populaire'] } });
     const apres = jouer(e, {
       type: 'envoyer',
@@ -61,8 +60,6 @@ describe('Conseils pour débuter', () => {
     });
     expect(apres.attente).not.toBeNull();
     expect(prochainConseil(apres, 'jeu', vus('but'))).toBe('pouvoir');
-    expect(prochainConseil(e, 'aConfirmer', vus())).toBe('valider');
-    expect(prochainConseil(e, 'aConfirmer', vus('valider'))).toBeNull();
   });
 
   it('ne dit rien pendant la passe du téléphone', () => {

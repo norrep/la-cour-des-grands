@@ -12,9 +12,9 @@ Ouvre le lien sur ton téléphone, touche « Jouer à deux », puis passez-vous 
 
 1. Glisse un élève de ton rang (en bas) vers un îlot qui s'allume, ou touche « Appeler des copains ».
 2. Si l'élève a un pouvoir, choisis sa cible (îlot qui s'allume ou bouton), ou « Passer ».
-3. « Valider le coup », puis donne le téléphone à l'autre bande. « Annuler » reprend le tour tant qu'il n'est pas validé.
+3. Le coup est joué aussitôt : donne le téléphone à l'autre bande.
 
-Badge **rond** = bande rouge, badge **carré** = bande bleue. Les traces de pas violettes montrent la prochaine allée de la surveillante ; l'allée rouge est bloquée et les îlots entourés de violet sont sous surveillance.
+Badge **rond** = bande rouge, badge **carré** = bande bleue. Les traces de pas violettes mènent à la silhouette pâle de la surveillante, sur sa prochaine allée ; l'allée violette pleine est bloquée et les îlots entourés de violet sont sous surveillance. Les friandises +1/+2 sont les goûters à ramasser.
 
 ## Commandes
 

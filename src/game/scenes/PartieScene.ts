@@ -3,7 +3,6 @@ import { COURS } from '../../data/boards/index';
 import { TEXTES } from '../../data/textes';
 import {
   actionsLegales,
-  adversaire,
   alleeSuivante,
   alleeSurveillante,
   chargerCour,
@@ -45,6 +44,8 @@ const TAILLE_BADGE = 62;
 const RAYON_DEPOT = 75;
 const Y_JOURNAL = 935;
 const Y_ACTIONS = 1040;
+/** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
+const DUREE_FIN_DE_TOUR = 900;
 
 type Texte = Phaser.GameObjects.Text;
 
@@ -70,6 +71,8 @@ export class PartieScene extends Phaser.Scene {
   private tourDernierConseil: Record<Bande, number> = { rouge: 0, bleu: 0 };
   /** Animations et cinématiques (coupées par les tests automatisés de l'écran). */
   private animations = true;
+  /** Un coup vient de finir : on montre son effet avant l'écran « Passe le téléphone ». */
+  private entreDeuxTours = false;
   /** Cinématiques en attente, jouées l'une après l'autre. */
   private cinematiques: CinematiqueId[] = [];
   private cinematiqueEnCours: Phaser.GameObjects.Container | null = null;
@@ -94,6 +97,7 @@ export class PartieScene extends Phaser.Scene {
     this.tourDernierConseil = { rouge: 0, bleu: 0 };
     this.cinematiques = [];
     this.cinematiqueEnCours = null;
+    this.entreDeuxTours = false;
     this.animations = !(window as unknown as { __sansAnimations?: boolean }).__sansAnimations;
     activerSons(lireSons());
     // Accès de débogage, utilisé aussi par les tests automatisés de l'écran.
@@ -125,12 +129,12 @@ export class PartieScene extends Phaser.Scene {
     this.dessinerCour();
     this.dessinerHud();
     this.dessinerJournal();
-    if (this.ctrl.phase === 'jeu' || this.ctrl.phase === 'aConfirmer') {
-      this.dessinerActions();
-    }
+    if (this.ctrl.phase === 'jeu') this.dessinerActions();
     if (this.ctrl.phase === 'jeu' && !this.attenteHorsRang()) this.dessinerRang();
-    if (this.ctrl.phase === 'aConfirmer') this.dessinerRangCache();
-    if (this.ctrl.phase === 'passe') this.dessinerPasse();
+    if (this.ctrl.phase === 'passe') {
+      if (this.entreDeuxTours) this.dessinerFinDeTour();
+      else this.dessinerPasse();
+    }
     if (this.ctrl.phase === 'fin') this.dessinerFin();
     if (this.aideOuverte) this.dessinerAide();
     else this.dessinerConseil();
@@ -176,9 +180,9 @@ export class PartieScene extends Phaser.Scene {
     return positionNoeud(this.cour, id);
   }
 
-  /** La bande dont c'est le coup (celle qui vient de jouer pendant la confirmation). */
+  /** La bande dont c'est le coup. */
   private get bandeActive(): Bande {
-    return this.ctrl.phase === 'aConfirmer' ? adversaire(this.etat.courant) : this.etat.courant;
+    return this.etat.courant;
   }
 
   /** Un choix est en cours et ne passe pas par le rang (tout sauf le Chouchou). */
@@ -324,7 +328,7 @@ export class PartieScene extends Phaser.Scene {
 
   /** En dehors des choix, toucher un îlot ou une cabane ouvre sa fiche. */
   private zonesInformation(): void {
-    if (this.ctrl.phase !== 'jeu' && this.ctrl.phase !== 'aConfirmer') return;
+    if (this.ctrl.phase !== 'jeu') return;
     for (const id of Object.keys(this.cour.noeuds)) {
       const p = this.pos(id);
       const cabane = this.cour.noeuds[id]?.type === 'cabane';
@@ -688,6 +692,14 @@ export class PartieScene extends Phaser.Scene {
     const avant = this.etat.journal.length;
     if (!action()) return false;
     const nouveaux = this.etat.journal.slice(avant);
+    if (this.ctrl.phase === 'passe' && this.animations) {
+      // Coup terminé : un court instant pour voir l'élève atterrir, puis on passe le téléphone.
+      this.entreDeuxTours = true;
+      this.time.delayedCall(DUREE_FIN_DE_TOUR, () => {
+        this.entreDeuxTours = false;
+        this.rafraichir();
+      });
+    }
     this.rafraichir();
     this.animer(nouveaux, grandsFreres);
     return true;
@@ -719,7 +731,7 @@ export class PartieScene extends Phaser.Scene {
     }).setOrigin(1, 0.5);
 
     this.texte(LARGEUR / 2, 24, TEXTES.hud.seuil(this.cour.seuilBonsPoints), 20).setOrigin(0.5);
-    if (this.ctrl.phase === 'jeu' || this.ctrl.phase === 'aConfirmer') {
+    if (this.ctrl.phase === 'jeu') {
       this.ajouter(
         creerBouton(
           this,
@@ -855,29 +867,6 @@ export class PartieScene extends Phaser.Scene {
 
   private dessinerActions(): void {
     const ctrl = this.ctrl;
-    const annuler = {
-      texte: TEXTES.boutons.annuler,
-      action: () => {
-        this.departToboggan = null;
-        ctrl.annuler();
-        this.rafraichir();
-      },
-    };
-
-    if (ctrl.phase === 'aConfirmer') {
-      this.rangeeBoutons(Y_ACTIONS, [
-        annuler,
-        {
-          texte: TEXTES.boutons.valider,
-          couleur: COULEURS.allume,
-          action: () => {
-            ctrl.valider();
-            this.rafraichir();
-          },
-        },
-      ]);
-      return;
-    }
 
     const attente = this.etat.attente;
     if (!attente) {
@@ -892,7 +881,6 @@ export class PartieScene extends Phaser.Scene {
           },
         });
       }
-      if (ctrl.peutAnnuler) boutons.push(annuler);
       const j = this.etat.joueurs[this.etat.courant];
       const peutPoser = j.rang.some(
         (el) => !j.infirmerie.includes(el.id) && ciblesPossibles(this.etat, el.id).length > 0,
@@ -922,7 +910,7 @@ export class PartieScene extends Phaser.Scene {
       return;
     }
 
-    // Choix d'un pouvoir ou d'un équipement : options à boutons, puis « Passer » et « Annuler ».
+    // Choix d'un pouvoir ou d'un équipement : options à boutons, puis « Passer ».
     const options: { texte: string; action: () => void; couleur?: number }[] = [];
     const vusRoles = new Set<string>();
     for (const o of attente.options) {
@@ -950,7 +938,6 @@ export class PartieScene extends Phaser.Scene {
           this.agir(() => ctrl.passer());
         },
       },
-      annuler,
     ];
     if (this.attenteHorsRang()) {
       lignes.push(fin);
@@ -1202,16 +1189,24 @@ export class PartieScene extends Phaser.Scene {
     this.surbrillances = [];
   }
 
-  /** Pendant la confirmation, on cache le rang : le téléphone va changer de mains. */
-  private dessinerRangCache(): void {
-    this.texte(LARGEUR / 2, RANG.y, TEXTES.confirmation, 22, COULEURS.texteClair, {
-      align: 'center',
-    }).setOrigin(0.5);
+  /**
+   * Juste après un coup : on laisse voir l'atterrissage un instant, rang caché et écran bloqué,
+   * puis vient l'écran « Passe le téléphone ».
+   */
+  private dessinerFinDeTour(): void {
+    this.texte(
+      LARGEUR / 2,
+      RANG.y,
+      TEXTES.passe.bientot(this.etat.courant),
+      24,
+      COULEURS.texteClair,
+      {
+        fontStyle: 'bold',
+      },
+    ).setOrigin(0.5);
+    const bloc = this.ajouter(this.add.rectangle(0, 0, LARGEUR, HAUTEUR, 0x000000, 0.001));
+    bloc.setOrigin(0, 0).setInteractive();
   }
-
-  // -------------------------------------------------------------------------
-  // Écrans « Passe le téléphone » et fin de partie
-  // -------------------------------------------------------------------------
 
   private voile(alpha: number): void {
     const v = this.ajouter(this.add.rectangle(0, 0, LARGEUR, HAUTEUR, COULEURS.fondSombre, alpha));
@@ -1327,7 +1322,7 @@ export class PartieScene extends Phaser.Scene {
   private dessinerConseil(): void {
     if (!this.conseilsActifs) return;
     const bande = this.bandeActive;
-    const tour = this.ctrl.phase === 'aConfirmer' ? this.etat.tour - 1 : this.etat.tour;
+    const tour = this.etat.tour;
     const id = prochainConseil(
       this.etat,
       this.ctrl.phase,
@@ -1374,7 +1369,7 @@ export class PartieScene extends Phaser.Scene {
     const yb = y0 + hauteur - 62;
     const vu = (): void => {
       this.conseilsVus[bande].add(id);
-      if (id !== 'pouvoir' && id !== 'valider') this.tourDernierConseil[bande] = tour;
+      if (id !== 'pouvoir') this.tourDernierConseil[bande] = tour;
     };
     this.ajouter(
       creerBouton(
@@ -1636,7 +1631,7 @@ export class PartieScene extends Phaser.Scene {
     });
     if (id === 'sonnerie') this.secousse(0.01, 700);
     fond.on('pointerup', finir);
-    this.time.delayedCall(1500, finir);
+    this.time.delayedCall(1100, finir);
   }
 
   /** Emplacement de l'animation de chaque cinématique : pictogramme provisoire. */

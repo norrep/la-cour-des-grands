@@ -4,15 +4,7 @@ import { alleesDuChemin } from './chemins';
 
 /** Conseils pour débuter, montrés une fois à chaque joueur pendant ses premiers tours. */
 export type ConseilId =
-  | 'but'
-  | 'glisser'
-  | 'appeler'
-  | 'chemin'
-  | 'plaquer'
-  | 'pouvoir'
-  | 'surveillante'
-  | 'zones'
-  | 'valider';
+  'but' | 'glisser' | 'appeler' | 'chemin' | 'plaquer' | 'pouvoir' | 'surveillante' | 'zones';
 
 /** À partir de quel tour (numéro de tour de joueur) parler de la surveillante et des zones. */
 export const TOUR_SURVEILLANTE = 3;
@@ -22,7 +14,7 @@ export const TOUR_ZONES = 6;
  * Le conseil à montrer maintenant au joueur `bande`, ou `null`.
  * `vus` : conseils déjà montrés à ce joueur. Un seul conseil à la fois, le plus utile d'abord.
  * `dejaCeTour` : ce joueur a déjà lu un conseil de préparation ce tour-ci ; on ne garde alors
- * que ceux qui expliquent ce qui vient d'arriver (pouvoir, validation), pour ne pas l'assommer.
+ * que celui qui explique le pouvoir en cours, pour ne pas l'assommer.
  */
 export function prochainConseil(
   e: EtatPartie,
@@ -32,7 +24,6 @@ export function prochainConseil(
 ): ConseilId | null {
   const nouveau = (id: ConseilId): boolean => !vus.has(id);
   if (e.fin) return null;
-  if (phase === 'aConfirmer') return nouveau('valider') ? 'valider' : null;
   if (phase !== 'jeu') return null;
   if (e.attente) return nouveau('pouvoir') ? 'pouvoir' : null;
   if (dejaCeTour) return null;

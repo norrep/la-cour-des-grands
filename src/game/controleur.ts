@@ -12,16 +12,14 @@ import {
 /**
  * Déroulé d'une partie à deux sur un même téléphone, sans Phaser :
  * - `jeu` : le joueur courant joue (son coup peut passer par plusieurs choix) ;
- * - `aConfirmer` : son coup est fini, il peut encore l'annuler ou le valider ;
  * - `passe` : écran « Passe le téléphone » qui cache le rang du joueur suivant ;
  * - `fin` : partie terminée.
+ * Un coup est définitif dès qu'il est joué : pas d'annulation ni de confirmation.
  */
-export type Phase = 'jeu' | 'aConfirmer' | 'passe' | 'fin';
+export type Phase = 'jeu' | 'passe' | 'fin';
 
 export class Controleur {
   etat: EtatPartie;
-  /** État au début du tour, pour annuler le coup non confirmé. */
-  private debutTour: EtatPartie;
   phase: Phase = 'passe';
 
   constructor(
@@ -29,19 +27,19 @@ export class Controleur {
     readonly options: OptionsPartie,
   ) {
     this.etat = creerPartie(cour, options);
-    this.debutTour = this.etat;
   }
 
   /** Joue une action. Renvoie `false` si elle est illégale (l'état ne change pas). */
   jouer(action: Action): boolean {
     if (this.phase !== 'jeu') return false;
+    const courant = this.etat.courant;
     try {
       this.etat = jouer(this.etat, action);
     } catch {
       return false;
     }
     if (this.etat.fin) this.phase = 'fin';
-    else if (this.etat.courant !== this.debutTour.courant) this.phase = 'aConfirmer';
+    else if (this.etat.courant !== courant) this.phase = 'passe';
     return true;
   }
 
@@ -61,27 +59,9 @@ export class Controleur {
     return this.jouer({ type: 'passer' });
   }
 
-  /** Le coup en cours (ou terminé mais non confirmé) peut-il être annulé ? */
-  get peutAnnuler(): boolean {
-    return (this.phase === 'jeu' || this.phase === 'aConfirmer') && this.etat !== this.debutTour;
-  }
-
-  annuler(): void {
-    if (!this.peutAnnuler) return;
-    this.etat = this.debutTour;
-    this.phase = 'jeu';
-  }
-
-  /** Confirme le coup : on passe le téléphone. */
-  valider(): void {
-    if (this.phase === 'aConfirmer') this.phase = 'passe';
-  }
-
   /** Le joueur suivant a pris le téléphone. */
   reprendre(): void {
-    if (this.phase !== 'passe') return;
-    this.debutTour = this.etat;
-    this.phase = 'jeu';
+    if (this.phase === 'passe') this.phase = 'jeu';
   }
 
   /** Nombre d'élèves qu'« appeler » piocherait, ou 0 si c'est interdit. */
