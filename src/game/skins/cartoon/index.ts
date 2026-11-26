@@ -1,69 +1,60 @@
 /**
- * Skin « Cartoon » branché sur Phaser : les dessins SVG de `eleves.ts` deviennent des images au
- * chargement, et le pantin est monté à partir de la tête, du corps et de bras en spaghetti.
+ * Skin « Cartoon » : les élèves dessinés d'après les références validées par Clément (trait noir
+ * fin, membres en nouilles, débardeur numéroté). Ce sont des images détourées
+ * (`public/skins/dessin/`), une par rôle et par bande.
+ *
+ * Le pantin garde l'image entière : l'élève pend à sa propre main, et son bras s'étire comme un
+ * spaghetti jusqu'au doigt du joueur.
  */
 import Phaser from 'phaser';
 import { ROLES, type Bande, type RoleId } from '../../../engine/index';
+import { creerBadge } from '../../ui/badge';
 import type { P, RenduPantin, Skin, TextureSkin } from '../types';
-import {
-  GABARITS,
-  NOIR,
-  svgCorps,
-  svgPortrait,
-  svgTete,
-  VUE_CORPS,
-  VUE_PORTRAIT,
-  VUE_TETE,
-} from './eleves';
+import { MESURES, type MesureDessin } from './mesures';
 
-/** Finesse des images : 2,2 pixels d'image par pixel de jeu pour un élève de taille 100. */
-const FINESSE = 2.2;
-/** Un élève cartoon est un peu plus grand que le jeton classique de même taille. */
-const AGRANDI = 1.1;
+/** Hauteur de l'élève le plus grand, en multiples de `taille`. */
+const HAUTEUR_REF = 2.5;
+/** Hauteur de l'image la plus grande, en pixels : les autres élèves sont plus petits d'autant. */
+const PIXELS_REF = 440;
+/** Hauteur du numéro sur le débardeur, en fraction de l'image (l'élève est centré dessus). */
+const NUMERO = 0.4;
 /** L'élève est remonté d'une fraction de sa taille : ses pieds ne cachent pas le nom de l'îlot. */
-const REMONTE = 0.2;
+const REMONTE = 0.38;
+/** Pastille de valeur à côté de l'élève, en fraction de `taille`. */
+const PASTILLE = 0.42;
+/** Hauteur du pantin à l'écran, en pixels de jeu. */
+const HAUTEUR_PANTIN = 170;
+const NOIR = 0x1d1d1b;
 const BANDES: Bande[] = ['rouge', 'bleu'];
 
-const clePortrait = (role: RoleId, bande: Bande) => `cartoon-portrait-${role}-${bande}`;
-const cleTete = (role: RoleId) => `cartoon-tete-${role}`;
-const cleCorps = (role: RoleId, bande: Bande) => `cartoon-corps-${role}-${bande}`;
-const couleur = (hex: string) => Phaser.Display.Color.HexStringToColor(hex).color;
-const NOIR_N = couleur(NOIR);
+const nom = (bande: Bande, role: RoleId) => `${bande}-${role}`;
+const cle = (bande: Bande, role: RoleId) => `cartoon-${nom(bande, role)}`;
 
-function textures(): TextureSkin[] {
-  const liste: TextureSkin[] = [];
-  for (const { id } of ROLES) {
-    liste.push({ cle: cleTete(id), svg: svgTete(id, FINESSE) });
-    for (const b of BANDES) {
-      liste.push({ cle: clePortrait(id, b), svg: svgPortrait(id, b, FINESSE) });
-      liste.push({ cle: cleCorps(id, b), svg: svgCorps(id, b, FINESSE) });
-    }
-  }
-  return liste;
+function mesure(bande: Bande, role: RoleId): MesureDessin {
+  const m = MESURES[nom(bande, role)];
+  if (!m) throw new Error(`Élève sans mesures : ${nom(bande, role)}`);
+  return m;
 }
 
-/** Membre mou : un gros trait noir, la couleur par-dessus, légèrement courbé. */
-function nouille(
-  g: Phaser.GameObjects.Graphics,
-  de: P,
-  vers: P,
-  c: number,
-  epaisseur: number,
-  courbe: number,
-): void {
-  const mx = (de.x + vers.x) / 2;
-  const my = (de.y + vers.y) / 2;
+function textures(): TextureSkin[] {
+  return ROLES.flatMap(({ id }) =>
+    BANDES.map((b) => ({ cle: cle(b, id), url: `skins/dessin/${nom(b, id)}.png` })),
+  );
+}
+
+/** Bras en spaghetti : un trait noir, la couleur de la peau par-dessus, un peu courbé. */
+function nouille(g: Phaser.GameObjects.Graphics, de: P, vers: P, c: number, ep: number): void {
   const dx = vers.x - de.x;
   const dy = vers.y - de.y;
-  const controle = new Phaser.Math.Vector2(mx - dy * courbe, my + dx * courbe);
-  const points = new Phaser.Curves.QuadraticBezier(
+  const courbe = new Phaser.Curves.QuadraticBezier(
     new Phaser.Math.Vector2(de.x, de.y),
-    controle,
+    new Phaser.Math.Vector2((de.x + vers.x) / 2 + dy * 0.12, (de.y + vers.y) / 2 - dx * 0.12),
     new Phaser.Math.Vector2(vers.x, vers.y),
-  ).getPoints(10);
+  );
+  const points = courbe.getPoints(12);
   for (const [largeur, teinte] of [
-    [epaisseur + 7, NOIR_N],
-    [epaisseur, c],
+    [ep + 4, NOIR],
+    [ep, c],
   ] as const) {
     g.lineStyle(largeur, teinte, 1);
     g.strokePoints(points, false, false);
@@ -74,75 +65,50 @@ function nouille(
   }
 }
 
-function rondCerne(g: Phaser.GameObjects.Graphics, p: P, r: number, c: number): void {
-  g.fillStyle(NOIR_N, 1);
-  g.fillCircle(p.x, p.y, r + 2.5);
-  g.fillStyle(c, 1);
-  g.fillCircle(p.x, p.y, r);
-}
-
 export const SKIN_CARTOON: Skin = {
   id: 'cartoon',
   textures,
   eleve(scene, bande, role, taille) {
-    const img = scene.add.image(0, 0, clePortrait(role, bande));
-    const [x, y, l, h] = VUE_PORTRAIT;
-    img.setOrigin(-x / l, -y / h);
-    img.setScale(((taille / 100) * AGRANDI) / FINESSE);
-    img.setY(-taille * REMONTE);
-    return scene.add.container(0, 0, [img]);
+    const m = mesure(bande, role);
+    const echelle = (HAUTEUR_REF * taille) / PIXELS_REF;
+    // Tous les élèves ont les pieds au même niveau : le Grand dépasse, le Petit est plus bas.
+    const pieds = (1 - NUMERO) * PIXELS_REF * echelle - taille * REMONTE;
+    const img = scene.add.image(0, pieds, cle(bande, role)).setOrigin(0.5, 1).setScale(echelle);
+    // Pastille de valeur au niveau de la taille : le numéro du débardeur est trop petit sur l'îlot.
+    const pastille = creerBadge(scene, bande, role, taille * PASTILLE);
+    pastille.setPosition(
+      (m.largeur / 2) * echelle + taille * 0.08,
+      pieds - m.hauteur * echelle * 0.4,
+    );
+    return scene.add.container(0, 0, [img, pastille]);
   },
   pantin(scene, eleve): RenduPantin {
-    const gab = GABARITS[eleve.role];
-    const derriere = scene.add.graphics();
+    const m = mesure(eleve.bande, eleve.role);
+    const echelle = HAUTEUR_PANTIN / PIXELS_REF;
+    const bras = scene.add.graphics();
+    const img = scene.add.image(0, 0, cle(eleve.bande, eleve.role));
+    // L'image tourne autour de la main gauche de l'élève.
+    img.setOrigin(m.main.x / m.largeur, m.main.y / m.hauteur).setScale(echelle);
     const devant = scene.add.graphics();
-    const corps = scene.add.image(0, 0, cleCorps(eleve.role, eleve.bande));
-    const tete = scene.add.image(0, 0, cleTete(eleve.role));
-    corps.setOrigin(-VUE_CORPS[0] / VUE_CORPS[2], -VUE_CORPS[1] / VUE_CORPS[3]);
-    tete.setOrigin(-VUE_TETE[0] / VUE_TETE[2], -VUE_TETE[1] / VUE_TETE[3]);
-    const peau = couleur(gab.peau);
-    const bras = couleur(gab.bras);
-    const pantalon = couleur(gab.pantalon);
-    const chaussure = couleur(gab.chaussure);
+    const peau = Phaser.Display.Color.HexStringToColor(m.peau).color;
     return {
-      objets: [derriere, corps, tete, devant],
+      objets: [bras, img, devant],
       dessiner(s) {
-        // Le corps dessiné va du cou au bas de la chasuble : on l'ajuste au tronc du pantin.
-        const k = (s.tronc + 8) / gab.hauteur;
-        // L'épaule cartoon est au bord du corps : on décale tout le corps pour que la tête ne
-        // passe pas sous la main tenue.
-        const ca = Math.cos(s.angle);
-        const sa = Math.sin(s.angle);
-        const lx = (gab.largeur + 20) * k;
-        const ly = 12 * k;
-        const cou = { x: s.epaule.x + ca * lx - sa * ly, y: s.epaule.y - sa * lx - ca * ly };
-        const dx = cou.x - s.cou.x;
-        const dy = cou.y - s.cou.y;
-        const dec = (p: P): P => ({ x: p.x + dx, y: p.y + dy });
-        derriere.clear();
+        // La main de l'image est sous l'épaule du squelette, assez bas pour que la tête passe
+        // sous la main tenue ; le corps se balance avec le tronc.
+        const bas = m.main.y * echelle * 0.75;
+        const main = { x: s.epaule.x, y: s.epaule.y + bas };
+        img.setPosition(main.x, main.y);
+        img.setRotation(-s.angle * 0.6);
+        bras.clear();
         devant.clear();
-        for (const [i, [h, pd]] of s.jambes.entries()) {
-          const hanche = dec(h);
-          const pied = dec(pd);
-          nouille(derriere, hanche, pied, pantalon, 9 * k + 2, i === 0 ? 0.12 : -0.12);
-          rondCerne(derriere, pied, 7 * k + 2, chaussure);
-        }
-        const libre = [dec(s.brasLibre[0]), dec(s.brasLibre[1])] as const;
-        nouille(derriere, libre[0], libre[1], bras, 7 * k + 1, 0.18);
-        rondCerne(derriere, libre[1], 5 * k + 1, peau);
-        for (const img of [corps, tete]) {
-          img.setPosition(cou.x, cou.y);
-          img.setRotation(-s.angle);
-          img.setScale(k / FINESSE);
-        }
-        // Le bras tenu part du bord du corps et monte en biais vers la main.
-        const ex = -(gab.largeur - 5) * k;
-        const ey = 14 * k;
-        const epaule = { x: cou.x + ca * ex + sa * ey, y: cou.y - sa * ex + ca * ey };
-        nouille(devant, s.main, epaule, bras, 7 * k + 1, -0.1);
+        nouille(bras, s.main, main, peau, 7);
         devant.lineStyle(3, 0xffe066, 0.9);
         devant.strokeCircle(s.main.x, s.main.y, 14);
-        rondCerne(devant, s.main, 5 * k + 1, peau);
+        devant.fillStyle(NOIR, 1);
+        devant.fillCircle(s.main.x, s.main.y, 8);
+        devant.fillStyle(peau, 1);
+        devant.fillCircle(s.main.x, s.main.y, 6);
       },
     };
   },

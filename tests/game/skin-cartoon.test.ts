@@ -1,47 +1,34 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ROLES } from '../../src/engine/index';
-import { svgCorps, svgPortrait, svgTete } from '../../src/game/skins/cartoon/eleves';
-import { alea, lisse } from '../../src/game/skins/trace';
+import { MESURES } from '../../src/game/skins/cartoon/mesures';
 
-const VALEUR = { petit: 'J' } as Record<string, string>;
+const BANDES = ['rouge', 'bleu'] as const;
 
 describe('Skin Cartoon', () => {
-  it('dessine les 8 rôles dans les deux bandes, avec leur numéro sur la chasuble', () => {
-    for (const { id, valeur } of ROLES) {
-      for (const b of ['rouge', 'bleu'] as const) {
-        const svg = svgPortrait(id, b);
-        expect(svg.startsWith('<svg')).toBe(true);
-        expect(svg).toContain(`>${VALEUR[id] ?? String(valeur)}</text>`);
-        expect(svg).not.toContain('NaN');
-        expect(svgCorps(id, b)).not.toContain('NaN');
+  it('a une image et des mesures pour chaque rôle dans les deux bandes', () => {
+    for (const { id } of ROLES) {
+      for (const b of BANDES) {
+        const nom = `${b}-${id}`;
+        const fichier = `public/skins/dessin/${nom}.png`;
+        expect(existsSync(fichier), fichier).toBe(true);
+        const m = MESURES[nom];
+        expect(m, nom).toBeDefined();
+        if (!m) continue;
+        // Largeur et hauteur relevées = celles du PNG (en-tête IHDR).
+        const png = readFileSync(fichier);
+        expect(png.readUInt32BE(16)).toBe(m.largeur);
+        expect(png.readUInt32BE(20)).toBe(m.hauteur);
+        expect(m.main.x).toBeGreaterThanOrEqual(0);
+        expect(m.main.x).toBeLessThan(m.largeur);
+        expect(m.main.y).toBeGreaterThan(m.hauteur / 3);
+        expect(m.main.y).toBeLessThan(m.hauteur);
+        expect(m.peau).toMatch(/^#[0-9a-f]{6}$/);
       }
-      expect(svgTete(id)).not.toContain('NaN');
     }
   });
 
-  it('donne un dessin différent à chaque rôle', () => {
-    const tetes = new Set(ROLES.map((r) => svgTete(r.id)));
-    expect(tetes.size).toBe(ROLES.length);
-  });
-
-  it('distingue les bandes sans la couleur : pastille ronde ou carrée', () => {
-    expect(svgCorps('grand', 'rouge')).not.toEqual(svgCorps('grand', 'bleu'));
-  });
-
-  it('dessine toujours pareil (trait tremblé mais reproductible)', () => {
-    expect(svgPortrait('fouine', 'bleu')).toEqual(svgPortrait('fouine', 'bleu'));
-    const a = alea(5);
-    const b = alea(5);
-    expect(a()).toEqual(b());
-    expect(
-      lisse(
-        [
-          { x: 0, y: 0 },
-          { x: 10, y: 0 },
-          { x: 10, y: 10 },
-        ],
-        true,
-      ),
-    ).toMatch(/Z$/);
+  it("n'a pas d'image en trop", () => {
+    expect(Object.keys(MESURES)).toHaveLength(ROLES.length * BANDES.length);
   });
 });
