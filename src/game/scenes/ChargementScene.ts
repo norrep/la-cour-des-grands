@@ -3,6 +3,7 @@ import { COULEURS, HAUTEUR, LARGEUR, POLICE } from '../config';
 import { preparerSkin, choisirSkin, skinActif } from '../skins/index';
 import { cadrer } from '../ui/ecran';
 import { TEXTES } from '../../data/textes';
+import { avecVersion } from '../../version';
 
 /** Clé du décor de la cour (image plein écran derrière le plateau). */
 export const DECOR = 'decor-cour';
@@ -27,10 +28,10 @@ export class ChargementScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image(DECOR, 'decor/cour.jpg');
-    this.load.image(JOSIANE, 'skins/dodu/josiane.png');
+    this.load.image(DECOR, avecVersion('decor/cour.jpg'));
+    this.load.image(JOSIANE, avecVersion('skins/dodu/josiane.png'));
     for (const [equipement, cle] of Object.entries(ILLUSTRATIONS)) {
-      if (cle) this.load.image(cle, `decor/${equipement}.png`);
+      if (cle) this.load.image(cle, avecVersion(`decor/${equipement}.png`));
     }
   }
 
