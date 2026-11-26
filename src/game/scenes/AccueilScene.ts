@@ -1,9 +1,18 @@
 import Phaser from 'phaser';
 import { TEXTES } from '../../data/textes';
-import { COULEURS, HAUTEUR, LARGEUR } from '../config';
+import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
+import { creerBadge } from '../ui/badge';
+import { creerBouton } from '../ui/bouton';
 
-/** Écran d'accueil provisoire de l'étape 0 : il prouve que Phaser, le tactile et l'échelle marchent. */
+export interface DonneesPartie {
+  equipements: boolean;
+  graine: number;
+}
+
+/** Écran d'accueil : lancer une partie à deux, avec ou sans équipements spéciaux. */
 export class AccueilScene extends Phaser.Scene {
+  private equipements = true;
+
   constructor() {
     super('accueil');
   }
@@ -12,69 +21,71 @@ export class AccueilScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COULEURS.fond);
     const cx = LARGEUR / 2;
 
-    // Cadre à la craie, pour voir les bords de la zone 720×1280.
     const cadre = this.add.graphics();
     cadre.lineStyle(6, COULEURS.craie, 0.8);
     cadre.strokeRoundedRect(24, 24, LARGEUR - 48, HAUTEUR - 48, 32);
 
     this.add
-      .text(cx, 300, TEXTES.titre, {
-        fontFamily: 'Georgia, serif',
-        fontSize: '72px',
+      .text(cx, 260, TEXTES.titre, {
+        fontFamily: POLICE_TITRE,
+        fontSize: '76px',
         color: COULEURS.texteClair,
         align: 'center',
         wordWrap: { width: LARGEUR - 120 },
       })
       .setOrigin(0.5);
     this.add
-      .text(cx, 440, TEXTES.sousTitre, {
-        fontFamily: 'Georgia, serif',
-        fontSize: '32px',
-        color: COULEURS.texteClair,
-      })
-      .setOrigin(0.5);
-
-    // Les deux badges : rond pour la bande rouge, carré pour la bleue.
-    this.add.circle(cx - 110, 640, 70, COULEURS.rouge).setStrokeStyle(6, COULEURS.craie);
-    this.add.rectangle(cx + 110, 640, 130, 130, COULEURS.bleu).setStrokeStyle(6, COULEURS.craie);
-
-    this.add
-      .text(cx, 860, TEXTES.socle.enConstruction, {
-        fontFamily: 'Georgia, serif',
+      .text(cx, 400, TEXTES.sousTitre, {
+        fontFamily: POLICE_TITRE,
         fontSize: '30px',
         color: COULEURS.texteClair,
-        align: 'center',
-        wordWrap: { width: LARGEUR - 120 },
       })
       .setOrigin(0.5);
-    const consigne = this.add
-      .text(cx, 1040, TEXTES.socle.toucher, {
-        fontFamily: 'Georgia, serif',
-        fontSize: '28px',
-        color: COULEURS.texteClair,
-      })
-      .setOrigin(0.5);
-    this.tweens.add({ targets: consigne, alpha: 0.3, duration: 800, yoyo: true, repeat: -1 });
 
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      const bulle = this.add
-        .text(p.worldX, p.worldY, TEXTES.socle.sonnerie, {
-          fontFamily: 'Impact, sans-serif',
-          fontSize: '48px',
-          color: '#ffe066',
-          stroke: COULEURS.texteSombre,
-          strokeThickness: 8,
-        })
-        .setOrigin(0.5);
-      this.tweens.add({
-        targets: bulle,
-        y: p.worldY - 120,
-        alpha: 0,
-        scale: 1.4,
-        duration: 700,
-        onComplete: () => bulle.destroy(),
-      });
-      this.cameras.main.shake(120, 0.004);
-    });
+    const rouge = creerBadge(this, 'rouge', 'grand', 130);
+    rouge.setPosition(cx - 110, 580);
+    const bleu = creerBadge(this, 'bleu', 'petit', 130);
+    bleu.setPosition(cx + 110, 580);
+    this.tweens.add({ targets: [rouge, bleu], angle: 6, duration: 600, yoyo: true, repeat: -1 });
+
+    creerBouton(
+      this,
+      cx,
+      800,
+      `${TEXTES.accueil.jouerADeux}\n${TEXTES.accueil.sousJouerADeux}`,
+      () => {
+        const donnees: DonneesPartie = { equipements: this.equipements, graine: Date.now() };
+        this.scene.start('partie', donnees);
+      },
+      { largeur: 420, hauteur: 120, taille: 34, couleur: COULEURS.allume },
+    );
+
+    const bascule = (): void => {
+      boutonEquip.destroy();
+      boutonEquip = creerBoutonEquip();
+    };
+    const creerBoutonEquip = () =>
+      creerBouton(
+        this,
+        cx,
+        950,
+        TEXTES.accueil.equipements(this.equipements),
+        () => {
+          this.equipements = !this.equipements;
+          bascule();
+        },
+        { largeur: 420, hauteur: 70, taille: 26 },
+      );
+    let boutonEquip = creerBoutonEquip();
+
+    this.add
+      .text(cx, 1100, TEXTES.accueil.regle, {
+        fontFamily: POLICE,
+        fontSize: '24px',
+        color: COULEURS.texteClair,
+        align: 'center',
+        wordWrap: { width: LARGEUR - 140 },
+      })
+      .setOrigin(0.5);
   }
 }

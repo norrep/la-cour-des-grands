@@ -1,0 +1,838 @@
+import Phaser from 'phaser';
+import { COURS } from '../../data/boards/index';
+import { TEXTES } from '../../data/textes';
+import {
+  actionsLegales,
+  adversaire,
+  alleeSuivante,
+  alleeSurveillante,
+  chargerCour,
+  ciblesPossibles,
+  ilotsSurveilles,
+  sommet,
+  type Bande,
+  type Cour,
+  type CourData,
+  type Eleve,
+  type Option,
+} from '../../engine/index';
+import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
+import { Controleur } from '../controleur';
+import {
+  centreRegion,
+  noeudSous,
+  positionNoeud,
+  RANG,
+  xCarteRang,
+  type Point,
+} from '../disposition';
+import { dernieresLignes } from '../journal';
+import { creerBadge } from '../ui/badge';
+import { creerBouton } from '../ui/bouton';
+import type { DonneesPartie } from './AccueilScene';
+
+const RAYON_ILOT = 48;
+const TAILLE_BADGE = 62;
+const RAYON_DEPOT = 75;
+const Y_JOURNAL = 935;
+const Y_ACTIONS = 1040;
+
+type Texte = Phaser.GameObjects.Text;
+
+/** La partie à deux sur un même téléphone (étape 2 : formes simples). */
+export class PartieScene extends Phaser.Scene {
+  private ctrl!: Controleur;
+  private cour!: Cour;
+  private donnees!: DonneesPartie;
+  /** Tout ce qui est redessiné à chaque changement d'état. */
+  private dyn!: Phaser.GameObjects.Container;
+  /** Badge visible de chaque îlot (pour le faire trembler). */
+  private badges = new Map<string, Phaser.GameObjects.Container>();
+  /** Surbrillances des cibles pendant un glisser-déposer. */
+  private surbrillances: Phaser.GameObjects.GameObject[] = [];
+  private departToboggan: string | null = null;
+
+  constructor() {
+    super('partie');
+  }
+
+  init(donnees: DonneesPartie): void {
+    this.donnees = donnees;
+    this.cour = chargerCour(COURS['cour-premier-jour'] as CourData);
+    this.ctrl = new Controleur(this.cour, {
+      graine: donnees.graine,
+      equipements: donnees.equipements,
+    });
+    this.departToboggan = null;
+    // Accès de débogage, utilisé aussi par les tests automatisés de l'écran.
+    (window as unknown as { __partie?: unknown }).__partie = {
+      ctrl: this.ctrl,
+      scene: this,
+      actionsLegales,
+      position: (id: string) => positionNoeud(this.cour, id),
+    };
+  }
+
+  create(): void {
+    this.cameras.main.setBackgroundColor(COULEURS.fond);
+    this.dyn = this.add.container(0, 0);
+    this.rafraichir();
+  }
+
+  /** Redessine tout l'écran à partir de l'état. */
+  rafraichir(): void {
+    this.tweens.killAll();
+    this.dyn.removeAll(true);
+    this.badges.clear();
+    this.surbrillances = [];
+
+    this.dessinerCour();
+    this.dessinerHud();
+    this.dessinerJournal();
+    if (this.ctrl.phase === 'jeu' || this.ctrl.phase === 'aConfirmer') {
+      this.dessinerActions();
+    }
+    if (this.ctrl.phase === 'jeu' && !this.attenteHorsRang()) this.dessinerRang();
+    if (this.ctrl.phase === 'aConfirmer') this.dessinerRangCache();
+    if (this.ctrl.phase === 'passe') this.dessinerPasse();
+    if (this.ctrl.phase === 'fin') this.dessinerFin();
+  }
+
+  // -------------------------------------------------------------------------
+  // Utilitaires
+  // -------------------------------------------------------------------------
+
+  private get etat() {
+    return this.ctrl.etat;
+  }
+
+  private ajouter<T extends Phaser.GameObjects.GameObject>(o: T): T {
+    this.dyn.add(o);
+    return o;
+  }
+
+  private texte(
+    x: number,
+    y: number,
+    contenu: string,
+    taille: number,
+    couleur: string = COULEURS.texteClair,
+    options: Phaser.Types.GameObjects.Text.TextStyle = {},
+  ): Texte {
+    return this.ajouter(
+      this.add.text(x, y, contenu, {
+        fontFamily: POLICE,
+        fontSize: `${taille}px`,
+        color: couleur,
+        ...options,
+      }),
+    );
+  }
+
+  private pos(id: string): Point {
+    return positionNoeud(this.cour, id);
+  }
+
+  /** La bande dont c'est le coup (celle qui vient de jouer pendant la confirmation). */
+  private get bandeActive(): Bande {
+    return this.ctrl.phase === 'aConfirmer' ? adversaire(this.etat.courant) : this.etat.courant;
+  }
+
+  /** Un choix est en cours et ne passe pas par le rang (tout sauf le Chouchou). */
+  private attenteHorsRang(): boolean {
+    const a = this.etat.attente;
+    return a !== null && !(a.effet.type === 'pouvoir' && a.effet.role === 'chouchou');
+  }
+
+  private pointilles(
+    g: Phaser.GameObjects.Graphics,
+    a: Point,
+    b: Point,
+    trait = 12,
+    espace = 10,
+  ): void {
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    const ux = (b.x - a.x) / d;
+    const uy = (b.y - a.y) / d;
+    for (let t = 0; t < d; t += trait + espace) {
+      const t2 = Math.min(d, t + trait);
+      g.lineBetween(a.x + ux * t, a.y + uy * t, a.x + ux * t2, a.y + uy * t2);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // La cour
+  // -------------------------------------------------------------------------
+
+  private dessinerCour(): void {
+    const e = this.etat;
+    const g = this.ajouter(this.add.graphics());
+    const bloquee = alleeSurveillante(e);
+    const suivante = alleeSuivante(e);
+
+    // Allées en pointillés à la craie ; celle de la surveillante en rouge.
+    this.cour.allees.forEach(([a, b], i) => {
+      const pa = this.pos(a);
+      const pb = this.pos(b);
+      if (i === bloquee) {
+        // Allée bloquée par la surveillante : trait plein rouge, bien visible.
+        g.lineStyle(10, COULEURS.bloquee, 0.95);
+        g.lineBetween(pa.x, pa.y, pb.x, pb.y);
+      } else {
+        g.lineStyle(5, COULEURS.craie, 0.75);
+        this.pointilles(g, pa, pb);
+      }
+      if (i === suivante) this.tracesDePas(pa, pb);
+    });
+
+    // Régions : jeton de bons points au centre, coloré quand la région est prise.
+    for (const r of this.cour.regions) {
+      const c = centreRegion(this.cour, r.ilots);
+      const prise = e.regionsPrises[r.id];
+      const jeton = this.ajouter(this.add.graphics());
+      const couleur =
+        prise === 'rouge' ? COULEURS.rouge : prise === 'bleu' ? COULEURS.bleu : COULEURS.papier;
+      jeton.fillStyle(couleur, prise ? 1 : 0.9);
+      jeton.lineStyle(3, COULEURS.fondSombre, 0.8);
+      const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? 18 : 0;
+      jeton.fillCircle(c.x, c.y + decalage, 20);
+      jeton.strokeCircle(c.x, c.y + decalage, 20);
+      this.texte(c.x, c.y + decalage, `+${r.bonsPoints}`, 18, prise ? '#ffffff' : '#1d2b22', {
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+    }
+
+    // Cabanes.
+    for (const b of ['rouge', 'bleu'] as const) {
+      for (const id of this.cour.cabanes[b]) this.dessinerCabane(id, b);
+    }
+
+    // Îlots et piles.
+    const surveilles = new Set(ilotsSurveilles(e));
+    for (const id of this.cour.ilots) {
+      const p = this.pos(id);
+      const n = this.cour.noeuds[id];
+      const special = e.equipements && n?.equipement;
+      const gi = this.ajouter(this.add.graphics());
+      gi.fillStyle(0x000000, 0.2);
+      gi.fillCircle(p.x + 3, p.y + 5, RAYON_ILOT);
+      gi.fillStyle(special ? COULEURS.ilotSpecial : COULEURS.ilot, 1);
+      gi.lineStyle(4, COULEURS.craie, 1);
+      gi.fillCircle(p.x, p.y, RAYON_ILOT);
+      gi.strokeCircle(p.x, p.y, RAYON_ILOT);
+      if (surveilles.has(id)) {
+        gi.lineStyle(4, COULEURS.surveillante, 1);
+        const pts = 16;
+        for (let k = 0; k < pts; k += 2) {
+          const a1 = (k / pts) * Math.PI * 2;
+          const a2 = ((k + 1) / pts) * Math.PI * 2;
+          gi.beginPath();
+          gi.arc(p.x, p.y, RAYON_ILOT + 9, a1, a2);
+          gi.strokePath();
+        }
+      }
+      this.texte(p.x, p.y + RAYON_ILOT + 4, n?.nom ?? id, 16, COULEURS.texteClair, {
+        stroke: COULEURS.texteSombre,
+        strokeThickness: 4,
+      }).setOrigin(0.5, 0);
+
+      const dessus = sommet(e, id);
+      if (dessus) {
+        const badge = creerBadge(this, dessus.bande, dessus.role, TAILLE_BADGE);
+        badge.setPosition(p.x, p.y);
+        this.ajouter(badge);
+        this.badges.set(id, badge);
+        const hauteur = e.piles[id]?.length ?? 0;
+        if (hauteur > 1) {
+          const cg = this.ajouter(this.add.graphics());
+          cg.fillStyle(COULEURS.papier, 1);
+          cg.lineStyle(2, COULEURS.fondSombre, 1);
+          cg.fillCircle(p.x + 38, p.y - 34, 15);
+          cg.strokeCircle(p.x + 38, p.y - 34, 15);
+          this.texte(p.x + 38, p.y - 34, `×${hauteur}`, 15, COULEURS.texteSombre, {
+            fontStyle: 'bold',
+          }).setOrigin(0.5);
+        }
+      }
+    }
+
+    this.dessinerSurveillante(bloquee);
+    this.zonesTactiles();
+  }
+
+  private dessinerCabane(id: string, bande: Bande): void {
+    const p = this.pos(id);
+    const g = this.ajouter(this.add.graphics());
+    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    g.fillStyle(0x000000, 0.2);
+    g.fillRect(p.x - 56, p.y - 18, 116, 60);
+    g.fillStyle(couleur, 1);
+    g.lineStyle(4, COULEURS.craie, 1);
+    g.fillRect(p.x - 60, p.y - 22, 120, 60);
+    g.strokeRect(p.x - 60, p.y - 22, 120, 60);
+    g.fillTriangle(p.x - 72, p.y - 20, p.x + 72, p.y - 20, p.x, p.y - 62);
+    g.strokeTriangle(p.x - 72, p.y - 20, p.x + 72, p.y - 20, p.x, p.y - 62);
+    g.fillStyle(COULEURS.fondSombre, 1);
+    g.fillRect(p.x - 12, p.y + 4, 24, 34);
+    // Badge de forme de la bande, pour les daltoniens.
+    g.fillStyle(COULEURS.craie, 1);
+    if (bande === 'rouge') g.fillCircle(p.x - 36, p.y + 8, 9);
+    else g.fillRect(p.x - 45, p.y - 1, 18, 18);
+  }
+
+  private tracesDePas(a: Point, b: Point): void {
+    const g = this.ajouter(this.add.graphics());
+    g.fillStyle(COULEURS.surveillante, 0.85);
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    const nx = -Math.sin(angle);
+    const ny = Math.cos(angle);
+    for (let k = 0; k < 4; k++) {
+      const t = 0.28 + k * 0.15;
+      const cote = k % 2 === 0 ? 7 : -7;
+      const x = a.x + (b.x - a.x) * t + nx * cote;
+      const y = a.y + (b.y - a.y) * t + ny * cote;
+      const pas = this.add.ellipse(x, y, 14, 8, COULEURS.surveillante, 0.85);
+      pas.setRotation(angle);
+      this.ajouter(pas);
+    }
+    g.destroy();
+  }
+
+  private dessinerSurveillante(allee: number): void {
+    const [a, b] = this.cour.allees[allee] as [string, string];
+    const pa = this.pos(a);
+    const pb = this.pos(b);
+    const x = (pa.x + pb.x) / 2;
+    const y = (pa.y + pb.y) / 2;
+    const g = this.ajouter(this.add.graphics());
+    g.fillStyle(0x000000, 0.25);
+    g.fillEllipse(x + 2, y + 26, 40, 12);
+    g.fillStyle(COULEURS.surveillante, 1);
+    g.lineStyle(3, COULEURS.craie, 1);
+    g.fillTriangle(x - 18, y + 24, x + 18, y + 24, x, y - 8);
+    g.strokeTriangle(x - 18, y + 24, x + 18, y + 24, x, y - 8);
+    g.fillStyle(0xf2c9a0, 1);
+    g.fillCircle(x, y - 14, 12);
+    g.strokeCircle(x, y - 14, 12);
+    g.fillStyle(0x5a3a22, 1);
+    g.fillCircle(x, y - 24, 7);
+    this.texte(x, y + 30, TEXTES.surveillante, 14, COULEURS.texteClair, {
+      stroke: COULEURS.texteSombre,
+      strokeThickness: 4,
+    }).setOrigin(0.5, 0);
+  }
+
+  /** Îlots touchables pendant certains choix (Rapporteuse, banc, buts, toboggan). */
+  private zonesTactiles(): void {
+    if (this.ctrl.phase !== 'jeu') return;
+    const attente = this.etat.attente;
+    if (!attente) return;
+    const touchables = new Map<string, () => void>();
+    for (const o of attente.options) {
+      if (o.type === 'cpe' || o.type === 'rappeler') {
+        touchables.set(o.ilot, () => this.choisir(o));
+      } else if (o.type === 'glisser') {
+        if (this.departToboggan === null) {
+          touchables.set(o.depart, () => {
+            this.departToboggan = o.depart;
+            this.rafraichir();
+          });
+        } else if (o.depart === this.departToboggan) {
+          touchables.set(o.arrivee, () => this.choisir(o));
+        }
+      }
+    }
+    for (const [id, action] of touchables) {
+      const p = this.pos(id);
+      this.anneauCible(p, RAYON_ILOT + 8);
+      const badge = this.badges.get(id);
+      if (badge) this.trembler(badge);
+      const zone = this.ajouter(this.add.circle(p.x, p.y, RAYON_ILOT + 10, 0xffffff, 0.001));
+      zone.setInteractive({ useHandCursor: true });
+      zone.on('pointerup', action);
+    }
+  }
+
+  private anneauCible(p: Point, rayon: number): Phaser.GameObjects.Arc {
+    const anneau = this.ajouter(this.add.circle(p.x, p.y, rayon));
+    anneau.setStrokeStyle(7, COULEURS.allume, 1);
+    this.tweens.add({
+      targets: anneau,
+      alpha: 0.35,
+      scale: 1.08,
+      duration: 450,
+      yoyo: true,
+      repeat: -1,
+    });
+    return anneau;
+  }
+
+  private trembler(cible: Phaser.GameObjects.Container): void {
+    const x = cible.x;
+    this.tweens.add({
+      targets: cible,
+      x: x + 4,
+      duration: 45,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  private choisir(option: Option): void {
+    this.departToboggan = null;
+    this.ctrl.choisir(option);
+    this.rafraichir();
+  }
+
+  // -------------------------------------------------------------------------
+  // Bandeau du haut, journal, actions
+  // -------------------------------------------------------------------------
+
+  private dessinerHud(): void {
+    const e = this.etat;
+    const g = this.ajouter(this.add.graphics());
+    g.fillStyle(COULEURS.fondSombre, 0.85);
+    g.fillRect(0, 0, LARGEUR, 92);
+
+    const rouge = creerBadge(this, 'rouge', 'grand', 44);
+    rouge.setPosition(42, 46);
+    (rouge.list[1] as Texte).setText('');
+    this.ajouter(rouge);
+    this.texte(74, 46, `${e.joueurs.rouge.bonsPoints}`, 40, COULEURS.texteClair, {
+      fontStyle: 'bold',
+    }).setOrigin(0, 0.5);
+    const bleu = creerBadge(this, 'bleu', 'grand', 44);
+    bleu.setPosition(LARGEUR - 42, 46);
+    (bleu.list[1] as Texte).setText('');
+    this.ajouter(bleu);
+    this.texte(LARGEUR - 74, 46, `${e.joueurs.bleu.bonsPoints}`, 40, COULEURS.texteClair, {
+      fontStyle: 'bold',
+    }).setOrigin(1, 0.5);
+
+    this.texte(LARGEUR / 2, 24, TEXTES.hud.seuil(this.cour.seuilBonsPoints), 20).setOrigin(0.5);
+    if (this.ctrl.phase !== 'fin') {
+      const b = this.bandeActive;
+      this.texte(LARGEUR / 2, 62, TEXTES.hud.tourDe(b), 28, b === 'rouge' ? '#ff8a80' : '#8ab4ff', {
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+    }
+  }
+
+  private dessinerJournal(): void {
+    const g = this.ajouter(this.add.graphics());
+    g.fillStyle(COULEURS.fondSombre, 0.55);
+    g.fillRoundedRect(16, Y_JOURNAL - 12, LARGEUR - 32, 76, 12);
+    const attente = this.ctrl.phase === 'jeu' ? this.etat.attente : null;
+    if (attente) {
+      this.texte(LARGEUR / 2, Y_JOURNAL + 26, this.consigne(), 22, '#ffe066', {
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: LARGEUR - 60 },
+      }).setOrigin(0.5);
+      return;
+    }
+    // On garde les lignes les plus récentes qui tiennent dans le cadre (avec retour à la ligne).
+    const lignes = dernieresLignes(this.etat.journal, this.cour, 3);
+    const t = this.texte(30, Y_JOURNAL + 58, '', 18, '#ffffff', {
+      wordWrap: { width: LARGEUR - 60 },
+      lineSpacing: 2,
+    }).setOrigin(0, 1);
+    while (lignes.length > 0) {
+      t.setText(lignes.join('\n'));
+      if (t.height <= 70 || lignes.length === 1) break;
+      lignes.shift();
+    }
+  }
+
+  private consigne(): string {
+    const a = this.etat.attente;
+    if (!a) return '';
+    const c = TEXTES.choix;
+    if (a.effet.type === 'pouvoir') {
+      switch (a.effet.role) {
+        case 'populaire':
+          return c.populaire;
+        case 'chouchou':
+          return c.chouchou;
+        case 'rapporteuse':
+          return c.rapporteuse;
+        case 'contagieux':
+          return c.contagieux;
+        case 'delegue':
+          return c.delegue;
+        default:
+          return '';
+      }
+    }
+    switch (a.effet.equipement) {
+      case 'banc':
+        return c.banc;
+      case 'cabanePerchee':
+        return c.cabanePerchee;
+      case 'porteVieScolaire':
+        return c.porteVieScolaire;
+      case 'buts':
+        return c.buts;
+      case 'toboggan':
+        return this.departToboggan ? c.tobogganArrivee : c.tobogganDepart;
+      default:
+        return '';
+    }
+  }
+
+  private rangeeBoutons(
+    y: number,
+    boutons: { texte: string; action: () => void; couleur?: number }[],
+  ): void {
+    const n = boutons.length;
+    if (n === 0) return;
+    const ecart = 12;
+    const largeur = Math.min(300, (LARGEUR - 40 - ecart * (n - 1)) / n);
+    boutons.forEach((b, i) => {
+      const x = LARGEUR / 2 + (i - (n - 1) / 2) * (largeur + ecart);
+      this.ajouter(
+        creerBouton(this, x, y, b.texte, b.action, {
+          largeur,
+          hauteur: 58,
+          taille: largeur < 140 ? 20 : 24,
+          ...(b.couleur !== undefined ? { couleur: b.couleur } : {}),
+        }),
+      );
+    });
+  }
+
+  private dessinerActions(): void {
+    const ctrl = this.ctrl;
+    const annuler = {
+      texte: TEXTES.boutons.annuler,
+      action: () => {
+        this.departToboggan = null;
+        ctrl.annuler();
+        this.rafraichir();
+      },
+    };
+
+    if (ctrl.phase === 'aConfirmer') {
+      this.rangeeBoutons(Y_ACTIONS, [
+        annuler,
+        {
+          texte: TEXTES.boutons.valider,
+          couleur: COULEURS.allume,
+          action: () => {
+            ctrl.valider();
+            this.rafraichir();
+          },
+        },
+      ]);
+      return;
+    }
+
+    const attente = this.etat.attente;
+    if (!attente) {
+      const boutons: { texte: string; action: () => void; couleur?: number }[] = [];
+      const n = ctrl.nombreAppel;
+      if (n > 0) {
+        boutons.push({
+          texte: TEXTES.boutons.appeler(n),
+          couleur: COULEURS.allume,
+          action: () => {
+            ctrl.appeler();
+            this.rafraichir();
+          },
+        });
+      }
+      if (ctrl.peutAnnuler) boutons.push(annuler);
+      this.rangeeBoutons(Y_ACTIONS, boutons);
+      return;
+    }
+
+    // Choix d'un pouvoir ou d'un équipement : options à boutons, puis « Passer » et « Annuler ».
+    const options: { texte: string; action: () => void; couleur?: number }[] = [];
+    const vusRoles = new Set<string>();
+    for (const o of attente.options) {
+      if (o.type === 'piocher') {
+        options.push({ texte: TEXTES.boutons.piocher, action: () => this.choisir(o) });
+      } else if (o.type === 'infirmerie') {
+        options.push({ texte: TEXTES.boutons.infirmerie, action: () => this.choisir(o) });
+      } else if (o.type === 'surveillante') {
+        options.push({ texte: TEXTES.choix.pas(o.pas), action: () => this.choisir(o) });
+      } else if (o.type === 'repecher') {
+        const el = this.etat.joueurs[this.etat.courant].cpe.find((x) => x.id === o.eleveId);
+        if (el && !vusRoles.has(el.role)) {
+          vusRoles.add(el.role);
+          options.push({ texte: TEXTES.rolesCourts[el.role], action: () => this.choisir(o) });
+        }
+      }
+    }
+    const lignes: (typeof options)[] = [];
+    for (let i = 0; i < options.length; i += 4) lignes.push(options.slice(i, i + 4));
+    const fin = [
+      {
+        texte: TEXTES.boutons.passer,
+        action: () => {
+          this.departToboggan = null;
+          ctrl.passer();
+          this.rafraichir();
+        },
+      },
+      annuler,
+    ];
+    if (this.attenteHorsRang()) {
+      lignes.push(fin);
+      lignes.forEach((l, i) => this.rangeeBoutons(Y_ACTIONS + i * 72, l));
+    } else {
+      // Chouchou : on garde le rang visible pour y prendre le 2e élève.
+      this.rangeeBoutons(Y_ACTIONS, fin);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Le rang et le glisser-déposer
+  // -------------------------------------------------------------------------
+
+  private dessinerRang(): void {
+    const e = this.etat;
+    const bande = e.courant;
+    const j = e.joueurs[bande];
+    this.texte(
+      30,
+      RANG.y - RANG.hauteurCarte / 2 - 28,
+      `${TEXTES.hud.couloir(j.couloir.length)}   ·   ${TEXTES.hud.cpe(j.cpe.length)}`,
+      18,
+    );
+    if (j.rang.length === 0) {
+      this.texte(LARGEUR / 2, RANG.y, TEXTES.hud.rangVide, 22).setOrigin(0.5);
+      return;
+    }
+    const attente = e.attente;
+    const optionsChouchou =
+      attente?.options.filter((o): o is Extract<Option, { type: 'poser' }> => o.type === 'poser') ??
+      null;
+
+    j.rang.forEach((el, i) => {
+      const malade = j.infirmerie.includes(el.id);
+      const cibles = optionsChouchou
+        ? optionsChouchou.filter((o) => o.eleveId === el.id).map((o) => o.cible)
+        : malade
+          ? []
+          : ciblesPossibles(e, el.id);
+      const carte = this.carte(el, xCarteRang(i, j.rang.length), RANG.y, malade, cibles.length > 0);
+      if (cibles.length > 0) this.rendreDeplacable(carte, el, cibles, optionsChouchou !== null);
+    });
+  }
+
+  private carte(
+    el: Eleve,
+    x: number,
+    y: number,
+    malade: boolean,
+    jouable: boolean,
+  ): Phaser.GameObjects.Container {
+    const { largeurCarte: l, hauteurCarte: h } = RANG;
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.25);
+    g.fillRoundedRect(-l / 2 + 3, -h / 2 + 5, l, h, 12);
+    g.fillStyle(COULEURS.papier, 1);
+    g.lineStyle(3, COULEURS.fondSombre, 1);
+    g.fillRoundedRect(-l / 2, -h / 2, l, h, 12);
+    g.strokeRoundedRect(-l / 2, -h / 2, l, h, 12);
+    const badge = creerBadge(this, el.bande, el.role, 56);
+    badge.setPosition(0, -26);
+    const nom = this.add
+      .text(0, 36, TEXTES.rolesCourts[el.role], {
+        fontFamily: POLICE,
+        fontSize: '15px',
+        color: COULEURS.texteSombre,
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: l - 4 },
+      })
+      .setOrigin(0.5);
+    const enfants: Phaser.GameObjects.GameObject[] = [g, badge, nom];
+    if (malade) {
+      const voile = this.add.graphics();
+      voile.fillStyle(0x6a8a5a, 0.75);
+      voile.fillRoundedRect(-l / 2, -h / 2, l, h, 12);
+      const t = this.add
+        .text(0, 0, TEXTES.hud.infirmerie, {
+          fontFamily: POLICE,
+          fontSize: '15px',
+          color: '#ffffff',
+          fontStyle: 'bold',
+          backgroundColor: '#c0392b',
+          padding: { x: 4, y: 2 },
+        })
+        .setOrigin(0.5)
+        .setRotation(-0.5);
+      enfants.push(voile, t);
+    } else if (!jouable) {
+      enfants.forEach((o) => (o as unknown as { setAlpha(a: number): void }).setAlpha(0.55));
+    }
+    const carte = this.add.container(x, y, enfants);
+    carte.setSize(l, h);
+    this.ajouter(carte);
+    return carte;
+  }
+
+  private rendreDeplacable(
+    carte: Phaser.GameObjects.Container,
+    el: Eleve,
+    cibles: string[],
+    chouchou: boolean,
+  ): void {
+    carte.setInteractive({ useHandCursor: true, draggable: true });
+    const depart = { x: carte.x, y: carte.y };
+
+    carte.on('dragstart', () => {
+      this.dyn.bringToTop(carte);
+      carte.setScale(1.15);
+      this.montrerCibles(el, cibles);
+    });
+    carte.on('drag', (_p: Phaser.Input.Pointer, x: number, y: number) => {
+      carte.setPosition(x, y - 30);
+    });
+    carte.on('dragend', (p: Phaser.Input.Pointer) => {
+      this.cacherCibles();
+      const cible = noeudSous(this.cour, cibles, { x: p.worldX, y: p.worldY - 30 }, RAYON_DEPOT);
+      let ok = false;
+      if (cible) {
+        ok = chouchou
+          ? this.ctrl.choisir({ type: 'poser', eleveId: el.id, cible })
+          : this.ctrl.envoyer(el.id, cible);
+      }
+      if (ok) {
+        this.rafraichir();
+      } else {
+        this.tweens.add({
+          targets: carte,
+          x: depart.x,
+          y: depart.y,
+          scale: 1,
+          duration: 220,
+          ease: 'Back.easeOut',
+        });
+      }
+    });
+  }
+
+  private montrerCibles(el: Eleve, cibles: string[]): void {
+    for (const id of cibles) {
+      const n = this.cour.noeuds[id];
+      const p = this.pos(id);
+      this.surbrillances.push(this.anneauCible(p, n?.type === 'cabane' ? 78 : RAYON_ILOT + 8));
+      const dessus = sommet(this.etat, id);
+      const badge = this.badges.get(id);
+      if (dessus && dessus.bande !== el.bande && badge) {
+        this.trembler(badge);
+        this.surbrillances.push(badge);
+      }
+    }
+  }
+
+  private cacherCibles(): void {
+    for (const o of this.surbrillances) {
+      this.tweens.killTweensOf(o);
+      if (o instanceof Phaser.GameObjects.Arc) o.destroy();
+    }
+    // Remet les badges tremblants à leur place.
+    for (const [id, badge] of this.badges) {
+      const p = this.pos(id);
+      badge.setPosition(p.x, p.y);
+    }
+    this.surbrillances = [];
+  }
+
+  /** Pendant la confirmation, on cache le rang : le téléphone va changer de mains. */
+  private dessinerRangCache(): void {
+    this.texte(LARGEUR / 2, RANG.y, TEXTES.confirmation, 22, COULEURS.texteClair, {
+      align: 'center',
+    }).setOrigin(0.5);
+  }
+
+  // -------------------------------------------------------------------------
+  // Écrans « Passe le téléphone » et fin de partie
+  // -------------------------------------------------------------------------
+
+  private voile(alpha: number): void {
+    const v = this.ajouter(this.add.rectangle(0, 0, LARGEUR, HAUTEUR, COULEURS.fondSombre, alpha));
+    v.setOrigin(0, 0);
+    v.setInteractive();
+  }
+
+  private dessinerPasse(): void {
+    const b = this.etat.courant;
+    this.voile(0.97);
+    const cx = LARGEUR / 2;
+    this.texte(cx, 330, TEXTES.passe.titre, 56, COULEURS.texteClair, {
+      fontFamily: POLICE_TITRE,
+    }).setOrigin(0.5);
+    this.texte(cx, 410, TEXTES.passe.a(b), 40, b === 'rouge' ? '#ff8a80' : '#8ab4ff', {
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    const badge = creerBadge(this, b, 'grand', 150);
+    (badge.list[1] as Texte).setText('');
+    badge.setPosition(cx, 600);
+    this.ajouter(badge);
+    this.tweens.add({ targets: badge, scale: 1.08, duration: 700, yoyo: true, repeat: -1 });
+    this.texte(cx, 760, TEXTES.passe.cache, 24).setOrigin(0.5);
+    this.ajouter(
+      creerBouton(
+        this,
+        cx,
+        900,
+        TEXTES.boutons.pret(b),
+        () => {
+          this.ctrl.reprendre();
+          this.rafraichir();
+        },
+        { largeur: 440, hauteur: 96, taille: 32, couleur: COULEURS.allume },
+      ),
+    );
+  }
+
+  private dessinerFin(): void {
+    const fin = this.etat.fin;
+    if (!fin) return;
+    this.voile(0.93);
+    const cx = LARGEUR / 2;
+    this.texte(cx, 260, TEXTES.fin.titre, 72, '#ffe066', {
+      fontFamily: 'Impact, sans-serif',
+      stroke: COULEURS.texteSombre,
+      strokeThickness: 10,
+    }).setOrigin(0.5);
+    const badge = creerBadge(this, fin.gagnant, 'grand', 160);
+    (badge.list[1] as Texte).setText('');
+    badge.setPosition(cx, 470);
+    this.ajouter(badge);
+    this.tweens.add({ targets: badge, angle: 8, duration: 300, yoyo: true, repeat: -1 });
+    this.texte(cx, 610, TEXTES.fin.gagnant(fin.gagnant), 48, COULEURS.texteClair, {
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.texte(cx, 670, TEXTES.fin.raison(fin.raison), 30, COULEURS.texteClair).setOrigin(0.5);
+    const e = this.etat;
+    this.texte(
+      cx,
+      740,
+      TEXTES.fin.score(e.joueurs.rouge.bonsPoints, e.joueurs.bleu.bonsPoints),
+      24,
+    ).setOrigin(0.5);
+    this.texte(cx, 778, TEXTES.fin.tours(e.tour), 22, '#c8d6c0').setOrigin(0.5);
+    this.ajouter(
+      creerBouton(
+        this,
+        cx,
+        900,
+        TEXTES.boutons.rejouer,
+        () => this.scene.restart({ ...this.donnees, graine: Date.now() }),
+        { largeur: 360, hauteur: 84, taille: 32, couleur: COULEURS.allume },
+      ),
+    );
+    this.ajouter(
+      creerBouton(this, cx, 1010, TEXTES.boutons.accueil, () => this.scene.start('accueil'), {
+        largeur: 360,
+        hauteur: 70,
+      }),
+    );
+  }
+}

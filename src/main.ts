@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { HAUTEUR, LARGEUR } from './game/config';
 import { AccueilScene } from './game/scenes/AccueilScene';
+import { PartieScene } from './game/scenes/PartieScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -15,5 +16,5 @@ new Phaser.Game({
   input: { activePointers: 2 },
   render: { antialias: true },
   fps: { target: 60 },
-  scene: [AccueilScene],
+  scene: [AccueilScene, PartieScene],
 });
