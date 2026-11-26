@@ -50,3 +50,9 @@ export function ecrireSkin(id: string): void {
     // Stockage indisponible : le choix vaut pour cette visite seulement.
   }
 }
+
+const CLE_DEBUTANT = 'cour-des-grands.debutant';
+
+/** Le joueur découvre encore le jeu (tuto pas encore passé). */
+export const lireDebutant = (): boolean => lire(CLE_DEBUTANT);
+export const ecrireDebutant = (oui: boolean): void => ecrire(CLE_DEBUTANT, oui);

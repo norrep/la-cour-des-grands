@@ -95,12 +95,10 @@ describe('Fin de partie', () => {
     });
 
     it('retentit si le rang est plein mais qu’aucune pose n’est possible', () => {
-      // Le rang bleu ne contient que des jokers et S (seul îlot relié) porte un élève rouge
-      // sous surveillance : aucune pose, aucune pioche.
-      const cour = courTest({ ronde: [['S', 'X']] });
+      // Le rang bleu ne contient que des 1 et S (seul îlot relié) porte un Grand rouge :
+      // aucune pose, aucune pioche.
       const e = situation({
-        cour,
-        rang: { bleu: Array(8).fill('petit') },
+        rang: { bleu: Array(8).fill('populaire') },
         piles: { S: [['rouge', 'grand']] },
       });
       const apres = jouer(e, { type: 'appeler' });

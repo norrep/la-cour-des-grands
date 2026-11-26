@@ -6,6 +6,9 @@ import { alleesDuChemin } from './chemins';
 export type ConseilId =
   'but' | 'glisser' | 'appeler' | 'chemin' | 'plaquer' | 'pouvoir' | 'surveillante' | 'zones';
 
+/** Nombre de conseils différents montrés à chaque joueur. */
+export const NB_CONSEILS = 8;
+
 /** À partir de quel tour (numéro de tour de joueur) parler de la surveillante et des zones. */
 export const TOUR_SURVEILLANTE = 3;
 export const TOUR_ZONES = 6;

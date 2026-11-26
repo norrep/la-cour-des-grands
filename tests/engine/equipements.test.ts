@@ -57,12 +57,6 @@ describe('1 — Le banc (cour du premier jour)', () => {
     expect(pile(e, 'P')).toEqual(['bleu:populaire']);
   });
 
-  it('ne reprend pas un élève sur un îlot sous surveillance', () => {
-    const c = courTest({ equipementQ: 'banc', ronde: [['P', 'L']] });
-    const e = envoyer(situation(avecP({ cour: c, rang: { rouge: ['grand'] } })), 'grand', 'Q');
-    expect(e.attente).toBeNull();
-  });
-
   it('ne fait rien si le rang est plein', () => {
     const e = situation(avecP({ cour }));
     e.joueurs.rouge.rang = Array.from({ length: 8 }, (_, i) => ({
@@ -218,24 +212,6 @@ describe('5 — Le toboggan (cour des jeux)', () => {
     e = jouer(e, { type: 'choisir', option: { type: 'glisser', depart: 'S', arrivee: 'X' } });
     expect(pile(e, 'S')).toEqual([]);
     expect(pile(e, 'X')).toEqual(['rouge:grand', 'bleu:populaire']);
-  });
-
-  it('ne déplace pas un élève depuis ou vers un îlot sous surveillance', () => {
-    const c = courTest({ equipementQ: 'toboggan', ronde: [['S', 'X']] });
-    const e = situation(
-      avecP({ cour: c, piles: { S: [['bleu', 'populaire']], D: [['bleu', 'grand']] } }),
-    );
-    const options = optionsEffet(e, {
-      type: 'equipement',
-      equipement: 'toboggan',
-      ilot: 'Q',
-      eleveId: 'x',
-    });
-    expect(options.some((o) => o.type === 'glisser' && o.depart === 'S')).toBe(false);
-    expect(
-      options.some((o) => o.type === 'glisser' && (o.arrivee === 'S' || o.arrivee === 'X')),
-    ).toBe(false);
-    expect(options).toContainEqual({ type: 'glisser', depart: 'D', arrivee: 'Q' });
   });
 });
 

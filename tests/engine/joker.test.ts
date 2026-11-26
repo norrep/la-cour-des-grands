@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ciblesPossibles, jouer, peutRecouvrir } from '../../src/engine/index';
-import { courTest, eleve, idRang, situation } from './aide';
+import { eleve, idRang, situation } from './aide';
 
 describe('Le Petit de maternelle (joker)', () => {
   it('peut se poser sur n’importe quel élève adverse, même le Grand de CM2', () => {
@@ -23,12 +23,6 @@ describe('Le Petit de maternelle (joker)', () => {
     });
     expect(ciblesPossibles(e, idRang(e, 'rouge', 'petit'))).not.toContain('CabB');
     expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).toContain('CabB');
-  });
-
-  it('ne peut pas recouvrir un élève adverse sous surveillance', () => {
-    const cour = courTest({ ronde: [['P', 'L']] });
-    const e = situation({ cour, rang: { rouge: ['petit'] }, piles: { P: [['bleu', 'grand']] } });
-    expect(ciblesPossibles(e, idRang(e, 'rouge', 'petit'))).not.toContain('P');
   });
 
   it('n’a aucun pouvoir : le tour se termine aussitôt', () => {

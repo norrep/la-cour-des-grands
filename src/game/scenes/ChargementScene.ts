@@ -3,10 +3,27 @@ import { COULEURS, HAUTEUR, LARGEUR, POLICE } from '../config';
 import { preparerSkin, choisirSkin, skinActif } from '../skins/index';
 import { TEXTES } from '../../data/textes';
 
-/** Prépare les images du skin actif, puis ouvre l'accueil. */
+/** Clé du décor de la cour (image plein écran derrière le plateau). */
+export const DECOR = 'decor-cour';
+
+/** La police ronde du jeu doit être prête avant d'écrire quoi que ce soit (2 s au plus). */
+function chargerPolice(): Promise<unknown> {
+  const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+  if (!fonts) return Promise.resolve();
+  const attente = Promise.all(
+    ['500', '600', '700'].map((poids) => fonts.load(`${poids} 24px Fredoka`)),
+  );
+  return Promise.race([attente, new Promise((ok) => setTimeout(ok, 2000))]);
+}
+
+/** Prépare la police, le décor et les images du skin actif, puis ouvre l'accueil. */
 export class ChargementScene extends Phaser.Scene {
   constructor() {
     super('chargement');
+  }
+
+  preload(): void {
+    this.load.image(DECOR, 'decor/cour.jpg');
   }
 
   create(): void {
@@ -17,11 +34,10 @@ export class ChargementScene extends Phaser.Scene {
         color: COULEURS.texteClair,
       })
       .setOrigin(0.5);
-    preparerSkin(this, skinActif().id)
-      .catch(() => {
-        // Un skin qui ne se charge pas ne doit pas bloquer le jeu : retour aux jetons.
-        choisirSkin('classique');
-      })
-      .finally(() => this.scene.start('accueil'));
+    const skin = preparerSkin(this, skinActif().id).catch(() => {
+      // Un skin qui ne se charge pas ne doit pas bloquer le jeu : retour aux jetons.
+      choisirSkin('classique');
+    });
+    void Promise.all([skin, chargerPolice()]).finally(() => this.scene.start('accueil'));
   }
 }

@@ -85,16 +85,15 @@ export function chargerCour(data: CourData): Cour {
     if (r.bonsPoints <= 0) erreur(`région « ${r.id} » : bons points invalides`);
   }
 
-  if (data.ronde.length === 0) erreur('la ronde de la surveillante est vide');
-  const ronde = data.ronde.map(([a, b]) => {
-    const index = indexAllee.get(cleAllee(a, b));
-    if (index === undefined) erreur(`ronde : l'allée ${a}-${b} n'existe pas`);
-    return index as number;
+  const ronde = data.ronde.map((id) => {
+    const index = data.regions.findIndex((r) => r.id === id);
+    if (index < 0) erreur(`ronde : la région « ${id} » n'existe pas`);
+    return index;
   });
   if (
     !Number.isInteger(data.departRonde) ||
     data.departRonde < 0 ||
-    data.departRonde >= ronde.length
+    (ronde.length > 0 && data.departRonde >= ronde.length)
   ) {
     erreur('départ de la ronde hors limites');
   }

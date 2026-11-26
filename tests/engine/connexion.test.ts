@@ -37,24 +37,6 @@ describe('Connexion à la cabane', () => {
     expect(cibles).not.toContain('D');
   });
 
-  it('l’allée de la surveillante est bloquée', () => {
-    const cour = courTest({ ronde: [['P', 'Q']] });
-    const e = situation({ cour, rang: { rouge: ['grand'] }, piles: { P: [['rouge', 'grand']] } });
-    const cibles = ciblesPossibles(e, idRang(e, 'rouge', 'grand'));
-    expect(cibles).not.toContain('Q');
-    expect(cibles).toContain('L');
-  });
-
-  it('un détour par d’autres îlots contourne l’allée bloquée', () => {
-    const cour = courTest({ ronde: [['P', 'Q']] });
-    const e = situation({
-      cour,
-      rang: { rouge: ['grand'] },
-      piles: { P: [['rouge', 'grand']], L: [['rouge', 'grand']] },
-    });
-    expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).toContain('Q');
-  });
-
   it('la connexion se calcule depuis chaque cabane de la bande', () => {
     const cour = courTest({ deuxiemeCabaneBleue: true });
     const e = situation({ cour, courant: 'bleu' });

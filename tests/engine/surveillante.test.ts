@@ -1,82 +1,94 @@
 import { describe, expect, it } from 'vitest';
 import {
-  alleeSuivante,
-  alleeSurveillante,
   ciblesPossibles,
   creerPartie,
-  ilotsSurveilles,
+  gouterSuivant,
+  gouterSurveille,
   jouer,
   optionsEffet,
 } from '../../src/engine/index';
 import { cour1, courTest, idRang, situation } from './aide';
 
-describe('La surveillante', () => {
-  it('commence sur l’allée de départ de sa ronde (A1-M1 sur la cour n°1)', () => {
-    const cour = cour1();
-    const e = creerPartie(cour, { graine: 1 });
-    expect(cour.allees[alleeSurveillante(e)]).toEqual(['A1', 'M1']);
-    expect(ilotsSurveilles(e).sort()).toEqual(['A1', 'M1']);
+/** Deux régions dans la cour de test : P-L (2 goûters) et Q-D (1 goûter). */
+const regions = [
+  { id: 'bas', nom: 'Bas', ilots: ['P', 'L'], bonsPoints: 2 },
+  { id: 'milieu', nom: 'Milieu', ilots: ['Q', 'D'], bonsPoints: 1 },
+];
+
+describe('La surveillante garde un goûter (D2.18)', () => {
+  it('commence sur le goûter de départ de sa ronde (la gauche sur la cour n°1)', () => {
+    const e = creerPartie(cour1(), { graine: 1 });
+    expect(gouterSurveille(e)).toBe('gauche');
+    expect(gouterSuivant(e)).toBe('haut');
   });
 
-  it('affiche son allée suivante (traces de pas)', () => {
-    const cour = cour1();
-    const e = creerPartie(cour, { graine: 1 });
-    expect(cour.allees[alleeSuivante(e)]).toEqual(['M1', 'B1']);
+  it('avance d’un goûter à la fin de chaque tour complet, pas avant', () => {
+    let e = situation({ cour: courTest({ regions, ronde: ['bas', 'milieu'] }) });
+    expect(gouterSurveille(e)).toBe('bas');
+    e = jouer(e, { type: 'appeler' });
+    expect(gouterSurveille(e)).toBe('bas');
+    e = jouer(e, { type: 'appeler' });
+    expect(gouterSurveille(e)).toBe('milieu');
+    expect(e.journal).toContainEqual(
+      expect.objectContaining({ type: 'surveillante', parDelegue: false }),
+    );
   });
 
-  it('avance d’une allée à la fin de chaque tour complet, pas avant', () => {
-    let e = situation();
-    expect(e.surveillante).toBe(0);
-    e = jouer(e, { type: 'appeler' }); // rouge (premier) a joué
-    expect(e.surveillante).toBe(0);
-    e = jouer(e, { type: 'appeler' }); // bleu a joué : tour complet
-    expect(e.surveillante).toBe(1);
-    expect(e.journal.at(-1)).toMatchObject({ type: 'surveillante', parDelegue: false });
-  });
-
-  it('suit sa ronde en boucle', () => {
+  it('suit sa ronde en boucle (cour n°1)', () => {
     const cour = cour1();
     let e = situation({
       cour,
       couloir: { rouge: Array(20).fill('grand'), bleu: Array(20).fill('grand') },
     });
-    const vues: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      vues.push(cour.allees[alleeSurveillante(e)]?.join('-') ?? '');
+    const vues: (string | null)[] = [];
+    for (let i = 0; i < 5; i++) {
+      vues.push(gouterSurveille(e));
       e = jouer(jouer(e, { type: 'appeler' }), { type: 'appeler' });
       e.joueurs.rouge.rang = [];
       e.joueurs.bleu.rang = [];
     }
-    expect(vues).toEqual(['A1-M1', 'M1-B1', 'B1-B2', 'M3-B2', 'A2-M3', 'A1-A2', 'A1-M1']);
+    expect(vues).toEqual(['gauche', 'haut', 'droite', 'bas', 'gauche']);
   });
 
-  it('les îlots sous surveillance n’acceptent pas qu’on y recouvre un élève adverse', () => {
-    const cour = courTest({ ronde: [['P', 'L']] });
+  it('personne ne ramasse le goûter qu’elle garde', () => {
     const e = situation({
-      cour,
+      cour: courTest({ regions, ronde: ['bas', 'milieu'] }),
       rang: { rouge: ['grand'] },
-      piles: { P: [['bleu', 'populaire']] },
-    });
-    expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).not.toContain('P');
-  });
-
-  it('on peut toujours y poser sur un îlot vide ou sur un de ses élèves', () => {
-    const cour = courTest({ ronde: [['P', 'L']] });
-    const vide = situation({ cour, rang: { rouge: ['grand'] } });
-    expect(ciblesPossibles(vide, idRang(vide, 'rouge', 'grand'))).toContain('P');
-    const sien = situation({
-      cour,
-      rang: { rouge: ['populaire'] },
       piles: { P: [['rouge', 'grand']] },
     });
-    expect(ciblesPossibles(sien, idRang(sien, 'rouge', 'populaire'))).toContain('P');
+    const apres = jouer(e, { type: 'envoyer', eleveId: idRang(e, 'rouge', 'grand'), cible: 'L' });
+    expect(apres.regionsPrises.bas).toBeUndefined();
+    expect(apres.joueurs.rouge.bonsPoints).toBe(0);
   });
 
-  it('aucun effet ne peut y retirer un élève', () => {
-    const cour = courTest({ ronde: [['Q', 'D']] });
+  it('dès qu’elle s’en va, le goûter entouré est ramassé', () => {
+    let e = situation({
+      cour: courTest({ regions, ronde: ['bas', 'milieu'] }),
+      rang: { rouge: ['grand'] },
+      piles: { P: [['rouge', 'grand']] },
+    });
+    e = jouer(e, { type: 'envoyer', eleveId: idRang(e, 'rouge', 'grand'), cible: 'L' });
+    e = jouer(e, { type: 'appeler' }); // bleu joue : tour complet, elle part au milieu
+    expect(gouterSurveille(e)).toBe('milieu');
+    expect(e.regionsPrises.bas).toBe('rouge');
+    expect(e.joueurs.rouge.bonsPoints).toBe(2);
+  });
+
+  it('elle ne bloque plus aucune allée ni aucun îlot : on plaque à côté d’elle', () => {
     const e = situation({
-      cour,
-      piles: { P: [['rouge', 'grand']], Q: [['bleu', 'populaire']], L: [['bleu', 'populaire']] },
+      cour: courTest({ regions, ronde: ['bas', 'milieu'] }),
+      rang: { rouge: ['grand'] },
+      piles: { P: [['rouge', 'grand']], L: [['bleu', 'populaire']] },
+    });
+    const cibles = ciblesPossibles(e, idRang(e, 'rouge', 'grand'));
+    expect(cibles).toContain('L');
+    expect(cibles).toContain('Q');
+  });
+
+  it('les effets peuvent toucher les îlots de son goûter', () => {
+    const e = situation({
+      cour: courTest({ regions, ronde: ['bas', 'milieu'] }),
+      piles: { P: [['rouge', 'grand']], L: [['bleu', 'populaire']] },
     });
     const options = optionsEffet(e, {
       type: 'pouvoir',
@@ -84,6 +96,6 @@ describe('La surveillante', () => {
       ilot: 'P',
       eleveId: 'x',
     });
-    expect(options).toEqual([{ type: 'cpe', ilot: 'L' }]);
+    expect(options).toContainEqual({ type: 'cpe', ilot: 'L' });
   });
 });

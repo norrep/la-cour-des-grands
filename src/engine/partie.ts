@@ -137,24 +137,22 @@ export function sommet(e: EtatPartie, ilot: string): Eleve | undefined {
   return pile ? pile[pile.length - 1] : undefined;
 }
 
-/** Index (dans `cour.allees`) de l'allée où se tient la surveillante. */
-export function alleeSurveillante(e: EtatPartie): number {
-  return e.cour.ronde[e.surveillante] as number;
+/**
+ * La surveillante garde un goûter (règle A, D2.18) : la région où elle se tient ne peut pas
+ * être ramassée. Elle ne bloque aucune allée et ne protège aucun îlot.
+ * Renvoie l'id de cette région, ou `null` si la cour n'en a pas.
+ */
+export function gouterSurveille(e: EtatPartie): string | null {
+  const n = e.cour.ronde.length;
+  if (n === 0) return null;
+  return e.cour.regions[e.cour.ronde[e.surveillante % n] as number]?.id ?? null;
 }
 
-/** Index de l'allée suivante de sa ronde (ses traces de pas). */
-export function alleeSuivante(e: EtatPartie): number {
-  return e.cour.ronde[(e.surveillante + 1) % e.cour.ronde.length] as number;
-}
-
-/** Les îlots aux deux extrémités de l'allée de la surveillante. */
-export function ilotsSurveilles(e: EtatPartie): string[] {
-  const allee = e.cour.allees[alleeSurveillante(e)] as [string, string];
-  return allee.filter((id) => e.cour.noeuds[id]?.type === 'ilot');
-}
-
-export function estSurveille(e: EtatPartie, ilot: string): boolean {
-  return ilotsSurveilles(e).includes(ilot);
+/** Le goûter qu'elle gardera après le prochain tour complet (ses traces de pas). */
+export function gouterSuivant(e: EtatPartie): string | null {
+  const n = e.cour.ronde.length;
+  if (n === 0) return null;
+  return e.cour.regions[e.cour.ronde[(e.surveillante + 1) % n] as number]?.id ?? null;
 }
 
 function equipementActif(e: EtatPartie, noeud: string): EquipementId | undefined {
@@ -166,7 +164,6 @@ function equipementActif(e: EtatPartie, noeud: string): EquipementId | undefined
  * qui ne traverse que des îlots occupés par cette bande y mène.
  */
 export function noeudsConnectes(e: EtatPartie, bande: Bande): Set<string> {
-  const bloquee = alleeSurveillante(e);
   const depart = e.cour.cabanes[bande];
   const traverses = new Set<string>(depart);
   const file = depart.slice();
@@ -174,7 +171,6 @@ export function noeudsConnectes(e: EtatPartie, bande: Bande): Set<string> {
   while (file.length > 0) {
     const n = file.shift() as string;
     for (const v of e.cour.voisins[n] ?? []) {
-      if (v.allee === bloquee) continue;
       atteints.add(v.noeud);
       if (
         !traverses.has(v.noeud) &&
@@ -237,7 +233,6 @@ export function posePossible(
 
   const dessus = sommet(e, cible);
   if (dessus && dessus.bande !== bande) {
-    if (estSurveille(e, cible)) return false;
     if (!peutRecouvrir(eleve, dessus)) return false;
   }
   if (eleve.role === 'fouine') return true;
@@ -282,8 +277,7 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
   const adv = adversaire(bande);
   const moi = e.joueurs[bande];
   const cour = e.cour;
-  const adverseVisibleNonSurveille = (ilot: string) =>
-    sommet(e, ilot)?.bande === adv && !estSurveille(e, ilot);
+  const adverseVisible = (ilot: string) => sommet(e, ilot)?.bande === adv;
 
   if (effet.type === 'pouvoir') {
     switch (effet.role) {
@@ -305,7 +299,7 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
       }
       case 'rapporteuse':
         return ilotsVoisins(cour, effet.ilot)
-          .filter(adverseVisibleNonSurveille)
+          .filter(adverseVisible)
           .map((ilot) => ({ type: 'cpe', ilot }));
       case 'contagieux': {
         const j = e.joueurs[adv];
@@ -323,10 +317,7 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
     case 'banc':
       if (moi.rang.length >= TAILLE_RANG) return [];
       return cour.ilots
-        .filter(
-          (ilot) =>
-            ilot !== effet.ilot && sommet(e, ilot)?.bande === bande && !estSurveille(e, ilot),
-        )
+        .filter((ilot) => ilot !== effet.ilot && sommet(e, ilot)?.bande === bande)
         .map((ilot) => ({ type: 'rappeler', ilot }));
     case 'cabanePerchee':
       return nombreAPiocher(moi, 1) > 0 ? [{ type: 'piocher' }] : [];
@@ -337,7 +328,7 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
       const dist = distancesDepuis(cour, effet.ilot);
       return cour.ilots
         .filter((ilot) => {
-          if (dist[ilot] !== 2 || !adverseVisibleNonSurveille(ilot)) return false;
+          if (dist[ilot] !== 2 || !adverseVisible(ilot)) return false;
           const v = valeur((sommet(e, ilot) as Eleve).role);
           return v === 1 || v === 2;
         })
@@ -346,9 +337,9 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
     case 'toboggan': {
       const options: Option[] = [];
       for (const depart of ilotsVoisins(cour, effet.ilot)) {
-        if (!adverseVisibleNonSurveille(depart)) continue;
+        if (!adverseVisible(depart)) continue;
         for (const arrivee of ilotsVoisins(cour, depart)) {
-          if (!estSurveille(e, arrivee)) options.push({ type: 'glisser', depart, arrivee });
+          options.push({ type: 'glisser', depart, arrivee });
         }
       }
       return options;
@@ -608,15 +599,19 @@ function appliquerOption(e: EtatPartie, effet: Effet, option: Option): void {
 
 function deplacerSurveillante(e: EtatPartie, pas: number, parDelegue: boolean): void {
   const n = e.cour.ronde.length;
+  if (n === 0) return;
   e.surveillante = (((e.surveillante + pas) % n) + n) % n;
   noter(e, { type: 'surveillante', tour: e.tour, position: e.surveillante, pas, parDelegue });
+  // Le goûter qu'elle quitte peut être ramassé aussitôt s'il est déjà entouré.
+  verifierRegions(e);
 }
 
 /** Attribue les régions complétées (bande courante d'abord) et vérifie le seuil de bons points. */
 function verifierRegions(e: EtatPartie): void {
   for (const bande of [e.courant, adversaire(e.courant)]) {
+    const garde = gouterSurveille(e);
     for (const region of e.cour.regions) {
-      if (e.regionsPrises[region.id]) continue;
+      if (e.regionsPrises[region.id] || region.id === garde) continue;
       if (region.ilots.every((ilot) => sommet(e, ilot)?.bande === bande)) {
         e.regionsPrises[region.id] = bande;
         e.joueurs[bande].bonsPoints += region.bonsPoints;
@@ -658,6 +653,7 @@ function finirTour(e: EtatPartie): void {
   e.joueurs[bande].infirmerie = [];
   // La surveillante avance après chaque tour complet (les deux joueurs ont joué).
   if (bande !== e.premier) deplacerSurveillante(e, 1, false);
+  if (e.fin) return;
   e.courant = adversaire(bande);
   e.tour += 1;
 

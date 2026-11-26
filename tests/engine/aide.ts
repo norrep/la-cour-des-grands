@@ -32,7 +32,7 @@ export const cour1 = (): Cour => chargerCour(COURS['cour-premier-jour'] as CourD
  *            CabR
  *
  * Allées : CabR-P, P-Q, P-L, L-Q, Q-D, Q-S, D-S, S-X, S-CabB, X-Y, Y-Z.
- * Ronde : Y-Z → X-Y (départ Y-Z) : par défaut, la surveillante est loin de l'action.
+ * Ronde : aucune par défaut (pas de surveillante) ; sinon les régions données, dans l'ordre.
  * Distances depuis Q : P, L, D, S à 1 ; CabR, CabB, X à 2 ; Y à 3.
  */
 export function courTest(
@@ -42,7 +42,7 @@ export function courTest(
     valeursCabB?: ValeurCase[];
     regions?: CourData['regions'];
     seuil?: number;
-    ronde?: [string, string][];
+    ronde?: string[];
     depart?: number;
     deuxiemeCabaneBleue?: boolean;
   } = {},
@@ -96,10 +96,7 @@ export function courTest(
     ],
     regions: options.regions ?? [],
     seuilBonsPoints: options.seuil ?? 5,
-    ronde: options.ronde ?? [
-      ['Y', 'Z'],
-      ['X', 'Y'],
-    ],
+    ronde: options.ronde ?? [],
     departRonde: options.depart ?? 0,
   };
   return chargerCour(data);

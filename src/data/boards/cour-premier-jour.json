@@ -37,13 +37,6 @@
     { "id": "droite", "nom": "Le côté droit", "ilots": ["A2", "M3", "B2", "M2"], "bonsPoints": 1 }
   ],
   "seuilBonsPoints": 3,
-  "ronde": [
-    ["A1", "M1"],
-    ["M1", "B1"],
-    ["B1", "B2"],
-    ["B2", "M3"],
-    ["M3", "A2"],
-    ["A2", "A1"]
-  ],
+  "ronde": ["gauche", "haut", "droite", "bas"],
   "departRonde": 0
 }

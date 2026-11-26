@@ -19,7 +19,7 @@ const PIXELS_REF = 440;
 /** Hauteur du numéro sur le débardeur, en fraction de l'image (l'élève est centré dessus). */
 const NUMERO = 0.4;
 /** L'élève est remonté d'une fraction de sa taille : ses pieds ne cachent pas le nom de l'îlot. */
-const REMONTE = 0.38;
+const REMONTE = 0.4;
 /** Pastille de valeur à côté de l'élève, en fraction de `taille`. */
 const PASTILLE = 0.42;
 /** Hauteur du pantin à l'écran, en pixels de jeu. */

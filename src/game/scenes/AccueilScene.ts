@@ -5,6 +5,8 @@ import { choisirSkin, preparerSkin, skinActif, skinSuivant } from '../skins/inde
 import { ecrireConseils, ecrireSons, lireConseils, lireSons } from '../preferences';
 import { activerSons } from '../sons';
 import { creerBouton } from '../ui/bouton';
+import { contourRect, forme } from '../ui/style';
+import { DECOR } from './ChargementScene';
 
 export interface DonneesPartie {
   equipements: boolean;
@@ -26,31 +28,56 @@ export class AccueilScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COULEURS.fond);
     const cx = LARGEUR / 2;
 
-    const cadre = this.add.graphics();
-    cadre.lineStyle(6, COULEURS.craie, 0.8);
-    cadre.strokeRoundedRect(24, 24, LARGEUR - 48, HAUTEUR - 48, 32);
+    if (this.textures.exists(DECOR)) {
+      this.add.image(cx, HAUTEUR / 2, DECOR).setDisplaySize(LARGEUR, HAUTEUR);
+    }
 
-    this.add
-      .text(cx, 260, TEXTES.titre, {
+    // Le titre sur une grande pancarte jaune, un peu de travers.
+    const pancarte = this.add.graphics();
+    forme(pancarte, contourRect(-300, -120, 600, 240, 40, 5, 3), {
+      remplissage: COULEURS.jaune,
+      ombre: 12,
+      trait: 6,
+    });
+    const titre = this.add
+      .text(0, -10, TEXTES.titre, {
         fontFamily: POLICE_TITRE,
-        fontSize: '76px',
-        color: COULEURS.texteClair,
+        fontSize: '74px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
         align: 'center',
-        wordWrap: { width: LARGEUR - 120 },
+        lineSpacing: -10,
+        wordWrap: { width: 560 },
       })
       .setOrigin(0.5);
-    this.add
-      .text(cx, 400, TEXTES.sousTitre, {
-        fontFamily: POLICE_TITRE,
-        fontSize: '30px',
-        color: COULEURS.texteClair,
+    const blocTitre = this.add.container(cx, 230, [pancarte, titre]).setAngle(-3);
+    this.tweens.add({
+      targets: blocTitre,
+      angle: 2,
+      duration: 1600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+    const sous = this.add
+      .text(cx, 396, TEXTES.sousTitre, {
+        fontFamily: POLICE,
+        fontSize: '26px',
+        color: COULEURS.texteSombre,
+        fontStyle: '600',
       })
       .setOrigin(0.5);
+    const fondSous = this.add.graphics();
+    forme(fondSous, contourRect(cx - sous.width / 2 - 20, 372, sous.width + 40, 50, 20, 9), {
+      remplissage: COULEURS.papier,
+      ombre: 5,
+    });
+    sous.setDepth(1);
 
     const rouge = skinActif().eleve(this, 'rouge', 'grand', 100);
-    rouge.setPosition(cx - 110, 560);
+    rouge.setPosition(cx - 110, 590);
     const bleu = skinActif().eleve(this, 'bleu', 'petit', 100);
-    bleu.setPosition(cx + 110, 560);
+    bleu.setPosition(cx + 110, 590);
     this.tweens.add({ targets: [rouge, bleu], angle: 6, duration: 600, yoyo: true, repeat: -1 });
 
     creerBouton(
@@ -66,7 +93,7 @@ export class AccueilScene extends Phaser.Scene {
         };
         this.scene.start('partie', donnees);
       },
-      { largeur: 420, hauteur: 120, taille: 34, couleur: COULEURS.allume },
+      { largeur: 420, hauteur: 120, taille: 34, couleur: COULEURS.jaune },
     );
 
     const bascule = (): void => {
@@ -137,14 +164,22 @@ export class AccueilScene extends Phaser.Scene {
       { largeur: 204, hauteur: 64, taille: 23 },
     );
 
-    this.add
-      .text(cx, 1175, TEXTES.accueil.regle, {
+    const regle = this.add
+      .text(cx, 1170, TEXTES.accueil.regle, {
         fontFamily: POLICE,
-        fontSize: '24px',
-        color: COULEURS.texteClair,
+        fontSize: '22px',
+        color: COULEURS.texteSombre,
+        fontStyle: '500',
         align: 'center',
-        wordWrap: { width: LARGEUR - 140 },
+        wordWrap: { width: LARGEUR - 150 },
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setDepth(1);
+    const fondRegle = this.add.graphics();
+    forme(
+      fondRegle,
+      contourRect(50, 1170 - regle.height / 2 - 18, LARGEUR - 100, regle.height + 36, 22, 13),
+      { remplissage: COULEURS.papier, ombre: 6 },
+    );
   }
 }

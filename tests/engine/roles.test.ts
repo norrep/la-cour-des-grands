@@ -8,10 +8,20 @@ import {
   valeur,
   type EtatPartie,
 } from '../../src/engine/index';
-import { idRang, pile, situation } from './aide';
+import { courTest, idRang, pile, situation } from './aide';
 
 const envoyer = (e: EtatPartie, role: Parameters<typeof idRang>[2], cible: string) =>
   jouer(e, { type: 'envoyer', eleveId: idRang(e, e.courant, role), cible });
+
+/** Cour de test avec deux goûters gardés à tour de rôle par la surveillante. */
+const courRonde = () =>
+  courTest({
+    regions: [
+      { id: 'haut', nom: 'Haut', ilots: ['S', 'X'], bonsPoints: 1 },
+      { id: 'cote', nom: 'Côté', ilots: ['Y', 'Z'], bonsPoints: 1 },
+    ],
+    ronde: ['haut', 'cote'],
+  });
 
 describe('Valeurs des rôles', () => {
   it('joker, puis 1 à 7', () => {
@@ -94,7 +104,11 @@ describe('2 — Le Chouchou', () => {
   });
 
   it('applique ensuite le pouvoir du 2e élève', () => {
-    let e = envoyer(situation({ rang: { rouge: ['chouchou', 'delegue'] } }), 'chouchou', 'P');
+    let e = envoyer(
+      situation({ cour: courRonde(), rang: { rouge: ['chouchou', 'delegue'] } }),
+      'chouchou',
+      'P',
+    );
     const id = idRang(e, 'rouge', 'delegue');
     e = jouer(e, { type: 'choisir', option: { type: 'poser', eleveId: id, cible: 'Q' } });
     expect(pile(e, 'Q')).toEqual(['rouge:delegue']);
@@ -280,7 +294,7 @@ describe('5 — Le Contagieux', () => {
 });
 
 describe('6 — Le Délégué', () => {
-  it('fait avancer ou reculer la surveillante de 1 ou 2 allées', () => {
+  it('fait avancer ou reculer la surveillante de 1 ou 2 goûters', () => {
     const e = envoyer(situation({ rang: { rouge: ['delegue'] } }), 'delegue', 'P');
     expect(e.attente?.options).toEqual([
       { type: 'surveillante', pas: -2 },
@@ -291,12 +305,15 @@ describe('6 — Le Délégué', () => {
   });
 
   it('boucle sur la ronde dans les deux sens', () => {
-    const cour = situation().cour; // ronde de 2 allées
+    const cour = courRonde(); // ronde de 2 goûters
     expect(cour.ronde).toHaveLength(2);
-    const recul = jouer(envoyer(situation({ rang: { rouge: ['delegue'] } }), 'delegue', 'P'), {
-      type: 'choisir',
-      option: { type: 'surveillante', pas: -1 },
-    });
+    const recul = jouer(
+      envoyer(situation({ cour, rang: { rouge: ['delegue'] } }), 'delegue', 'P'),
+      {
+        type: 'choisir',
+        option: { type: 'surveillante', pas: -1 },
+      },
+    );
     expect(recul.surveillante).toBe(1);
     expect(recul.journal).toContainEqual(
       expect.objectContaining({ type: 'surveillante', parDelegue: true, pas: -1 }),

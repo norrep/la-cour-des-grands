@@ -78,9 +78,12 @@ export interface CourData {
   allees: [string, string][];
   regions: RegionData[];
   seuilBonsPoints: number;
-  /** Ronde de la surveillante : allées parcourues en boucle, dans l'ordre. */
-  ronde: [string, string][];
-  /** Index, dans la ronde, de l'allée de départ. */
+  /**
+   * Ronde de la surveillante : les régions (leurs goûters) qu'elle garde tour à tour, en
+   * boucle, dans l'ordre. Vide seulement si la cour n'a pas de région.
+   */
+  ronde: string[];
+  /** Index, dans la ronde, du goûter de départ. */
   departRonde: number;
 }
 
@@ -117,7 +120,7 @@ export interface Cour {
   voisins: Record<string, Voisin[]>;
   regions: RegionData[];
   seuilBonsPoints: number;
-  /** Index des allées de la ronde, dans l'ordre. */
+  /** Index (dans `regions`) des goûters de la ronde, dans l'ordre. */
   ronde: number[];
   departRonde: number;
 }

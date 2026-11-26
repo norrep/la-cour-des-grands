@@ -37,10 +37,9 @@ describe('Cour n°1 : la cour du premier jour', () => {
     expect(cour.seuilBonsPoints).toBe(3);
   });
 
-  it('a une ronde de 6 allées qui part de A1-M1', () => {
-    expect(cour.ronde).toHaveLength(6);
-    expect(cour.allees[cour.ronde[0] as number]).toEqual(['A1', 'M1']);
-    expect(cour.allees[cour.ronde[5] as number]).toEqual(['A1', 'A2']);
+  it('a une ronde des 4 goûters qui part de la gauche', () => {
+    expect(cour.ronde.map((i) => cour.regions[i]?.id)).toEqual(['gauche', 'haut', 'droite', 'bas']);
+    expect(cour.departRonde).toBe(0);
   });
 
   it('calcule les distances en allées', () => {
@@ -62,9 +61,9 @@ describe('Validation des données de cour', () => {
     d.allees.push(['A2', 'A1']);
     expect(() => chargerCour(d)).toThrow(/double/);
   });
-  it('refuse une ronde qui emprunte une allée inexistante', () => {
+  it('refuse une ronde qui passe par une région inexistante', () => {
     const d = base();
-    d.ronde.push(['M1', 'M3']);
+    d.ronde.push('milieu');
     expect(() => chargerCour(d)).toThrow(/ronde/);
   });
   it('refuse une région qui contient une cabane', () => {
@@ -74,7 +73,7 @@ describe('Validation des données de cour', () => {
   });
   it('refuse un départ de ronde hors limites', () => {
     const d = base();
-    d.departRonde = 6;
+    d.departRonde = 4;
     expect(() => chargerCour(d)).toThrow(/départ/);
   });
   it('refuse une bande sans cabane', () => {

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COULEURS, POLICE } from '../config';
 import { jouerSon } from '../sons';
+import { contourRect, forme, graineDe } from './style';
 
 export interface StyleBouton {
   largeur?: number;
@@ -10,7 +11,10 @@ export interface StyleBouton {
   actif?: boolean;
 }
 
-/** Bouton tactile simple : rectangle arrondi + texte, avec un petit enfoncement au toucher. */
+/**
+ * Bouton cartoon : forme molle au trait noir, ombre pleine comme un autocollant. Au toucher il
+ * s'écrase sur son ombre, puis rebondit.
+ */
 export function creerBouton(
   scene: Phaser.Scene,
   x: number,
@@ -22,40 +26,59 @@ export function creerBouton(
   const largeur = style.largeur ?? 260;
   const hauteur = style.hauteur ?? 64;
   const actif = style.actif ?? true;
-  const couleur = actif ? (style.couleur ?? COULEURS.papier) : 0x8a8a7a;
+  const couleur = actif ? (style.couleur ?? COULEURS.papier) : 0xd8d2c4;
+  const ombre = 6;
 
+  const pts = contourRect(-largeur / 2, -hauteur / 2, largeur, hauteur, 20, graineDe(x, y));
   const fond = scene.add.graphics();
-  fond.fillStyle(0x000000, 0.25);
-  fond.fillRoundedRect(-largeur / 2 + 3, -hauteur / 2 + 5, largeur, hauteur, 16);
-  fond.fillStyle(couleur, 1);
-  fond.fillRoundedRect(-largeur / 2, -hauteur / 2, largeur, hauteur, 16);
-  fond.lineStyle(3, COULEURS.fondSombre, 1);
-  fond.strokeRoundedRect(-largeur / 2, -hauteur / 2, largeur, hauteur, 16);
+  const dessus = scene.add.graphics();
+  fond.fillStyle(COULEURS.encre, 1);
+  fond.fillPoints(
+    pts.map((p) => ({ x: p.x + 2, y: p.y + ombre })),
+    true,
+  );
+  forme(dessus, pts, { remplissage: couleur, trait: 4 });
+  // Reflet : un petit trait clair en haut à gauche, comme sur les dessins.
+  dessus.lineStyle(4, 0xffffff, 0.55);
+  dessus.beginPath();
+  dessus.moveTo(-largeur / 2 + 16, -hauteur / 2 + 12);
+  dessus.lineTo(-largeur / 2 + Math.min(60, largeur * 0.25), -hauteur / 2 + 10);
+  dessus.strokePath();
 
   const etiquette = scene.add
-    .text(0, 0, texte, {
+    .text(0, -1, texte, {
       fontFamily: POLICE,
       fontSize: `${style.taille ?? 26}px`,
       color: COULEURS.texteSombre,
-      fontStyle: 'bold',
+      fontStyle: '600',
       align: 'center',
-      wordWrap: { width: largeur - 16 },
+      wordWrap: { width: largeur - 20 },
     })
     .setOrigin(0.5);
 
-  const bouton = scene.add.container(x, y, [fond, etiquette]);
-  bouton.setSize(largeur, hauteur);
+  const face = scene.add.container(0, 0, [dessus, etiquette]);
+  const bouton = scene.add.container(x, y, [fond, face]);
+  bouton.setSize(largeur, hauteur + ombre);
   if (actif) {
     bouton.setInteractive({ useHandCursor: true });
-    bouton.on('pointerdown', () => bouton.setScale(0.95));
-    bouton.on('pointerout', () => bouton.setScale(1));
+    const relever = () => face.setPosition(0, 0);
+    bouton.on('pointerdown', () => face.setPosition(2, ombre - 1));
+    bouton.on('pointerout', relever);
     bouton.on('pointerup', () => {
-      bouton.setScale(1);
+      relever();
+      scene.tweens.add({
+        targets: bouton,
+        scaleX: { from: 1.06, to: 1 },
+        scaleY: { from: 0.94, to: 1 },
+        duration: 220,
+        ease: 'Back.easeOut',
+      });
       jouerSon('bouton');
       action();
     });
   } else {
-    bouton.setAlpha(0.6);
+    bouton.setAlpha(0.75);
+    etiquette.setColor('#8a8478');
   }
   return bouton;
 }

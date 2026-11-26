@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import '@fontsource/fredoka/500.css';
+import '@fontsource/fredoka/600.css';
+import '@fontsource/fredoka/700.css';
 import { HAUTEUR, LARGEUR } from './game/config';
 import { AccueilScene } from './game/scenes/AccueilScene';
 import { ChargementScene } from './game/scenes/ChargementScene';
@@ -9,7 +12,7 @@ new Phaser.Game({
   parent: 'jeu',
   width: LARGEUR,
   height: HAUTEUR,
-  backgroundColor: '#1d2b22',
+  backgroundColor: '#2b2340',
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
