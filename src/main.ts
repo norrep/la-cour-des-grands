@@ -18,7 +18,8 @@ new Phaser.Game({
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   input: { activePointers: 2 },
-  render: { antialias: true },
+  // Mipmaps : les dessins réduits gardent un trait net, sans scintiller quand ils bougent.
+  render: { antialias: true, mipmapFilter: 'LINEAR_MIPMAP_LINEAR' },
   fps: { target: 60 },
   scene: [ChargementScene, AccueilScene, PartieScene],
 });

@@ -11,14 +11,24 @@ describe('Skin Cartoon', () => {
       for (const b of BANDES) {
         const nom = `${b}-${id}`;
         const fichier = `public/skins/dessin/${nom}.png`;
-        expect(existsSync(fichier), fichier).toBe(true);
+        for (const piece of ['', '-corps', '-bras']) {
+          const f = `public/skins/dessin/${nom}${piece}.png`;
+          expect(existsSync(f), f).toBe(true);
+          // Textures en puissances de 2 (mipmaps : pas de trait qui scintille une fois réduit).
+          const entete = readFileSync(f);
+          for (const cote of [entete.readUInt32BE(16), entete.readUInt32BE(20)]) {
+            expect(cote & (cote - 1), f).toBe(0);
+          }
+        }
         const m = MESURES[nom];
         expect(m, nom).toBeDefined();
         if (!m) continue;
-        // Largeur et hauteur relevées = celles du PNG (en-tête IHDR).
+        // Le dessin tient dans la texture (calé en haut à gauche).
         const png = readFileSync(fichier);
-        expect(png.readUInt32BE(16)).toBe(m.largeur);
-        expect(png.readUInt32BE(20)).toBe(m.hauteur);
+        expect(png.readUInt32BE(16)).toBeGreaterThanOrEqual(m.largeur);
+        expect(png.readUInt32BE(20)).toBeGreaterThanOrEqual(m.hauteur);
+        expect(m.aisselle.y).toBeGreaterThan(m.col);
+        expect(m.basBras).toBeGreaterThan(m.aisselle.y);
         expect(m.main.x).toBeGreaterThanOrEqual(0);
         expect(m.main.x).toBeLessThan(m.largeur);
         expect(m.main.y).toBeGreaterThan(m.hauteur / 3);

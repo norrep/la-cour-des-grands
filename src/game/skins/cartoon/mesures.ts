@@ -12,6 +12,12 @@ export interface MesureDessin {
   col: number;
   /** Bas du débardeur : le buste des cartes du rang s'arrête juste dessous. */
   basMaillot: number;
+  /**
+   * Bras gauche découpé à part (`<nom>-bras.png`, le reste dans `<nom>-corps.png`) : il se lève
+   * quand on tient l'élève par la main. `aisselle` est son attache, `basBras` le bout des doigts.
+   */
+  aisselle: { x: number; y: number };
+  basBras: number;
 }
 
 export const MESURES: Record<string, MesureDessin> = {
@@ -22,6 +28,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#f8c8b0',
     col: 136,
     basMaillot: 228,
+    aisselle: { x: 23, y: 171 },
+    basBras: 310,
   },
   'bleu-contagieux': {
     largeur: 128,
@@ -30,6 +38,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#d8e0c0',
     col: 140,
     basMaillot: 227,
+    aisselle: { x: 21, y: 153 },
+    basBras: 310,
   },
   'bleu-delegue': {
     largeur: 128,
@@ -38,6 +48,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#b07858',
     col: 135,
     basMaillot: 218,
+    aisselle: { x: 21, y: 145 },
+    basBras: 300,
   },
   'bleu-fouine': {
     largeur: 140,
@@ -46,6 +58,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#c090c0',
     col: 133,
     basMaillot: 215,
+    aisselle: { x: 18, y: 168 },
+    basBras: 271,
   },
   'bleu-grand': {
     largeur: 141,
@@ -54,6 +68,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#f0c8b8',
     col: 136,
     basMaillot: 228,
+    aisselle: { x: 27, y: 155 },
+    basBras: 311,
   },
   'bleu-petit': {
     largeur: 160,
@@ -62,6 +78,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#f0c8b0',
     col: 165,
     basMaillot: 256,
+    aisselle: { x: 23, y: 188 },
+    basBras: 294,
   },
   'bleu-populaire': {
     largeur: 120,
@@ -70,6 +88,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#986048',
     col: 172,
     basMaillot: 255,
+    aisselle: { x: 20, y: 188 },
+    basBras: 330,
   },
   'bleu-rapporteuse': {
     largeur: 138,
@@ -78,6 +98,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#f0c8b0',
     col: 135,
     basMaillot: 226,
+    aisselle: { x: 27, y: 152 },
+    basBras: 299,
   },
   'rouge-chouchou': {
     largeur: 141,
@@ -86,6 +108,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#f8c8b0',
     col: 135,
     basMaillot: 228,
+    aisselle: { x: 23, y: 170 },
+    basBras: 309,
   },
   'rouge-contagieux': {
     largeur: 128,
@@ -94,6 +118,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#d8e0c0',
     col: 135,
     basMaillot: 227,
+    aisselle: { x: 22, y: 152 },
+    basBras: 309,
   },
   'rouge-delegue': {
     largeur: 128,
@@ -102,6 +128,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#b08058',
     col: 122,
     basMaillot: 218,
+    aisselle: { x: 21, y: 145 },
+    basBras: 299,
   },
   'rouge-fouine': {
     largeur: 140,
@@ -110,6 +138,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#b890b8',
     col: 132,
     basMaillot: 216,
+    aisselle: { x: 18, y: 166 },
+    basBras: 271,
   },
   'rouge-grand': {
     largeur: 140,
@@ -118,6 +148,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#f0d0b8',
     col: 136,
     basMaillot: 228,
+    aisselle: { x: 27, y: 154 },
+    basBras: 310,
   },
   'rouge-petit': {
     largeur: 160,
@@ -126,6 +158,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#f0c8b0',
     col: 165,
     basMaillot: 256,
+    aisselle: { x: 24, y: 187 },
+    basBras: 294,
   },
   'rouge-populaire': {
     largeur: 120,
@@ -134,6 +168,8 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#986848',
     col: 172,
     basMaillot: 255,
+    aisselle: { x: 20, y: 189 },
+    basBras: 330,
   },
   'rouge-rapporteuse': {
     largeur: 137,
@@ -142,5 +178,7 @@ export const MESURES: Record<string, MesureDessin> = {
     peau: '#f8d0b8',
     col: 135,
     basMaillot: 226,
+    aisselle: { x: 26, y: 154 },
+    basBras: 299,
   },
 };

@@ -275,8 +275,9 @@ export class PartieScene extends Phaser.Scene {
       // Illustration de l'équipement, posée sur l'îlot derrière l'élève.
       const illustration = special && n?.equipement ? ILLUSTRATIONS[n.equipement] : undefined;
       if (illustration && this.textures.exists(illustration)) {
-        const im = this.add.image(p.x, p.y + RAYON_ILOT * 0.35, illustration).setOrigin(0.5, 1);
-        im.setScale((RAYON_ILOT * 1.7) / im.width);
+        // Le dessin fait 300 × 251 pixels dans une texture de 512 × 256.
+        const im = this.add.image(p.x, p.y + RAYON_ILOT * 0.35, illustration);
+        im.setOrigin(150 / im.width, 251 / im.height).setScale((RAYON_ILOT * 1.7) / 300);
         this.ajouter(im);
       }
       // Seuls les îlots spéciaux ont un nom (demande de Clément) ; il passe devant les pieds.
@@ -479,15 +480,16 @@ export class PartieScene extends Phaser.Scene {
       ombre.fillStyle(COULEURS.encre, 0.25);
       ombre.fillEllipse(x + 2, y + 30, 46, 12);
       const hauteur = 100;
-      const source = this.textures.getFrame(JOSIANE);
+      // L'image fait 146 × 420 pixels, dans une texture plus grande (puissance de 2, pour les mipmaps).
       const corps = new Gelee(this, {
         cle: JOSIANE,
-        echelle: hauteur / (source?.height ?? hauteur),
-        pivot: source?.height ?? hauteur,
+        echelle: hauteur / 420,
+        pivot: 420,
+        centreX: 73,
       });
       const josiane = this.add.container(x, y + 30, corps.objets).setAlpha(alpha);
       this.ajouter(josiane);
-      rendreVivant(this, corps, josiane, { hauteur });
+      rendreVivant(this, corps, josiane, { hauteur, caractere: 'surveillante' });
       return;
     }
     const g = this.ajouter(this.add.graphics());

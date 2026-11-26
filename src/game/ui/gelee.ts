@@ -13,6 +13,8 @@ export interface OptionsGelee {
   a?: number;
   /** Ligne de l'image placée en (0, 0) : le pivot (les pieds, le bas du buste, la prise…). */
   pivot: number;
+  /** Colonne de l'image placée en x = 0 (le milieu du dessin ; l'image peut être plus large). */
+  centreX?: number;
   tranches?: number;
 }
 
@@ -33,7 +35,7 @@ export class Gelee {
     this.hauteur = frame?.height ?? 100;
     const de = o.de ?? 0;
     const a = o.a ?? this.hauteur;
-    const n = o.tranches ?? 14;
+    const n = o.tranches ?? 28;
     const pas = (a - de) / n;
     for (let i = 0; i < n; i++) {
       const y0 = Math.floor(de + i * pas);
@@ -41,7 +43,7 @@ export class Gelee {
       const y1 = Math.min(a, Math.ceil(de + (i + 1) * pas) + 1);
       const img = scene.add
         .image(0, 0, o.cle)
-        .setOrigin(0.5, o.pivot / this.hauteur)
+        .setOrigin((o.centreX ?? this.largeur / 2) / this.largeur, o.pivot / this.hauteur)
         .setScale(o.echelle)
         .setCrop(0, y0, this.largeur, y1 - y0);
       this.objets.push(img);
@@ -63,18 +65,219 @@ export class Gelee {
   }
 }
 
+/** Caractère d'un personnage au repos : chaque rôle a le sien. */
+export type Caractere =
+  | 'grand'
+  | 'petit'
+  | 'populaire'
+  | 'chouchou'
+  | 'rapporteuse'
+  | 'contagieux'
+  | 'delegue'
+  | 'fouine'
+  | 'surveillante';
+
 /** Réglages du « vivant » d'un personnage posé. */
 export interface OptionsVivant {
   /** Hauteur du personnage à l'écran : les amplitudes en dépendent. */
   hauteur: number;
-  /** Respiration seulement (buste sur une carte) : pas de sauts. */
+  caractere?: Caractere;
+  /** Buste sur une carte : même caractère, en plus doux et sans gestes qui sortent du cadre. */
   calme?: boolean;
 }
 
+/** Pose d'un instant : étirements, décalage du haut du corps, saut, regard (sx < 0). */
+interface Pose {
+  sx: number;
+  sy: number;
+  /** Décalage horizontal du haut de la tête (le bas ne bouge pas), en fraction de la hauteur. */
+  pli: number;
+  /** Hauteur de saut, en fraction de la hauteur (négatif : en l'air). */
+  saut: number;
+  regard: number;
+}
+
+type Geste = (p: number, pose: Pose) => boolean;
+
+const cloche = (q: number) => Math.sin(Math.min(1, Math.max(0, q)) * Math.PI);
+
+/** Les gestes : `p` en secondes depuis le début ; renvoient false une fois finis. */
+const GESTES: Record<string, Geste> = {
+  saut(p, o) {
+    if (p < 0.12) {
+      o.sy -= 0.12 * (p / 0.12);
+      o.sx += 0.08 * (p / 0.12);
+    } else if (p < 0.5) {
+      o.saut -= cloche((p - 0.12) / 0.38) * 0.13;
+      o.sy += 0.07 * cloche((p - 0.12) / 0.38);
+    } else if (p < 0.72) {
+      o.sy -= 0.1 * cloche((p - 0.5) / 0.22);
+      o.sx += 0.07 * cloche((p - 0.5) / 0.22);
+    }
+    return p < 0.72;
+  },
+  // « Moi ! Moi ! » : trois petits sauts sur la pointe des pieds.
+  sautille(p, o) {
+    const q = (p % 0.3) / 0.3;
+    o.saut -= cloche(q) * 0.06;
+    o.sy += cloche(q) * 0.04 - (q > 0.85 ? 0.04 : 0);
+    return p < 0.9;
+  },
+  frisson(p, o) {
+    o.pli += Math.sin(p * 40) * 0.04 * (1 - p / 0.6);
+    return p < 0.6;
+  },
+  // Grand bâillement : on s'étire tout en haut, puis on retombe mou.
+  baille(p, o) {
+    if (p < 0.9) {
+      o.sy += cloche(p / 1.8) * 0.12;
+      o.sx -= cloche(p / 1.8) * 0.06;
+    } else if (p < 1.5) {
+      const q = (p - 0.9) / 0.6;
+      o.sy += 0.12 * (1 - q) - cloche(q) * 0.06;
+      o.pli += cloche(q) * 0.05;
+    }
+    return p < 1.5;
+  },
+  // A… a… atchoum ! On part en arrière, puis tout le corps est projeté en avant.
+  eternue(p, o) {
+    if (p < 0.7) {
+      o.pli -= (p / 0.7) * 0.06;
+      o.sy += (p / 0.7) * 0.06;
+    } else if (p < 1.2) {
+      const q = (p - 0.7) / 0.5;
+      o.pli += 0.1 * (1 - q) * Math.cos(q * 9);
+      o.sy -= 0.08 * (1 - q);
+      o.sx += 0.06 * (1 - q);
+    }
+    return p < 1.2;
+  },
+  // Regarde à gauche, à droite : quelqu'un le suit ?
+  regard(p, o) {
+    if (p < 0.5 || (p > 1 && p < 1.4)) o.regard = -1;
+    o.sy -= 0.03;
+    return p < 1.6;
+  },
+  // Hochement de tête sérieux, deux fois.
+  hoche(p, o) {
+    o.sy -= cloche((p % 0.35) / 0.35) * 0.035;
+    o.pli += cloche((p % 0.35) / 0.35) * 0.015;
+    return p < 0.7;
+  },
+  // Bombe le torse, fier de son mot d'excuse.
+  bombe(p, o) {
+    o.sx += cloche(p / 1.2) * 0.1;
+    o.sy += cloche(p / 1.2) * 0.04;
+    return p < 1.2;
+  },
+  // Pirouette de star.
+  tourne(p, o) {
+    o.sx *= Math.cos((p / 0.6) * Math.PI * 2);
+    o.saut -= cloche(p / 0.6) * 0.05;
+    return p < 0.6;
+  },
+  // Se penche pour cafarder, deux fois, en sautillant.
+  cafarde(p, o) {
+    o.pli += cloche((p % 0.45) / 0.45) * 0.09;
+    o.saut -= cloche((p % 0.45) / 0.45) * 0.03;
+    return p < 0.9;
+  },
+  // Tape du pied, agacée.
+  tape(p, o) {
+    o.sy -= cloche((p % 0.25) / 0.25) * 0.025;
+    return p < 1;
+  },
+};
+
+interface Profil {
+  /** Respiration : amplitude et vitesse (radians par seconde). */
+  souffle: [number, number];
+  /** Dandinement du haut du corps : amplitude (fraction de la hauteur) et vitesse. */
+  balance: [number, number];
+  /** Posture : un peu tassé (< 1) ou étiré (> 1). */
+  tenue?: number;
+  /** Mouvement continu propre au caractère. */
+  fond?: (t: number, o: Pose) => void;
+  gestes: string[];
+  /** Pause entre deux gestes, en secondes : minimum et étendue. */
+  pause: [number, number];
+}
+
+const PROFILS: Record<Caractere, Profil> = {
+  // Grand : nonchalant, se balance lentement, bâille.
+  grand: {
+    souffle: [0.025, 1.6],
+    balance: [0.05, 0.9],
+    gestes: ['baille', 'baille', 'saut'],
+    pause: [5, 8],
+  },
+  // Petit : ne tient pas en place, rebondit sans arrêt.
+  petit: {
+    souffle: [0.04, 4],
+    balance: [0.04, 2.6],
+    fond: (t, o) => {
+      o.saut -= Math.abs(Math.sin(t * 5)) * 0.025;
+    },
+    gestes: ['saut', 'frisson', 'saut'],
+    pause: [1.5, 3],
+  },
+  // Populaire : danse en rythme, et fait parfois une pirouette.
+  populaire: {
+    souffle: [0.02, 2.4],
+    balance: [0, 1],
+    fond: (t, o) => {
+      o.pli += Math.sin(t * Math.PI * 2) * 0.05;
+      o.sy -= Math.abs(Math.sin(t * Math.PI * 2)) * 0.03;
+    },
+    gestes: ['tourne'],
+    pause: [3, 5],
+  },
+  // Chouchou : droit comme un i, lève la main en sautillant (« moi ! moi ! »).
+  chouchou: {
+    souffle: [0.02, 2.4],
+    balance: [0.012, 1.4],
+    tenue: 1.02,
+    gestes: ['sautille', 'hoche'],
+    pause: [3, 5],
+  },
+  // Rapporteuse : nerveuse, se penche pour tout raconter.
+  rapporteuse: {
+    souffle: [0.03, 3.4],
+    balance: [0.03, 2.2],
+    gestes: ['cafarde', 'tape', 'frisson'],
+    pause: [2, 4],
+  },
+  // Contagieux : mou et voûté, renifle, éternue.
+  contagieux: {
+    souffle: [0.035, 1.8],
+    balance: [0.035, 0.8],
+    tenue: 0.97,
+    gestes: ['eternue', 'frisson'],
+    pause: [3, 6],
+  },
+  // Délégué : presque immobile, sérieux, bombe le torse.
+  delegue: { souffle: [0.02, 2], balance: [0.008, 1], gestes: ['hoche', 'bombe'], pause: [4, 7] },
+  // Fouine : tassée, se faufile d'un côté à l'autre, regarde derrière elle.
+  fouine: {
+    souffle: [0.025, 2.6],
+    balance: [0.06, 1.8],
+    tenue: 0.95,
+    gestes: ['regard', 'regard', 'frisson'],
+    pause: [2, 4],
+  },
+  // Mme Josiane : tape du pied, hoche la tête, rien ne lui échappe.
+  surveillante: {
+    souffle: [0.02, 1.8],
+    balance: [0.015, 0.7],
+    gestes: ['tape', 'hoche', 'regard'],
+    pause: [3, 6],
+  },
+};
+
 /**
- * Anime une gelée debout (pivot en bas) : respiration, balancement qui plie le haut du corps, et de
- * temps en temps un petit saut ou un frisson. Chaque personnage a sa propre phase, tirée de sa
- * position : ils ne bougent pas tous ensemble. L'animation s'arrête quand `porteur` est détruit.
+ * Anime une gelée debout (pivot en bas) selon son caractère : respiration, dandinement qui plie le
+ * haut du corps plus que les pieds, et de temps en temps un geste à lui. Chacun a sa propre phase :
+ * ils ne bougent pas tous ensemble. L'animation s'arrête quand `porteur` est détruit.
  */
 export function rendreVivant(
   scene: Phaser.Scene,
@@ -83,47 +286,48 @@ export function rendreVivant(
   o: OptionsVivant,
 ): void {
   const h = o.hauteur;
-  let phase = Math.random() * 10;
-  let prochain = scene.time.now + 2500 + Math.random() * 7000;
-  let geste: { type: 'saut' | 'frisson'; debut: number } | null = null;
+  const profil = PROFILS[o.caractere ?? 'grand'];
+  const doux = o.calme ? 0.6 : 1;
+  const phase = Math.random() * 10;
+  const pause = () => (profil.pause[0] + Math.random() * profil.pause[1]) * 1000;
+  let prochain = scene.time.now + 800 + Math.random() * pause();
+  let geste: { faire: Geste; debut: number } | null = null;
   const maj = (temps: number): void => {
     const t = temps / 1000 + phase;
-    // Respiration : on s'étire un peu en hauteur et on s'amincit d'autant.
-    const souffle = Math.sin(t * 2.6) * (o.calme ? 0.022 : 0.03);
-    let sy = 1 + souffle;
-    let sx = 1 - souffle * 0.6;
-    // Dandinement : le haut du corps se plie, plus fort vers la tête.
-    let balance = Math.sin(t * 1.7) * h * 0.035 + Math.sin(t * 0.63) * h * 0.02;
-    let saut = 0;
-    if (!o.calme && geste === null && temps > prochain) {
-      geste = { type: Math.random() < 0.55 ? 'saut' : 'frisson', debut: temps };
+    const souffle = Math.sin(t * profil.souffle[1]) * profil.souffle[0] * doux;
+    const pose: Pose = {
+      sx: 1 - souffle * 0.6,
+      sy: (profil.tenue ?? 1) + souffle,
+      pli:
+        (Math.sin(t * profil.balance[1]) + 0.5 * Math.sin(t * profil.balance[1] * 0.37)) *
+        profil.balance[0] *
+        doux,
+      saut: 0,
+      regard: 1,
+    };
+    profil.fond?.(t, pose);
+    if (geste === null && temps > prochain) {
+      const choix = profil.gestes[Math.floor(Math.random() * profil.gestes.length)] ?? 'saut';
+      const faire = GESTES[choix];
+      if (faire) geste = { faire, debut: temps };
     }
-    if (geste) {
-      const p = (temps - geste.debut) / 1000;
-      if (geste.type === 'saut') {
-        // Accroupi, détente, en l'air, réception écrasée.
-        if (p < 0.12) {
-          sy -= 0.12 * (p / 0.12);
-          sx += 0.08 * (p / 0.12);
-        } else if (p < 0.5) {
-          const q = (p - 0.12) / 0.38;
-          saut = -Math.sin(q * Math.PI) * h * 0.13;
-          sy += 0.07 * Math.sin(q * Math.PI);
-        } else if (p < 0.72) {
-          const q = (p - 0.5) / 0.22;
-          sy -= 0.1 * Math.sin(q * Math.PI);
-          sx += 0.07 * Math.sin(q * Math.PI);
-        } else geste = null;
-      } else {
-        if (p < 0.6) balance += Math.sin(p * 40) * h * 0.04 * (1 - p / 0.6);
-        else geste = null;
-      }
-      if (geste === null) {
-        prochain = temps + 4000 + Math.random() * 9000;
-        phase += 0.5;
-      }
+    if (geste && !geste.faire((temps - geste.debut) / 1000, pose)) {
+      geste = null;
+      prochain = temps + pause();
     }
-    gelee.plier((d) => balance * Math.pow(Math.max(0, -d) / h, 1.6), sx, sy, 0, saut);
+    // Sur une carte, pas de saut ni de pirouette : on reste dans le cadre.
+    if (o.calme) {
+      pose.saut *= 0.3;
+      pose.sx = Math.abs(pose.sx);
+    }
+    const sx = pose.sx * pose.regard;
+    gelee.plier(
+      (d) => pose.pli * h * Math.pow(Math.max(0, -d) / h, 1.6),
+      sx,
+      pose.sy,
+      0,
+      pose.saut * h,
+    );
   };
   const ecouteur = (temps: number): void => maj(temps);
   scene.events.on(Phaser.Scenes.Events.UPDATE, ecouteur);
