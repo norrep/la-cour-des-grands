@@ -2498,6 +2498,7 @@ export class PartieScene extends Phaser.Scene {
       return;
     }
     const id = cin.id;
+    if (!cin.sansVideo && this.cinematiqueVideo(cin)) return;
     const T = TEXTES.cinematiques;
     const C =
       id === 'gouter'
@@ -2600,6 +2601,125 @@ export class PartieScene extends Phaser.Scene {
     if (id === 'sonnerie') this.secousse(0.01, 700);
     fond.on('pointerup', finir);
     this.time.delayedCall(1100, finir);
+  }
+
+  /**
+   * Vidéo du pouvoir, si le skin actif en a une (pour l'instant : le Contagieux). Elle couvre
+   * l'écran, le titre du panneau s'affiche par-dessus après l'éternuement, et toucher la passe.
+   * Si la vidéo ne démarre pas (réseau, navigateur), on retombe sur le panneau habituel.
+   * Renvoie `false` quand il n'y a pas de vidéo à jouer.
+   */
+  private cinematiqueVideo(cin: Cinematique): boolean {
+    const ROLE_DU_POUVOIR: Partial<Record<CinematiqueId, RoleId>> = { infirmerie: 'contagieux' };
+    const role = ROLE_DU_POUVOIR[cin.id];
+    const url = role ? skinActif().videoPouvoir?.(cin.bande ?? 'rouge', role) : undefined;
+    if (!url) return false;
+
+    const fond = this.add
+      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 1)
+      .setOrigin(0, 0)
+      .setInteractive();
+    const video = this.add.video(LARGEUR / 2, HAUTEUR / 2);
+    const C = TEXTES.cinematiques[cin.id as Exclude<CinematiqueId, 'gouter'>];
+    const style = { fontFamily: POLICE, color: COULEURS.texteClair, align: 'center' };
+    const titre = this.add
+      .text(LARGEUR / 2, 1010, C.titre, {
+        ...style,
+        fontSize: '64px',
+        fontStyle: '700',
+        stroke: '#1d1a16',
+        strokeThickness: 10,
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
+    const sous = this.add
+      .text(LARGEUR / 2, 1090, C.sous, {
+        ...style,
+        fontSize: '30px',
+        fontStyle: '600',
+        stroke: '#1d1a16',
+        strokeThickness: 7,
+        wordWrap: { width: LARGEUR - 80 },
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
+    const passer = this.add
+      .text(LARGEUR / 2, 1190, TEXTES.cinematiques.passer, { ...style, fontSize: '18px' })
+      .setOrigin(0.5)
+      .setAlpha(0.7);
+    const tout = this.add
+      .container(0, 0, [fond, video, titre, sous, passer])
+      .setDepth(1000)
+      .setAlpha(0);
+    this.cinematiqueEnCours = tout;
+
+    let fini = false;
+    let demarree = false;
+    const finir = (repli = false): void => {
+      if (fini) return;
+      fini = true;
+      this.tweenCinematique({
+        targets: tout,
+        alpha: 0,
+        duration: repli ? 0 : 260,
+        onComplete: () => {
+          video.stop();
+          tout.destroy();
+          // La vidéo n'a pas pu démarrer : le panneau prend le relais.
+          if (repli) this.cinematiques.unshift({ ...cin, sansVideo: true });
+          this.cinematiqueSuivante();
+        },
+      });
+    };
+    const demarrer = (): void => {
+      if (demarree || fini) return;
+      demarree = true;
+      // La vidéo couvre tout l'écran, quelle que soit sa forme, sans être déformée.
+      const w = video.width || LARGEUR;
+      const h = video.height || HAUTEUR;
+      video.setScale(Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
+      this.tweenCinematique({ targets: tout, alpha: 1, duration: 160 });
+      // Le titre arrive avec l'éternuement, vers la fin : on suit l'horloge de la vidéo, pas
+      // celle du jeu, pour rester calé même si le téléphone rame.
+      const duree = Math.max(1, video.getDuration() || 4);
+      const guetter = (): void => {
+        if (fini || video.getCurrentTime() < duree - 0.9) return;
+        this.events.off(Phaser.Scenes.Events.UPDATE, guetter);
+        this.tweenCinematique({ targets: [titre, sous], alpha: 1, duration: 160 });
+        this.tweenCinematique({
+          targets: titre,
+          scale: { from: 1.6, to: 1 },
+          duration: 260,
+          ease: 'Back.easeOut',
+        });
+      };
+      this.events.on(Phaser.Scenes.Events.UPDATE, guetter);
+      tout.once(Phaser.GameObjects.Events.DESTROY, () =>
+        this.events.off(Phaser.Scenes.Events.UPDATE, guetter),
+      );
+      // Filet de sécurité si la fin de la vidéo n'est jamais annoncée.
+      this.time.delayedCall(duree * 1000 + 2000, () => finir());
+    };
+
+    // Première image prête : on montre la vidéo.
+    video.on(Phaser.GameObjects.Events.VIDEO_PLAY, demarrer);
+    video.on(Phaser.GameObjects.Events.VIDEO_COMPLETE, () => {
+      if (!fini) this.time.delayedCall(700, () => finir());
+    });
+    video.on(Phaser.GameObjects.Events.VIDEO_ERROR, () => finir(!demarree));
+    // Le navigateur refuse le son sans geste récent : on rejoue la vidéo en muet.
+    video.on(Phaser.GameObjects.Events.VIDEO_LOCKED, () => {
+      video.setMute(true);
+      video.play();
+    });
+    fond.on('pointerup', () => finir());
+    // Rien après 2,5 s (réseau lent) : on montre le panneau plutôt que de faire attendre.
+    this.time.delayedCall(2500, () => {
+      if (!demarree) finir(true);
+    });
+    video.loadURL(url, !lireSons());
+    video.play();
+    return true;
   }
 
   /** Emplacement de l'animation de chaque cinématique : pictogramme provisoire. */

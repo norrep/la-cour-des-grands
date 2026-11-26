@@ -58,9 +58,16 @@ function textures(): TextureSkin[] {
 /** Angle d'un segment depuis la verticale (même convention que le squelette). */
 const angleDe = (a: P, b: P): number => Math.atan2(b.x - a.x, b.y - a.y);
 
+/**
+ * Vidéos de pouvoir (`public/videos/cartoon/`). Une seule version par rôle pour l'instant :
+ * elle sert aux deux bandes en attendant une version bleue.
+ */
+const VIDEOS: Partial<Record<RoleId, string>> = { contagieux: 'videos/cartoon/contagieux.mp4' };
+
 export const SKIN_CARTOON: Skin = {
   id: 'cartoon',
   textures,
+  videoPouvoir: (_bande, role) => VIDEOS[role],
   eleve(scene, bande, role, taille) {
     const m = mesure(bande, role);
     const echelle = (HAUTEUR_REF * taille) / PIXELS_REF;

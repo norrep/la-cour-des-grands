@@ -1,4 +1,4 @@
-import type { Bande, Evenement } from '../engine/index';
+import { adversaire, type Bande, type Evenement } from '../engine/index';
 
 /**
  * Panneaux animés des moments marquants. Pour l'instant, ce sont des bandeaux provisoires :
@@ -10,10 +10,13 @@ export type CinematiqueId =
 
 export interface Cinematique {
   id: CinematiqueId;
-  /** Pour un goûter : la zone ramassée et la bande qui la prend. */
+  /** Pour un goûter : la zone ramassée et la bande qui la prend. Pour l'infirmerie : la bande
+   * du Contagieux qui a éternué. */
   region?: string;
   bande?: Bande;
   bonsPoints?: number;
+  /** La vidéo du pouvoir n'a pas pu se jouer : montrer le panneau habituel. */
+  sansVideo?: boolean;
 }
 
 /**
@@ -27,7 +30,8 @@ export function cinematiquesPour(nouveaux: Evenement[], grandsFreres = false): C
   if (grandsFreres) liste.push({ id: 'grandsFreres' });
   for (const ev of nouveaux) {
     if (ev.type === 'cpe') liste.push({ id: 'cpe' });
-    else if (ev.type === 'infirmerie') liste.push({ id: 'infirmerie' });
+    else if (ev.type === 'infirmerie')
+      liste.push({ id: 'infirmerie', bande: adversaire(ev.bande) });
     else if (ev.type === 'glissade') liste.push({ id: 'toboggan' });
     else if (ev.type === 'surveillante' && ev.parDelegue) liste.push({ id: 'delegue' });
     else if (ev.type === 'region' && !victoire) {

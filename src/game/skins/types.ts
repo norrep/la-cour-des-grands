@@ -85,4 +85,10 @@ export interface Skin {
   ): Phaser.GameObjects.Container;
   /** Le dessin de l'élève qu'on tient pendant qu'on le glisse (le seul où il est entier). */
   pantin(scene: Phaser.Scene, eleve: Eleve): RenduPantin;
+  /**
+   * Courte vidéo qui raconte le pouvoir d'un élève quand il se déclenche (chemin depuis la
+   * racine du site). Facultatif : sans vidéo, le jeu montre le panneau habituel. L'élève y est
+   * toujours seul, pour qu'une vidéo serve contre n'importe quel adversaire et n'importe quel skin.
+   */
+  videoPouvoir?(bande: Bande, role: RoleId): string | undefined;
 }

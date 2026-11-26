@@ -36,6 +36,12 @@ describe('Cinématiques', () => {
     ).toEqual(['grandsFreres', 'infirmerie']);
   });
 
+  it('la vidéo de l’éternuement montre le Contagieux de l’autre bande que le malade', () => {
+    expect(brut([{ type: 'infirmerie', tour: 1, bande: 'bleu', eleveId: 'b' }])).toEqual([
+      { id: 'infirmerie', bande: 'rouge' },
+    ]);
+  });
+
   it('panneaux du toboggan, du mot d’excuse et des goûters', () => {
     expect(
       cinematiquesPour([
