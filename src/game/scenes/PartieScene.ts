@@ -60,7 +60,8 @@ import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
 import { DECOR, ILLUSTRATIONS, JOSIANE } from './ChargementScene';
 import { cadrer, decorPlein } from '../ui/ecran';
-import { Gelee, rendreVivant } from '../ui/gelee';
+import { animerMarionnette, Marionnette } from '../ui/marionnette';
+import { RIG_JOSIANE } from '../skins/cartoon/rig';
 
 const RAYON_ILOT = 48;
 const TAILLE_BADGE = 70;
@@ -668,25 +669,18 @@ export class PartieScene extends Phaser.Scene {
     return { x: c.x + 42, y: c.y + 4 };
   }
 
-  /** Mme Josiane : l'illustration générée, ou à défaut un dessin au trait (robe lilas, chignon). */
+  /** Mme Josiane : la marionnette dodue, ou à défaut un dessin au trait (robe lilas, chignon). */
   private silhouette(x: number, y: number, alpha: number): void {
     if (this.textures.exists(JOSIANE)) {
       const ombre = this.ajouter(this.add.graphics());
       ombre.fillStyle(COULEURS.encre, 0.25);
       ombre.fillEllipse(x + 2, y + 30, 46, 12);
-      const hauteur = 100;
-      // L'image fait 170 × 444 pixels (marge des traits comprise), dans une texture plus grande
-      // (puissance de 2, pour les mipmaps).
-      const corps = new Gelee(this, {
-        cle: JOSIANE,
-        echelle: hauteur / 444,
-        pivot: 444,
-        centreX: 85,
-      });
-      const josiane = this.add.container(x, y + 30, corps.objets).setAlpha(alpha);
+      // Marionnette articulée, comme les élèves (pieds à l'origine).
+      const corps = new Marionnette(this, JOSIANE, RIG_JOSIANE, 100 / RIG_JOSIANE.hauteur);
+      const josiane = this.add.container(x, y + 30, [corps.racine]).setAlpha(alpha);
       this.ajouter(josiane);
       this.josiane = josiane;
-      rendreVivant(this, corps, josiane, { hauteur, caractere: 'surveillante' });
+      animerMarionnette(this, corps, josiane, { caractere: 'surveillante' });
       return;
     }
     const g = this.ajouter(this.add.graphics());

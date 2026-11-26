@@ -215,3 +215,18 @@ export const RIGS: Record<string, Rig> = {
     },
   },
 };
+
+/** Mme Josiane, la surveillante (texture `public/skins/dodu/josiane.png`). */
+export const RIG_JOSIANE: Rig = {
+  hauteur: 770,
+  bras: 62.8,
+  main: [-141.1, 14.3],
+  pieces: {
+    jambeG: { cadre: [0, 0, 91, 140], pivot: [28.1, 9.1], pos: [-46.2, -130.6] },
+    jambeD: { cadre: [107, 0, 95, 135], pivot: [29.4, 9.1], pos: [46.5, -130.6] },
+    brasG: { cadre: [218, 0, 176, 82], pivot: [141.1, 35.7], pos: [-118.9, -490.5] },
+    brasD: { cadre: [410, 0, 176, 82], pivot: [34.4, 35.7], pos: [119.9, -490.5] },
+    tronc: { cadre: [602, 0, 241, 436], pivot: [120.3, 436.4], pos: [0.3, -124.6] },
+    tete: { cadre: [859, 0, 177, 295], pivot: [83.5, 239.6], pos: [0.3, -530.4] },
+  },
+};

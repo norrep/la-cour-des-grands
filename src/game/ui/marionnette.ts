@@ -5,7 +5,6 @@
  * caractère de chaque rôle (voir `PROFILS`).
  */
 import Phaser from 'phaser';
-import type { Caractere } from './gelee';
 
 export type NomPiece = 'jambeG' | 'jambeD' | 'brasG' | 'brasD' | 'tronc' | 'tete';
 
@@ -30,6 +29,18 @@ export interface Rig {
 
 /** Ordre d'affichage : jambes et bras derrière le tronc, la tête devant. */
 const ORDRE: NomPiece[] = ['jambeG', 'jambeD', 'brasG', 'brasD', 'tronc', 'tete'];
+
+/** Caractère d'un personnage : choisit son animation d'attente. */
+export type Caractere =
+  | 'grand'
+  | 'petit'
+  | 'populaire'
+  | 'chouchou'
+  | 'rapporteuse'
+  | 'contagieux'
+  | 'delegue'
+  | 'fouine'
+  | 'surveillante';
 
 /** Bras au repos : presque le long du corps, un peu écartés. */
 const ECART = 0.22;

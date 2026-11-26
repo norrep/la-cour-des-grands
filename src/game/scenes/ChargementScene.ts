@@ -28,7 +28,7 @@ export class ChargementScene extends Phaser.Scene {
 
   preload(): void {
     this.load.image(DECOR, 'decor/cour.jpg');
-    this.load.image(JOSIANE, 'decor/josiane.png');
+    this.load.image(JOSIANE, 'skins/dodu/josiane.png');
     for (const [equipement, cle] of Object.entries(ILLUSTRATIONS)) {
       if (cle) this.load.image(cle, `decor/${equipement}.png`);
     }
