@@ -74,7 +74,13 @@ const DIAMETRE_PASTILLE = 92;
 const RAYON_DEPOT = 75;
 const Y_ACTIONS = 1064 + DESCENTE;
 /** Objets décoratifs de la cour n°1 (taille en px de jeu, image de 256 px). */
-const OBJETS_COUR = [{ cle: PLATEAU.basket, x: 0.92, y: 0.65, taille: 160, angle: -6 }] as const;
+const OBJETS_COUR = [
+  { cle: PLATEAU.basket, x: 0.92, y: 0.65, taille: 160, angle: -6 },
+  { cle: PLATEAU.ballon, x: 0.08, y: 0.31, taille: 62, angle: 0 },
+  { cle: PLATEAU.craies, x: 0.92, y: 0.33, taille: 70, angle: 12 },
+  { cle: PLATEAU.avion, x: 0.6, y: 0.33, taille: 64, angle: -20 },
+  { cle: PLATEAU.bonnet, x: 0.1, y: 0.7, taille: 66, angle: 10 },
+] as const;
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
 const DUREE_FIN_DE_TOUR = 900;
 /** Annonce d'une arrivée : l'élève se ramasse en l'air avant de tomber (ms). */
