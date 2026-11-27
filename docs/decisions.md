@@ -285,3 +285,14 @@ Pendant la fiche de la carte, le surveillant entre en marchant par la gauche, s'
 gronde du doigt, tape du pied, saute). La règle se pousse à droite pour lui laisser la place.
 Sur « C'est parti ! », il saute jusqu'à sa place sur la cour en rapetissant, et le médaillon
 apparaît d'un bond avec un coup de sifflet.
+
+## DE.1 — Une équipe, une couleur ; la seconde ne sert qu'en miroir (27/11)
+
+Clément, sur l'écran « Choisis ta bande » : « Chaque équipe devrait avoir une seule couleur et une seconde non affichée si jamais deux équipes identiques s'affrontent. » Les Rouges et les Bleus étaient en fait les mêmes élèves, dessinés en deux couleurs : l'écran montrait une même équipe deux fois.
+
+- On choisit maintenant parmi **trois équipes** : **Les Écoliers** (rouge), **Les Vers de terre** (jaune moutarde), **Les Aliens** (violet). Chacune n'est montrée que dans sa couleur. Le nom « Les Écoliers » est une proposition, à changer si Clément préfère autre chose.
+- Chaque équipe a une **seconde tenue cachée** : Écoliers bleus, Vers turquoise, Aliens orange. Elle ne sert que si les deux camps prennent la même équipe : le camp du haut l'enfile (`tenuesPour`, `data/equipes.ts`). Le modèle sépare l'équipe (ce qu'on choisit) de la tenue (couleur + dessins à l'écran).
+- À deux, le joueur 2 peut prendre la même équipe que le joueur 1 (la carte dit « Aussi celle du joueur 1 » au lieu de « Déjà prise »). Contre l'ordi, l'ordi tire son équipe parmi les trois, la même comprise.
+- Tenues miroir des Vers et des Aliens : seule la chasuble est recolorée, en local, sans génération (`scripts/tenue-miroir.py`, images `vers2-*`, `aliens2-*`) ; les marionnettes reprennent les attaches de la tenue d'origine. Les Écoliers bleus gardent leurs dessins et leurs vidéos de pouvoir existants.
+- En jeu, les Écoliers restent « bande rouge » / « bande bleue » dans le journal (court et clair), « Écoliers » au score. Accueil et partie par défaut : Écoliers contre Écoliers (donc rouges contre bleus, comme avant).
+- Les cartes du rang prennent le fond clair de la tenue (avant : rose ou bleu selon le camp).

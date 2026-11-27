@@ -6,7 +6,7 @@
  */
 import type Phaser from 'phaser';
 import type { Bande, Eleve, RoleId } from '../../engine/index';
-import type { EquipeId } from '../../data/equipes';
+import type { TenueId } from '../../data/equipes';
 import type { PoseMarionnette } from '../ui/marionnette';
 
 export type SkinId = 'cartoon' | 'classique';
@@ -67,7 +67,7 @@ export interface Skin {
   /** Images à préparer avant d'afficher quoi que ce soit. */
   textures(): TextureSkin[];
   /** Images des élèves d'une équipe, à charger quand elle est choisie (DB.1). Facultatif. */
-  texturesEquipe?(equipe: EquipeId): TextureSkin[];
+  texturesEquipe?(tenue: TenueId): TextureSkin[];
   /**
    * L'élève debout, centré sur son numéro. `taille` est la largeur de référence : celle d'un
    * jeton rond du skin classique.

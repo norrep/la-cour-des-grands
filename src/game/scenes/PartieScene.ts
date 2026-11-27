@@ -197,7 +197,7 @@ export class PartieScene extends Phaser.Scene {
     // La carte et les équipes choisies avant la partie (DB.1, DB.5) ; la récré par défaut.
     const carte = donnees.carte ?? 'cour-premier-jour';
     choisirCarte(carte);
-    choisirEquipes(donnees.equipes ?? { rouge: 'rouges', bleu: 'bleus' });
+    choisirEquipes(donnees.equipes ?? { rouge: 'ecoliers', bleu: 'ecoliers' });
     // Les vidéos des deux équipes de cette partie passent en tête des téléchargements (DV.6).
     const skin = skinActif();
     prechargerVideos(
@@ -2032,7 +2032,7 @@ export class PartieScene extends Phaser.Scene {
     const g = this.add.graphics();
     const graine = graineDe(x, y) + el.role.length;
     forme(g, contourRect(-l / 2, -h / 2, l, h, 12, graine, 1), {
-      remplissage: el.bande === 'rouge' ? 0xffe1d9 : 0xe1e6ff,
+      remplissage: equipeDe(el.bande).clair,
       ombre: 5,
       trait: 3,
     });
