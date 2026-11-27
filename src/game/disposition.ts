@@ -86,13 +86,6 @@ export interface ZoneMain {
 
 const ZONE_MAIN: ZoneMain = { centre: LARGEUR / 2, etendue: ETENDUE_RANG };
 
-/**
- * Avec la carte « +2 copains » (DL.8) : elle a sa place à gauche, à part, et la main se serre
- * dans le reste de la largeur.
- */
-export const ZONE_MAIN_AVEC_APPEL: ZoneMain = { centre: 424, etendue: 440 };
-export const POSE_APPEL = { x: 66, y: RANG.y + 4, rotation: -0.05 } as const;
-
 /** Abscisse de la carte `i` sur `n` dans le rang : au-delà de 6 cartes, elles se chevauchent. */
 export function xCarteRang(i: number, n: number, zone: ZoneMain = ZONE_MAIN): number {
   const ecart = n > 1 ? Math.min(RANG.ecart, zone.etendue / (n - 1)) : RANG.ecart;
@@ -120,17 +113,20 @@ export function poseCarteRang(
 /** Les lieux d'une bande autour de sa cabane : son portail (le couloir) et son bureau de CPE. */
 export type Lieu = 'portail' | 'cpe';
 
-/** Écart horizontal entre la cabane et ses lieux. */
-const ECART_LIEU = 205;
-/** Piscine : les îlots des bords sont plus écartés, la pioche et les punis vont vers les bords (DP.9, DP.10). */
-const ECART_LIEU_PISCINE = 290;
+/**
+ * Écart horizontal entre la cabane et ses lieux. Pioche et punis sont côte à côte, à gauche de la
+ * cabane (DL.9, essai demandé par Clément) : la droite reste libre pour le rond « +2 copains ».
+ */
+const ECARTS_LIEUX: Record<Lieu, number> = { portail: 265, cpe: 140 };
+/** Piscine : les îlots des bords sont plus écartés, les lieux vont vers le bord (DP.9, DP.10). */
+const ECARTS_LIEUX_PISCINE: Record<Lieu, number> = { portail: 295, cpe: 172 };
 
-/** Centre d'un lieu : de part et d'autre de la cabane de la bande, portail à gauche, CPE à droite. */
+/** Centre d'un lieu : à gauche de la cabane de la bande, la pioche au bord, les punis à côté. */
 export function positionLieu(cour: Cour, bande: 'rouge' | 'bleu', lieu: Lieu): Point {
   const cabane = cour.cabanes[bande][0];
   const c = cabane ? positionNoeud(cour, cabane) : { x: LARGEUR / 2, y: ZONE_COUR.y };
   // En bas (bande rouge), on remonte un peu pour laisser la place au journal.
   const dy = bande === 'rouge' ? -22 : 14;
-  const ecart = cour.id === 'piscine' ? ECART_LIEU_PISCINE : ECART_LIEU;
-  return { x: c.x + (lieu === 'portail' ? -ecart : ecart), y: c.y + dy };
+  const ecart = (cour.id === 'piscine' ? ECARTS_LIEUX_PISCINE : ECARTS_LIEUX)[lieu];
+  return { x: c.x - ecart, y: c.y + dy };
 }

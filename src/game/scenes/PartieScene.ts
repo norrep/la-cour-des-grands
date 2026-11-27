@@ -55,8 +55,6 @@ import {
   positionNoeud,
   RANG,
   poseCarteRang,
-  POSE_APPEL,
-  ZONE_MAIN_AVEC_APPEL,
   ZONE_COUR,
   type Point,
   DESCENTE,
@@ -2299,70 +2297,41 @@ export class PartieScene extends Phaser.Scene {
   // -------------------------------------------------------------------------
 
   /**
-   * La carte « Appeler +2 copains » (DL.8) : un dos de carte de la pioche, au début de la main,
-   * cerclé de jaune et qui respire. La toucher appelle les copains.
+   * Le bouton « +2 copains » (DL.8) : un gros rond jaune qui respire, juste au-dessus du coin droit
+   * de la main, sous le pouce. Le toucher appelle les copains.
    */
-  private carteAppel(
-    pose: { x: number; y: number; rotation: number },
-    n: number,
-    bande: Bande,
-  ): Phaser.GameObjects.Container {
-    const { largeurCarte: l, hauteurCarte: h } = RANG;
+  private boutonAppel(n: number): Phaser.GameObjects.Container {
+    const rayon = 62;
     const g = this.add.graphics();
-    const graine = graineDe(pose.x, n);
-    // Le halo jaune, puis le dos de carte aux couleurs de la bande.
-    forme(g, contourRect(-l / 2 - 7, -h / 2 - 7, l + 14, h + 14, 16, graine + 2, 1), {
-      remplissage: COULEURS.allume,
-      trait: 0,
+    forme(g, contourRond(0, 0, rayon, graineDe(n, 41)), {
+      remplissage: COULEURS.jaune,
+      trait: 5,
+      ombre: 6,
     });
-    forme(g, contourRect(-l / 2, -h / 2, l, h, 12, graine, 1), {
-      remplissage: equipeDe(bande).couleur,
-      ombre: 5,
-      trait: 3,
-    });
-    forme(g, contourRect(-l / 2 + 10, -h / 2 + 10, l - 20, h - 20, 9, graine + 1, 0.6), {
-      remplissage: COULEURS.papier,
-      trait: 3,
-    });
-    const T = TEXTES.boutons;
-    const haut = this.add
-      .text(0, -52, T.appelerHaut, {
-        fontFamily: POLICE,
-        fontSize: '22px',
-        color: COULEURS.texteSombre,
-        fontStyle: '700',
-      })
+    const style = {
+      fontFamily: POLICE,
+      color: COULEURS.texteSombre,
+      fontStyle: '700',
+    };
+    const nombre = this.add.text(0, -8, `+${n}`, { ...style, fontSize: '48px' }).setOrigin(0.5);
+    const mot = this.add
+      .text(0, 32, TEXTES.boutons.appelerBas(n), { ...style, fontSize: '19px' })
       .setOrigin(0.5);
-    const nombre = this.add
-      .text(0, 2, `+${n}`, {
-        fontFamily: POLICE,
-        fontSize: '58px',
-        color: COULEURS.texteSombre,
-        fontStyle: '700',
-      })
-      .setOrigin(0.5);
-    const bas = this.add
-      .text(0, 56, T.appelerBas(n), {
-        fontFamily: POLICE,
-        fontSize: '22px',
-        color: COULEURS.texteSombre,
-        fontStyle: '700',
-      })
-      .setOrigin(0.5);
-    const c = this.add.container(pose.x, pose.y, [g, haut, nombre, bas]);
-    c.setSize(l + 14, h + 14).setRotation(pose.rotation);
+    const c = this.add.container(DROITE - 84, RANG.y - RANG.hauteurCarte / 2 - 62, [
+      g,
+      nombre,
+      mot,
+    ]);
+    c.setSize(rayon * 2, rayon * 2);
     c.setInteractive({ useHandCursor: true });
-    c.on('pointerdown', () => c.setScale(0.94));
-    c.on('pointerout', () => c.setScale(1));
     c.on('pointerup', () => {
-      c.setScale(1);
       jouerSon('bouton');
       this.agir(() => this.ctrl.appeler());
     });
     this.ajouter(c);
     this.tweens.add({
-      targets: g,
-      alpha: 0.82,
+      targets: c,
+      scale: 1.07,
       duration: 650,
       yoyo: true,
       repeat: -1,
@@ -2387,8 +2356,7 @@ export class PartieScene extends Phaser.Scene {
       interactif && !e.attente && this.ctrl.phase === 'jeu' && bande === this.bandeActive
         ? this.ctrl.nombreAppel
         : 0;
-    const zone = appel > 0 ? ZONE_MAIN_AVEC_APPEL : undefined;
-    if (appel > 0) this.carteAppel(POSE_APPEL, appel, bande);
+    if (appel > 0) this.boutonAppel(appel);
     if (j.rang.length === 0 && interactif) {
       this.texte(
         LARGEUR / 2,
@@ -2425,7 +2393,7 @@ export class PartieScene extends Phaser.Scene {
           : malade
             ? []
             : ciblesPossibles(e, el.id);
-      const pose = poseCarteRang(i, j.rang.length, zone);
+      const pose = poseCarteRang(i, j.rang.length);
       const { x } = pose;
       const carte = this.carte(el, x, pose.y, malade, !interactif || cibles.length > 0);
       carte.setRotation(pose.rotation);

@@ -387,7 +387,11 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.7 — Tour d'en face bien visible.** Pendant le tour de l'ordi (ou de l'ami en ligne), la main
   descend et pâlit, un bandeau à la couleur d'en face dit « L'ordi réfléchit… » et un cadre de sa
   couleur borde l'écran. Quand le tour revient : un tampon « À toi ! » et un petit son.
-- **DL.8 — « +2 copains » devient une carte au début de la main** (retour de Clément : le bouton à
-  côté de la pioche n'était pas clair). Un dos de carte aux couleurs de la bande, cerclé de jaune
-  qui respire, marqué « Appeler / +2 / copains », posé à gauche de la main ; les élèves se serrent
-  dans le reste de la largeur. On pioche là où sont ses cartes, sous le pouce.
+- **DL.8 — « +2 copains » devient un gros rond jaune au-dessus du coin droit de la main**
+  (retour de Clément : le bouton à côté de la pioche n'était pas clair). Essayée d'abord, une carte
+  au début de la main serrait trop les élèves ; parmi trois maquettes (rond flottant, onglet sur la
+  main, pioche qui s'allume), Clément a choisi le rond : sous le pouce, il respire et dit « +2
+  copains ».
+- **DL.9 — Les punis passent à côté de la pioche**, à gauche de la cabane (essai demandé par
+  Clément), pour les deux bandes et sur toutes les cartes. La droite de la cabane reste libre pour
+  le rond « +2 copains » en bas et le rang adverse en haut.
