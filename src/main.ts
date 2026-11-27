@@ -13,8 +13,13 @@ void verifierMiseAJour();
 
 textesNets();
 
+// Réglages d'affichage, modifiables par l'adresse pour tester un téléphone : `?textures=16`
+// rend plusieurs textures par lot, `?rendu=canvas` se passe de WebGL.
+const reglages = new URLSearchParams(location.search);
+const textures = Number(reglages.get('textures')) || 1;
+
 new Phaser.Game({
-  type: Phaser.AUTO,
+  type: reglages.get('rendu') === 'canvas' ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'jeu',
   // Toute la hauteur de l'écran, à la résolution du téléphone (voir `ui/ecran.ts`).
   width: Math.round(LARGEUR_ECRAN * RESOLUTION),
@@ -26,7 +31,10 @@ new Phaser.Game({
   },
   input: { activePointers: 2 },
   // Mipmaps : les dessins réduits gardent un trait net, sans scintiller quand ils bougent.
-  render: { antialias: true, mipmapFilter: 'LINEAR_MIPMAP_LINEAR' },
+  // Une seule texture par lot de dessin : sur certains téléphones Android, le choix de la texture
+  // dans le shader « multi-textures » de Phaser se trompe d'une image à l'autre, et les élèves
+  // (une texture par élève) clignotaient (DF.28).
+  render: { antialias: true, mipmapFilter: 'LINEAR_MIPMAP_LINEAR', maxTextures: textures },
   fps: { target: 60 },
   scene: [ChargementScene, AccueilScene, PartieScene],
 });
