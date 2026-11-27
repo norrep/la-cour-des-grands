@@ -99,11 +99,11 @@ function masqueQuiSuit(
  */
 const VIDEOS: Partial<Record<RoleId, string>> = {
   contagieux: 'videos/cartoon/contagieux.mp4',
-  chouchou: 'videos/cartoon/chouchou.mp4',
-  rapporteuse: 'videos/cartoon/rapporteuse.mp4',
+  chouchou: 'videos/cartoon/chouchou-rouge.mp4',
+  rapporteuse: 'videos/cartoon/rapporteuse-rouge.mp4',
   fouine: 'videos/cartoon/fouine-rouge.mp4',
-  delegue: 'videos/cartoon/delegue.mp4',
-  petit: 'videos/cartoon/petit.mp4',
+  delegue: 'videos/cartoon/delegue-rouge.mp4',
+  petit: 'videos/cartoon/petit-rouge.mp4',
 };
 /** Goûters, dans l'ordre des régions de la cour (comme GOUTERS du chargement), avec la couleur
  * mesurée du fond crème en haut et en bas de chaque vidéo. */
