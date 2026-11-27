@@ -152,6 +152,9 @@ export const TEXTES = {
       partie_pleine: 'Cette partie a déjà commencé.',
       deja_dedans: 'C’est ta propre partie !',
       reseau: 'Pas de réseau. On réessaie dès que ça revient.',
+      delai: 'Le serveur ne répond pas. Vérifie ta connexion et réessaie.',
+      connexion_fermee:
+        'Le jeu en ligne n’est pas encore ouvert (connexion sans compte désactivée).',
       autre: 'Oups, le serveur n’a pas répondu. Réessaie.',
     } as Record<string, string>,
   },
