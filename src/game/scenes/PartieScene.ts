@@ -1346,30 +1346,38 @@ export class PartieScene extends Phaser.Scene {
     const n = Math.max(1, this.cour.seuilBonsPoints);
     const l = n * 34 + 34;
     const graine = graineDe(cx, cy);
-    // Poignée, sac, rabat : un cartable d'écolier au trait noir.
-    g.lineStyle(5, COULEURS.encre, 1);
-    g.beginPath();
-    g.arc(cx, cy - 22, 15, Math.PI, 0);
-    g.strokePath();
-    forme(g, contourRect(cx - l / 2, cy - 24, l, 56, 14, graine), {
+    // Boîte à goûter (DF.30) : une simple boîte à la couleur de la bande, un biscuit par case.
+    // Case vide = biscuit pâle en pointillé (« à ramasser »), case pleine = vrai biscuit.
+    forme(g, contourRect(cx - l / 2, cy - 22, l, 56, 16, graine), {
       remplissage: couleur,
       ombre: 4,
       trait: 4,
     });
-    forme(g, contourRect(cx - l / 2 + 6, cy - 24, l - 12, 14, 6, graine + 1, 0.6), {
-      remplissage: 0xffffff,
-      trait: 3,
-    });
+    // Un goûter illustré collé sur le côté extérieur : on comprend tout de suite ce qu'on y range.
+    const icone = cleGouter(1);
+    if (this.textures.exists(icone)) {
+      const sens = bande === 'rouge' ? -1 : 1;
+      this.ajouter(this.add.image(cx + sens * (l / 2 + 2), cy + 4, icone).setScale(52 / 512));
+    }
     const cases = this.casesCartable(bande, cx, cy);
     cases.forEach((c, i) => {
       const plein = i < points;
       const f = this.ajouter(this.add.graphics());
       const contour =
         bande === 'rouge'
-          ? contourRond(c.x, c.y, 13, graine + 2 + i)
-          : contourRect(c.x - 13, c.y - 13, 26, 26, 5, graine + 2 + i, 0.5);
+          ? contourRond(c.x, c.y, 14, graine + 2 + i)
+          : contourRect(c.x - 14, c.y - 14, 28, 28, 6, graine + 2 + i, 0.5);
       forme(f, contour, { remplissage: plein ? COULEURS.jaune : 0xfff4dc, trait: 3 });
-      if (plein) this.dessinerBiscuit(f, c.x, c.y, 8);
+      if (plein) {
+        this.dessinerBiscuit(f, c.x, c.y, 10);
+      } else {
+        f.lineStyle(2, 0xc9b7a0, 1);
+        for (let a = 0; a < 12; a += 2) {
+          f.beginPath();
+          f.arc(c.x, c.y, 8, (a / 12) * Math.PI * 2, ((a + 1) / 12) * Math.PI * 2);
+          f.strokePath();
+        }
+      }
     });
     this.cartables[bande] = cases;
   }

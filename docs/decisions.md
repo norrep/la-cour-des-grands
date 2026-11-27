@@ -166,3 +166,7 @@ Le bonnet d'âne, dessiné puis illustré, ne se reconnaissait pas (« Ça ne fo
 - Vocabulaire affiché : « Au coin » → « Carton rouge » (lieu, fiche « Cartons rouges », annonce « Carton rouge ! », consignes « prend un carton rouge », « faire revenir un élève exclu »). Nom interne `cpe` inchangé.
 
 Mise à jour (Clément : « Garde le texte punis non ? ») : l'image reste le carton rouge, mais les mots reviennent à « punis » : lieu « Punis », fiche « Les punis », annonce « Puni ! », consignes « est puni », « à punir », « faire revenir un élève puni ».
+
+## DF.30 — Boîte à goûter simplifiée (27/11)
+
+Clément : « Tu peux simplifier le picto de la boîte à goûter ou le rendre plus explicite ». Le cartable (poignée + rabat blanc + cases vides) devient une simple boîte à la couleur de la bande. Case vide = biscuit pâle en pointillé (« à ramasser »), case pleine = vrai biscuit sur fond jaune. Les biscuits illustrés (DF.21) sont collés sur le côté extérieur de la boîte pour dire tout de suite ce qu'on y range. Formes rondes (rouge) / carrées (bleu) gardées pour les daltoniens.
