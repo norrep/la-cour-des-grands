@@ -47,6 +47,7 @@ import {
   MONTEE,
   positionLieu,
   type Lieu,
+  versEcran,
 } from '../disposition';
 import { nomGouter, phraseEvenement } from '../journal';
 import { aide, tonFun, tutoPasse } from '../ton';
@@ -72,6 +73,8 @@ const TAILLE_BADGE = 70;
 const DIAMETRE_PASTILLE = 92;
 const RAYON_DEPOT = 75;
 const Y_ACTIONS = 1064 + DESCENTE;
+/** Objets décoratifs de la cour n°1 (taille en px de jeu, image de 256 px). */
+const OBJETS_COUR = [{ cle: PLATEAU.basket, x: 0.92, y: 0.65, taille: 160, angle: -6 }] as const;
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
 const DUREE_FIN_DE_TOUR = 900;
 /** Annonce d'une arrivée : l'élève se ramasse en l'air avant de tomber (ms). */
@@ -334,6 +337,16 @@ export class PartieScene extends Phaser.Scene {
       this.dessinerBureauCpe(b);
     }
 
+    // Objets posés sur la cour (DF.19) : placés en coordonnées de cour, loin des îlots et des
+    // allées, pour ne rien chevaucher quel que soit le format d'écran.
+    for (const objet of OBJETS_COUR) {
+      if (!this.textures.exists(objet.cle)) continue;
+      const q = versEcran(objet.x, objet.y);
+      const im = this.add.image(q.x, q.y, objet.cle);
+      im.setScale(objet.taille / 256).setAngle(objet.angle);
+      this.ajouter(im);
+    }
+
     // Îlots : des pastilles molles au trait noir, avec leur nom sur une étiquette.
     const etiquettes: (() => void)[] = [];
     for (const id of this.cour.ilots) {
@@ -514,16 +527,7 @@ export class PartieScene extends Phaser.Scene {
       const im = this.add.image(p.x, p.y - 8, piece);
       im.setScale(136 / 512);
       this.ajouter(im);
-      // Badge de forme de la bande (rond ou carré), lisible sans les couleurs.
-      const g = this.ajouter(this.add.graphics());
-      const graine = graineDe(p.x, p.y);
-      forme(
-        g,
-        bande === 'rouge'
-          ? contourRond(p.x + 40, p.y + 26, 12, graine + 2)
-          : contourRect(p.x + 28, p.y + 14, 24, 24, 3, graine + 2, 0.5),
-        { remplissage: bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu, trait: 3 },
-      );
+      // La forme de la bande est dans la fenêtre : ronde chez les rouges, carrée chez les bleus.
       return;
     }
     const g = this.ajouter(this.add.graphics());
@@ -613,7 +617,7 @@ export class PartieScene extends Phaser.Scene {
     );
     const g = this.add.graphics();
     if (this.textures.exists(PLATEAU.portail)) {
-      c.add(this.add.image(-26, 8, PLATEAU.portail).setScale(64 / 512));
+      c.add(this.add.image(-28, 6, PLATEAU.portail).setScale(78 / 512));
       g.setVisible(false);
     }
     // Grille du portail : deux piliers et des barreaux.
@@ -680,7 +684,7 @@ export class PartieScene extends Phaser.Scene {
     );
     const g = this.add.graphics();
     if (this.textures.exists(PLATEAU.cpe)) {
-      c.add(this.add.image(-36, 8, PLATEAU.cpe).setScale(58 / 512));
+      c.add(this.add.image(-36, 4, PLATEAU.cpe).setScale(74 / 512));
       g.setVisible(false);
     }
     // Porte vitrée du bureau.

@@ -17,6 +17,7 @@ export const PLATEAU = {
   cabaneBleue: 'plateau-cabane-bleue',
   portail: 'plateau-portail',
   cpe: 'plateau-cpe',
+  basket: 'plateau-basket',
 } as const;
 export const ILLUSTRATIONS: Partial<Record<string, string>> = { banc: 'decor-banc' };
 
@@ -46,6 +47,7 @@ export class ChargementScene extends Phaser.Scene {
       cabaneBleue: 'cabane-bleue',
       portail: 'portail',
       cpe: 'cpe',
+      basket: 'basket',
     };
     for (const [piece, cle] of Object.entries(PLATEAU)) {
       this.load.image(cle, avecVersion(`plateau/${fichiers[piece as keyof typeof PLATEAU]}.png`));
