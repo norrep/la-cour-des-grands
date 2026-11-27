@@ -201,6 +201,12 @@ Proposition validée par Clément le 27/11 : doc « La Cour des Grands : cartes 
 - Sentiers à sens unique : trois chevrons jaunes au milieu du sentier, dans le sens où l'on passe. Courant : tourbillon de flèches et « GLOUGLOU ! » autour du grand bain.
 - Populaire alien refaite fine avec une grosse coiffure (la ronde détonnait à côté des autres).
 
+### DB.6 — Le tourbillon du courant ne reste plus à l'écran
+
+- Bug (capture Android de Clément, 27/11) : les flèches du courant restaient affichées par-dessus l'écran de fin. Le tourbillon était dessiné hors du calque du plateau ; quand l'écran se redessinait avant la fin de son animation (fin de tour, victoire), ses tweens étaient arrêtés et il n'était jamais détruit. Il pouvait donc aussi rester planté sur le grand bain pendant la partie.
+- Il est maintenant dans le calque du plateau (effacé à chaque redessin), et le coup compte sa durée (1 s) avant de passer à la suite.
+- Score de fin : le nom de l'équipe sans « Les » (« Goûters : Rouges 4, Vers de terre 1 ») au lieu de l'adjectif court (« ver 1, rouge 4 »).
+
 ## Vidéos de pouvoir
 
 - **DV.1 — Première vidéo de pouvoir : l'éternuement du Contagieux (choix de Clément : « solo 1 »).** Quand le Contagieux envoie un adversaire à l'infirmerie, une vidéo de 4 s plein écran remplace le panneau : gros plan de plus en plus serré, le nez gonfle, « ATCHOUM » dans l'objectif, écran vert. « Atchoum ! » et la phrase du panneau s'affichent par-dessus à la fin ; toucher passe la vidéo. L'élève est **toujours seul** dans une vidéo de pouvoir (règle de Clément) : la victime, c'est la caméra, donc une vidéo sert contre n'importe quel adversaire et n'importe quel skin. Les vidéos appartiennent au skin (`Skin.videoPouvoir`, fichiers `public/videos/<skin>/`) ; le skin « Jetons » n'en a pas et garde le panneau. Sans réseau ou si le navigateur refuse la vidéo (rien après 2,5 s, ou erreur), le panneau habituel prend le relais. Son coupé si les sons du jeu sont coupés ; si le navigateur refuse le son, la vidéo passe en muet. Une seule version (débardeur rouge) pour les deux bandes en attendant une version bleue. Les vidéos du skin sont téléchargées en fond dès le chargement.
