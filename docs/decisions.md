@@ -400,3 +400,6 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   car il n'y a pas d'élève dessiné à côté.
 - **DP.2 — « J » blanc sur la chasuble du Petit des Vers** (et de sa tenue miroir), comme les
   autres numéros : le bleu marine du dessin est passé en blanc, trait noir inchangé.
+- **DP.3 — Contour noir autour des numéros des Vers**, comme chez les autres équipes (16 dessins,
+  tenue miroir comprise) : trait de 8 px de texture, la même épaisseur que les chiffres des
+  écoliers. Le « 2 » du Chouchou, crème (ou bleu pâle en miroir), passe en blanc comme les autres.
