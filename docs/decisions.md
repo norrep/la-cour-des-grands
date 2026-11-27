@@ -181,3 +181,5 @@ Mise à jour : Clément trouve la boîte à cases « pas clair ». Remplacée pa
 ## DF.38 — Les sons passent en ton « dessin animé » (27/11)
 
 Les 15 bruitages réalistes générés d'abord ont tous été refusés (Clément : « je pense que l'on n'est pas parti dans la bonne direction »). Test de la direction dessin animé (boing, sifflet à coulisse, xylophone, klaxon) sur 3 moments : « poser un élève » (boing mou) et « ramasser un goûter » (sifflet qui monte + ding de xylophone) sont validés et branchés (`public/sons/`, `FICHIERS_SONS`, volumes égalisés). « Puni » est à refaire ; les autres sons gardent leur bip provisoire en attendant.
+
+Deuxième série (13 sons × 2) : retenus le plaquage (v2), le grand frère (v1), « Tuuut ! » (v2) et « Passe le téléphone » (v1). Bouton, prise, pioche, toboggan, puni, éternuement, sonnerie et pendule sont à refaire ; la victoire n'est pas encore choisie. Ces sons gardent leur bip provisoire en attendant.

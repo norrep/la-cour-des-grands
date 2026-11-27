@@ -25,6 +25,10 @@ export type SonId =
 export const FICHIERS_SONS: Partial<Record<SonId, string>> = {
   pose: avecVersion('sons/pose.mp3'),
   gouter: avecVersion('sons/gouter.mp3'),
+  plaque: avecVersion('sons/plaque.mp3'),
+  grandsFreres: avecVersion('sons/grand-frere.mp3'),
+  sifflet: avecVersion('sons/sifflet.mp3'),
+  passe: avecVersion('sons/passe.mp3'),
 };
 
 /** Bruitages provisoires : suites de notes (fréquence en Hz, durée en s), forme d'onde. */
