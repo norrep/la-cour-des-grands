@@ -65,6 +65,8 @@ import { animerMarionnette, Marionnette } from '../ui/marionnette';
 import { RIG_JOSIANE } from '../skins/cartoon/rig';
 
 const RAYON_ILOT = 48;
+/** Haut de la cour, à défaut de cabane en haut (fiche de la cour). */
+const ZONE_HAUT_COUR = 100;
 const TAILLE_BADGE = 70;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
 const DIAMETRE_PASTILLE = 92;
@@ -194,7 +196,8 @@ export class PartieScene extends Phaser.Scene {
     // Le contenu du bandeau du haut remonte vers le bord sur un écran allongé (pas son papier, qui
     // va déjà jusqu'au bord).
     const avantHud = this.dyn.length + 1;
-    this.dessinerHud();
+    // Pendant la fiche de la cour, son bandeau remplace celui du jeu.
+    if (!(this.presentation && this.ctrl.phase === 'passe')) this.dessinerHud();
     for (const o of this.dyn.list.slice(avantHud)) {
       const objet = o as unknown as { y: number };
       objet.y += MONTEE;
@@ -1251,6 +1254,8 @@ export class PartieScene extends Phaser.Scene {
     largeurMax = 400,
     /** Forcer la bulle sous ce qu'elle décrit (pour ne pas le cacher). */
     dessous = false,
+    /** Décaler la bulle de côté (sa pointe reste sur la cible). */
+    decalageX = 0,
   ): Phaser.GameObjects.Container {
     const marge = 16;
     const corps = this.add.text(0, 0, texte, {
@@ -1273,7 +1278,7 @@ export class PartieScene extends Phaser.Scene {
     const h = corps.height + (enTete ? enTete.height + 4 : 0) + 2 * marge - 4;
     const cible = ancre ?? { x: LARGEUR / 2, y: Y_ACTIONS - 60 };
     const dessus = !ancre || (!dessous && cible.y - h - 30 > 130 + MONTEE);
-    const x0 = Phaser.Math.Clamp(cible.x - l / 2, GAUCHE + 12, DROITE - 12 - l);
+    const x0 = Phaser.Math.Clamp(cible.x - l / 2 + decalageX, GAUCHE + 12, DROITE - 12 - l);
     const y0 = ancre ? (dessus ? cible.y - 26 - h : cible.y + 26) : cible.y - h;
     const g = this.add.graphics();
     forme(g, contourRect(x0, y0, l, h, 16, graineDe(x0, y0), 0.8), {
@@ -1909,6 +1914,13 @@ export class PartieScene extends Phaser.Scene {
   private dessinerPresentation(): void {
     const P = TEXTES.presentation;
     const infos = P.cours[this.cour.id];
+    // La cour déjà dessinée passe dans un plateau qu'on recentre (et réduit si besoin) entre le
+    // bandeau et le volet.
+    const plateau = this.add.container(0, 0);
+    const objets = [...this.dyn.list];
+    this.dyn.removeAll(false);
+    plateau.add(objets);
+    this.dyn.add(plateau);
     // La cour ne se touche pas pendant la fiche.
     const bloc = this.ajouter(
       this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, COULEURS.fondSombre, 0.12),
@@ -1940,48 +1952,6 @@ export class PartieScene extends Phaser.Scene {
       },
     );
 
-    // Les bulles posées sur la cour, qui apparaissent l'une après l'autre.
-    const bulles: { ancre: Point; texte: string; dessous?: boolean }[] = [];
-    const cabane = this.cour.cabanes.bleu[0];
-    if (cabane) {
-      const p = this.pos(cabane);
-      bulles.push({ ancre: { x: p.x, y: p.y + 30 }, texte: P.bulles.cabane });
-    }
-    const region = this.cour.regions.find((r) => r.id === 'bas') ?? this.cour.regions[0];
-    if (region) {
-      const c = centreRegion(this.cour, region.ilots);
-      bulles.push({
-        ancre: { x: c.x, y: c.y + 22 },
-        texte: P.bulles.gouter(this.cour.seuilBonsPoints),
-        dessous: true,
-      });
-    }
-    const banc = this.etat.equipements
-      ? [...this.cour.ilots].reverse().find((id) => this.cour.noeuds[id]?.equipement === 'banc')
-      : undefined;
-    if (banc) {
-      const p = this.pos(banc);
-      bulles.push({ ancre: { x: p.x, y: p.y - RAYON_ILOT }, texte: P.bulles.banc });
-    }
-    const garde = gouterSurveille(this.etat);
-    if (garde) {
-      const m = this.positionSurveillante(garde);
-      bulles.push({ ancre: { x: m.x, y: m.y - 40 }, texte: P.bulles.josiane });
-    }
-    bulles.forEach((b, i) => {
-      const c = this.bulle(null, b.texte, b.ancre, COULEURS.papier, 300, b.dessous);
-      if (!this.animations) return;
-      c.setAlpha(0);
-      this.tweens.add({ targets: c, alpha: 1, duration: 220, delay: 300 + i * 450 });
-      this.tweens.add({
-        targets: c,
-        y: { from: 14, to: 0 },
-        duration: 320,
-        delay: 300 + i * 450,
-        ease: 'Back.easeOut',
-      });
-    });
-
     // Volet du bas : la règle spéciale et le bouton (ou l'attente d'un adversaire).
     const regle = this.etat.equipements && infos ? infos.regle : P.sansRegle;
     const yBouton = Math.min(BAS - 64, 1210 + DESCENTE);
@@ -2002,6 +1972,82 @@ export class PartieScene extends Phaser.Scene {
       ombre: 6,
     });
     this.dyn.addAt(fondBas, this.dyn.getIndex(corps));
+    // Le plateau : de la toiture de la cabane du haut aux bureaux du bas, centré dans l'espace libre.
+    const bleue = this.cour.cabanes.bleu[0];
+    const rouge = this.cour.cabanes.rouge[0];
+    const dessusCour = bleue ? this.pos(bleue).y - 80 : ZONE_HAUT_COUR;
+    const dessousCour = rouge
+      ? Math.max(this.pos(rouge).y + 50, positionLieu(this.cour, 'rouge', 'portail').y + 60)
+      : haut;
+    const libreHaut = bas + 24;
+    const libreBas = haut - 12;
+    const echelle = Math.min(1, (libreBas - libreHaut) / (dessousCour - dessusCour));
+    plateau.setScale(echelle);
+    plateau.setPosition(
+      (LARGEUR * (1 - echelle)) / 2,
+      (libreHaut + libreBas) / 2 - ((dessusCour + dessousCour) / 2) * echelle,
+    );
+    const surPlateau = (p: Point): Point => ({
+      x: plateau.x + p.x * echelle,
+      y: plateau.y + p.y * echelle,
+    });
+
+    // Les bulles posées sur la cour, qui apparaissent l'une après l'autre.
+    const bulles: { ancre: Point; texte: string; dessous?: boolean; decalage?: number }[] = [];
+    const cabane = this.cour.cabanes.bleu[0];
+    if (cabane) {
+      const p = this.pos(cabane);
+      bulles.push({ ancre: { x: p.x, y: p.y + 34 }, texte: P.bulles.cabane, dessous: true });
+    }
+    const region = this.cour.regions.find((r) => r.id === 'bas') ?? this.cour.regions[0];
+    if (region) {
+      const c = centreRegion(this.cour, region.ilots);
+      bulles.push({
+        ancre: { x: c.x, y: c.y + 22 },
+        texte: P.bulles.gouter(this.cour.seuilBonsPoints),
+        dessous: true,
+      });
+    }
+    const banc = this.etat.equipements
+      ? [...this.cour.ilots].reverse().find((id) => this.cour.noeuds[id]?.equipement === 'banc')
+      : undefined;
+    if (banc) {
+      const p = this.pos(banc);
+      bulles.push({ ancre: { x: p.x, y: p.y - RAYON_ILOT }, texte: P.bulles.banc });
+    }
+    const garde = gouterSurveille(this.etat);
+    if (garde) {
+      const m = this.positionSurveillante(garde);
+      // Au-dessus de sa tête, pour ne pas la cacher.
+      bulles.push({
+        ancre: { x: m.x, y: m.y - 82 },
+        texte: P.bulles.josiane,
+        // Vers le bord le plus proche, pour ne pas cacher le goûter du milieu.
+        decalage: m.x < LARGEUR / 2 ? -110 : 110,
+      });
+    }
+    bulles.forEach((b, i) => {
+      const c = this.bulle(
+        null,
+        b.texte,
+        surPlateau(b.ancre),
+        COULEURS.papier,
+        300,
+        b.dessous,
+        b.decalage,
+      );
+      if (!this.animations) return;
+      c.setAlpha(0);
+      this.tweens.add({ targets: c, alpha: 1, duration: 220, delay: 300 + i * 450 });
+      this.tweens.add({
+        targets: c,
+        y: { from: 14, to: 0 },
+        duration: 320,
+        delay: 300 + i * 450,
+        ease: 'Back.easeOut',
+      });
+    });
+
     if (this.attenteAdversaire) {
       const t = this.texte(cx, yBouton, `${P.attente}…`, 26, COULEURS.texteSombre, {
         fontStyle: '700',
