@@ -20,7 +20,7 @@ import {
   type RoleId,
 } from '../../engine/index';
 import { apercu } from '../apercu';
-import { dureeAnimations, planAnimations } from '../sequence';
+import { DUREE_CONSEQUENCE, dureeAnimations, planAnimations, rondeParcourue } from '../sequence';
 import {
   BAS,
   COULEURS,
@@ -136,12 +136,25 @@ export class PartieScene extends Phaser.Scene {
   private tourHorloge = 0;
   /** Mme Josiane, pour la faire marcher d'un goûter à l'autre. */
   private josiane: Phaser.GameObjects.Container | null = null;
+  /** Tout ce qui dessine Mme Josiane sur la cour (ombre, marionnette, étiquette) : bouge avec elle. */
+  private objetsJosiane: Phaser.GameObjects.GameObject[] = [];
+  /** Le point où ces objets sont dessinés en ce moment (voir positionSurveillante). */
+  private ancreJosiane: Point | null = null;
+  /**
+   * Où on la montre dans sa ronde tant que ses marches du coup ne sont pas finies
+   * (`null` : là où le moteur la place).
+   */
+  private surveillanteVue: number | null = null;
+  /** Ses marches lancées et pas encore finies. */
+  private marchesEnCours = 0;
   /** Panneau de chaque lieu (portail, CPE), pour le faire rebondir quand un élève y arrive. */
   private panneauxLieux = new Map<string, Phaser.GameObjects.Container>();
   /** Goûters en train de voler vers le cartable (leurs cases restent vides jusqu'à l'arrivée). */
   private gouterEnVol: Record<Bande, number> = { rouge: 0, bleu: 0 };
   /** Partie en solo : l'ordinateur qui joue la bande bleue (`null` : partie à deux). */
   private ordi: Ordi | null = null;
+  /** La bande dont le rang est affiché en bas de l'écran (pendant ce dessin). */
+  private rangVisible: Bande | null = null;
   /** Prochain coup de l'ordi, programmé pour laisser voir le précédent. */
   private coupOrdi: Phaser.Time.TimerEvent | null = null;
   /** Durée des animations du dernier coup joué (ms). */
@@ -168,6 +181,8 @@ export class PartieScene extends Phaser.Scene {
     this.cinematiqueEnCours = null;
     this.entreDeuxTours = false;
     this.finEnAttente = false;
+    this.surveillanteVue = null;
+    this.marchesEnCours = 0;
     this.presentation = true;
     this.attenteAdversaire = false;
     this.tourHorloge = 0;
@@ -210,6 +225,7 @@ export class PartieScene extends Phaser.Scene {
     this.dyn.removeAll(true);
     this.badges.clear();
     this.surbrillances = [];
+    this.rangVisible = null;
 
     this.dessinerCour();
     // Le contenu du bandeau du haut remonte vers le bord sur un écran allongé (pas son papier, qui
@@ -243,6 +259,8 @@ export class PartieScene extends Phaser.Scene {
       else if (this.entreDeuxTours) this.dessinerFinDeTour();
       else this.dessinerPasse();
     }
+    // Le rang d'en face : combien d'élèves l'adversaire a en main (demande de Clément).
+    if (this.rangVisible) this.dessinerRangAdverse(this.rangVisible === 'rouge' ? 'bleu' : 'rouge');
     if (this.ctrl.phase === 'fin' && !this.finEnAttente) this.dessinerFin();
     if (this.fiche) this.dessinerFiche(this.fiche.titre, this.fiche.texte, this.fiche.ancre);
     if (this.aideOuverte) this.dessinerAide();
@@ -623,7 +641,7 @@ export class PartieScene extends Phaser.Scene {
     const g = this.add.graphics();
     const graine = graineDe(p.x, p.y);
     const illustre = true;
-    // Lieu illustré (DF.25) : l'image seule, en grand, sans carte de papier autour.
+    // Lieu illustré (DF.31) : l'image seule, en grand, sans carte de papier autour.
     if (!illustre) {
       forme(g, contourRect(-62, -34, 124, 76, 14, graine), {
         remplissage: COULEURS.papier,
@@ -749,7 +767,57 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * La pioche (DF.27) : les copains pas encore appelés, en paquet de cartes face cachée, comme
+   * Le rang de l'adversaire, à côté de sa cabane : des cartes vues de dos en éventail et leur
+   * nombre. On voit combien d'élèves il a en main, pas lesquels.
+   */
+  private dessinerRangAdverse(bande: Bande): void {
+    const cabane = this.cour.cabanes[bande][0];
+    if (!cabane) return;
+    const p = this.pos(cabane);
+    const n = this.etat.joueurs[bande].rang.length;
+    const c = this.add.container(p.x + 106, p.y + (bande === 'rouge' ? -20 : 0));
+    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const clair = bande === 'rouge' ? 0xffd2c8 : 0xd5dcff;
+    const visibles = Math.min(3, n);
+    for (let k = 0; k < visibles; k++) {
+      const angle = (k - (visibles - 1) / 2) * 0.28;
+      const g = this.add.graphics();
+      forme(g, contourRect(-13, -36, 26, 36, 5, graineDe(k, 31), 0.5), {
+        remplissage: couleur,
+        trait: 3,
+        ombre: 2,
+      });
+      g.fillStyle(clair, 1);
+      g.fillRoundedRect(-8, -31, 16, 26, 3);
+      g.setPosition(0, 14).setRotation(angle);
+      c.add(g);
+    }
+    const t = this.add
+      .text(0, 30, `×${n}`, {
+        fontFamily: POLICE,
+        fontSize: '28px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+        stroke: '#fff6e4',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5);
+    c.add(t);
+    c.setScale(1.35).setSize(64, 80);
+    if (this.ctrl.phase === 'jeu') {
+      c.setInteractive({ useHandCursor: true });
+      c.on('pointerup', () =>
+        this.montrerFiche(TEXTES.lieux.ficheRang(bande), TEXTES.lieux.texteRang(n), {
+          x: c.x,
+          y: c.y,
+        }),
+      );
+    }
+    this.ajouter(c);
+  }
+
+  /**
+   * La pioche (DF.33) : les copains pas encore appelés, en paquet de cartes face cachée, comme
    * les cartes du rang. Le nombre est dans une pastille ; le paquet maigrit quand il se vide.
    */
   private dessinerPortail(bande: Bande): void {
@@ -819,7 +887,7 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * Les cartons rouges (DF.29) : les exclus, sous un carton rouge brandi. Les 3 derniers arrivés sont
+   * Les cartons rouges (DF.35) : les exclus, sous un carton rouge brandi. Les 3 derniers arrivés sont
    * en badges ; leur nombre est dans une pastille.
    */
   private dessinerBureauCpe(bande: Bande): void {
@@ -831,7 +899,7 @@ export class PartieScene extends Phaser.Scene {
         positionLieu(this.cour, bande, 'cpe'),
       ),
     );
-    // Le carton rouge (DF.29) : illustré, ou à défaut un bonnet d'âne dessiné en code.
+    // Le carton rouge (DF.35) : illustré, ou à défaut un bonnet d'âne dessiné en code.
     if (this.textures.exists(PLATEAU.carton)) {
       c.addAt(this.add.image(0, -6, PLATEAU.carton).setScale(82 / 512), 0);
     } else {
@@ -842,10 +910,10 @@ export class PartieScene extends Phaser.Scene {
     // Les exclus (les 3 derniers) et leur nombre.
     punis.slice(-3).forEach((el, k) => {
       const b = creerBadge(this, el.bande, el.role, 22);
-      b.setPosition(-56 + k * 6, 8 + k * 14);
+      b.setPosition(-30 + k * 18, 42);
       c.add(b);
     });
-    c.add(this.compteurLieu(48, 40, punis.length === 0 ? '0' : `×${punis.length}`, bande));
+    c.add(this.compteurLieu(46, 42, punis.length === 0 ? '0' : `×${punis.length}`, bande));
   }
 
   /** Centre d'une zone, légèrement décalé pour ne pas gêner les allées. */
@@ -1024,11 +1092,21 @@ export class PartieScene extends Phaser.Scene {
 
   private dessinerSurveillante(): void {
     this.josiane = null;
-    const garde = gouterSurveille(this.etat);
+    this.objetsJosiane = [];
+    this.ancreJosiane = null;
+    const ronde = this.cour.ronde;
+    const vue = this.surveillanteVue;
+    const garde =
+      vue !== null && ronde.length > 0
+        ? (this.cour.regions.at(ronde[vue % ronde.length] as number)?.id ?? null)
+        : gouterSurveille(this.etat);
     if (!garde) return;
     const { x, y } = this.positionSurveillante(garde);
+    const avant = this.dyn.length;
     this.silhouette(x, y, 1);
     this.etiquette(x, y + 34, TEXTES.surveillante, COULEURS.papier);
+    this.objetsJosiane = this.dyn.list.slice(avant);
+    this.ancreJosiane = { x, y };
   }
 
   /** Îlots touchables pendant certains choix (Rapporteuse, banc, buts, toboggan). */
@@ -1260,6 +1338,12 @@ export class PartieScene extends Phaser.Scene {
         this.rafraichir();
       });
     }
+    // Tant que ses marches ne sont pas jouées, Mme Josiane reste sur le goûter qu'elle quitte.
+    const marche = nouveaux.find((ev) => ev.type === 'surveillante' && ev.pas !== 0);
+    if (this.animations && marche?.type === 'surveillante' && this.cour.ronde.length > 0) {
+      this.surveillanteVue =
+        rondeParcourue(this.cour.ronde.length, marche.position, marche.pas)[0] ?? null;
+    }
     // Les goûters ramassés volent jusqu'au cartable : leurs cases se remplissent à l'arrivée.
     if (this.animations) {
       for (const ev of nouveaux) {
@@ -1336,7 +1420,7 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * Boîte à goûter (DF.30) : un biscuit illustré et le score écrit en gros, « 2 / 3 ».
+   * Boîte à goûter (DF.36) : un biscuit illustré et le score écrit en gros, « 2 / 3 ».
    * Plus de cases : le nombre de goûters à ramasser se lit d'un coup d'œil.
    */
   private dessinerCartable(bande: Bande, cx: number, cy: number, points: number): void {
@@ -1664,6 +1748,7 @@ export class PartieScene extends Phaser.Scene {
    * reste juste visible (pendant un choix hors du rang, ou le temps de voir la fin de son coup).
    */
   private dessinerRang(bande: Bande, interactif: boolean): void {
+    this.rangVisible = bande;
     const e = this.etat;
     const j = e.joueurs[bande];
     // Le couloir et la CPE sont dessinés autour de la cour (portail, bureau) : plus de compteurs ici.
@@ -2812,32 +2897,63 @@ export class PartieScene extends Phaser.Scene {
     );
   }
 
-  /** Mme Josiane marche jusqu'au goûter qu'elle va garder, à petits pas sautillants. */
+  /**
+   * Mme Josiane marche jusqu'au goûter qu'elle va garder, à petits pas sautillants, en suivant
+   * sa ronde (elle longe les goûters qu'elle saute). Plusieurs marches dans un même coup (le
+   * Délégué, puis le pas de fin de tour) se suivent : chacune part de là où l'autre s'arrête.
+   */
   private marcheSurveillante(position: number, pas: number): void {
-    const j = this.josiane;
     const ronde = this.cour.ronde;
-    if (!j || ronde.length === 0) return;
-    const indexRegion = ronde.at((((position - pas) % ronde.length) + ronde.length) % ronde.length);
-    const ancien = indexRegion === undefined ? undefined : this.cour.regions.at(indexRegion)?.id;
-    if (!ancien || pas === 0) return;
-    const a = this.positionSurveillante(ancien);
-    const arrivee = { x: j.x, y: j.y };
-    j.setPosition(a.x, a.y + 30);
-    this.onomatopee(a.x, a.y - 40, TEXTES.animations.sifflet, 26, '#e2c8ff');
+    if (ronde.length === 0 || pas === 0) return;
+    const etapes = rondeParcourue(ronde.length, position, pas).map((k) => {
+      const id = this.cour.regions.at(ronde[k] as number)?.id;
+      return id ? this.positionSurveillante(id) : null;
+    });
+    if (etapes.some((p) => p === null)) return;
+    const points = etapes as Point[];
+    const depart = points[0] as Point;
+    const fini = (): void => {
+      this.marchesEnCours = Math.max(0, this.marchesEnCours - 1);
+      // La dernière marche finie, on la montre de nouveau là où le moteur la place.
+      this.surveillanteVue = this.marchesEnCours > 0 ? position : null;
+    };
+    this.marchesEnCours += 1;
+    // On la place au départ (elle y est peut-être déjà), puis on la déplace d'autant.
+    const deplacer = (p: Point): void => {
+      const ici = this.ancreJosiane;
+      if (!ici) return;
+      const dx = p.x - ici.x;
+      const dy = p.y - ici.y;
+      for (const o of this.objetsJosiane) {
+        const t = o as unknown as Phaser.GameObjects.Components.Transform;
+        if (o.active) t.setPosition(t.x + dx, t.y + dy);
+      }
+      this.ancreJosiane = p;
+    };
+    deplacer(depart);
+    this.onomatopee(depart.x, depart.y - 40, TEXTES.animations.sifflet, 26, '#e2c8ff');
     jouerSon('sifflet');
-    const duree = 760;
+    const segments = points.length - 1;
+    const arrivee = points[segments] as Point;
     this.tweens.addCounter({
       from: 0,
       to: 1,
-      duration: duree,
+      duration: DUREE_CONSEQUENCE,
       ease: 'Sine.easeInOut',
       onUpdate: (tw) => {
         const v = tw.getValue() ?? 0;
-        // Petits pas : elle sautille 5 fois en chemin.
-        const saut = Math.abs(Math.sin(v * Math.PI * 5)) * 10;
-        j.setPosition(a.x + (arrivee.x - a.x) * v, a.y + 30 + (arrivee.y - a.y - 30) * v - saut);
+        const k = Math.min(segments - 1, Math.floor(v * segments));
+        const a = points[k] as Point;
+        const b = points[k + 1] as Point;
+        const u = v * segments - k;
+        // Petits pas : elle sautille 5 fois par goûter.
+        const saut = Math.abs(Math.sin(v * Math.PI * 5 * segments)) * 10;
+        deplacer({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u - saut });
       },
-      onComplete: () => j.setPosition(arrivee.x, arrivee.y),
+      onComplete: () => {
+        deplacer(arrivee);
+        fini();
+      },
     });
   }
 
@@ -3038,7 +3154,7 @@ export class PartieScene extends Phaser.Scene {
     g.setPosition(x, y);
     g.lineStyle(5, COULEURS.encre, 1);
     switch (id) {
-      case 'cpe': // Le carton rouge (DF.29), ou à défaut le bonnet d'âne
+      case 'cpe': // Le carton rouge (DF.35), ou à défaut le bonnet d'âne
         if (this.textures.exists(PLATEAU.carton)) g.setData('image', PLATEAU.carton);
         else this.dessinerBonnetAne(g, 0, -10, 1.9);
         break;
