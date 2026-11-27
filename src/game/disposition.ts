@@ -76,6 +76,8 @@ export type Lieu = 'portail' | 'cpe';
 
 /** Écart horizontal entre la cabane et ses lieux. */
 const ECART_LIEU = 205;
+/** Piscine : les îlots des bords sont plus écartés, la pioche et les punis vont vers les bords (DP.9). */
+const ECART_LIEU_PISCINE = 252;
 
 /** Centre d'un lieu : de part et d'autre de la cabane de la bande, portail à gauche, CPE à droite. */
 export function positionLieu(cour: Cour, bande: 'rouge' | 'bleu', lieu: Lieu): Point {
@@ -83,5 +85,6 @@ export function positionLieu(cour: Cour, bande: 'rouge' | 'bleu', lieu: Lieu): P
   const c = cabane ? positionNoeud(cour, cabane) : { x: LARGEUR / 2, y: ZONE_COUR.y };
   // En bas (bande rouge), on remonte un peu pour laisser la place au journal.
   const dy = bande === 'rouge' ? -22 : 14;
-  return { x: c.x + (lieu === 'portail' ? -ECART_LIEU : ECART_LIEU), y: c.y + dy };
+  const ecart = cour.id === 'piscine' ? ECART_LIEU_PISCINE : ECART_LIEU;
+  return { x: c.x + (lieu === 'portail' ? -ecart : ecart), y: c.y + dy };
 }

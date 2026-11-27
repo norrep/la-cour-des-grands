@@ -305,3 +305,7 @@ Clément, sur l'écran « Choisis ta bande » : « Chaque équipe devrait avoir 
 - Tenues miroir des Vers et des Aliens : seule la chasuble est recolorée, en local, sans génération (`scripts/tenue-miroir.py`, images `vers2-*`, `aliens2-*`) ; les marionnettes reprennent les attaches de la tenue d'origine. Les Écoliers bleus gardent leurs dessins et leurs vidéos de pouvoir existants.
 - En jeu, les Écoliers restent « bande rouge » / « bande bleue » dans le journal (court et clair), « Écoliers » au score. Accueil et partie par défaut : Écoliers contre Écoliers (donc rouges contre bleus, comme avant).
 - Les cartes du rang prennent le fond clair de la tenue (avant : rose ou bleu selon le camp).
+
+## Piscine : forme finale (27/11)
+
+- **DP.9 — Retour au rectangle, avec un escalier rond à chaque bout (Clément : « C1 est très bien »).** Parmi les formes étudiées (rectangle, gélule, haricot, puis quatre variantes de marches), Clément retient un bassin rectangulaire avec, au milieu de chaque petit côté, un escalier en demi-cercle qui descend dans l'eau (quatre marches, du crème au sec au bleu pâle immergé). Le casier de la bande est posé sur la marche du haut, au sec. Sur la piscine seulement, la pioche et les punis s'écartent davantage de la cabane (252 px au lieu de 205) pour ne plus toucher les îlots des bords. La forme arrondie de DP.5 est retirée.

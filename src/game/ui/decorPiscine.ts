@@ -1,6 +1,6 @@
 /**
- * Décor de la piscine en couches (DP.1, revu en DP.5–DP.7). Un carrelage qui remplit l'écran ; un
- * bassin aux bords ronds, resserré à la taille comme le réseau d'îlots, calé sur la cour ; des
+ * Décor de la piscine en couches (DP.1, revu en DP.5–DP.9). Un carrelage qui remplit l'écran ; un
+ * bassin rectangulaire calé sur la cour, avec un escalier rond à chaque bout pour le casier ; des
  * reflets qui bougent dans l'eau ; et, sur le carrelage autour, des affaires de baignade
  * (serviettes, tongs, ballon, plantes) qui se balancent un peu. Rien n'est posé sur la cour : les
  * accessoires restent au bord de l'écran pour ne pas passer pour des pièces du jeu.
@@ -32,25 +32,45 @@ const CREME = 0xfef2d8;
 const EAU = 0x58c9cb;
 const EAU_CLAIRE = 0x8fdcd8;
 
-/**
- * Contour du bassin : un carré aux coins très ronds (super-ellipse), resserré à mi-hauteur comme
- * les îlots du grand bain, avec un léger tremblé de trait fait main.
- */
-function contourBassin(cx: number, cy: number, rx: number, ry: number, pincement: number): Point[] {
+/** Rectangle aux coins arrondis de rayon `r`, échantillonné en points. */
+function rectRond(cx: number, cy: number, rx: number, ry: number, r: number): Point[] {
   const pts: Point[] = [];
-  const n = 96;
-  const e = 2 / 3.2;
-  for (let i = 0; i < n; i++) {
-    const t = (i / n) * Math.PI * 2;
-    const c = Math.cos(t);
-    const s = Math.sin(t);
-    const x = Math.sign(c) * Math.abs(c) ** e;
-    const y = Math.sign(s) * Math.abs(s) ** e;
-    const taille = 1 - pincement * (1 - y * y) ** 2;
-    const tremble = 1 + Math.sin(t * 7 + 1.3) * 0.004 + Math.sin(t * 13) * 0.003;
-    pts.push({ x: cx + x * rx * taille * tremble, y: cy + y * ry * tremble });
+  const coins: [number, number, number][] = [
+    [cx + rx - r, cy + ry - r, 0],
+    [cx - rx + r, cy + ry - r, Math.PI / 2],
+    [cx - rx + r, cy - ry + r, Math.PI],
+    [cx + rx - r, cy - ry + r, (3 * Math.PI) / 2],
+  ];
+  for (const [x, y, a0] of coins) {
+    for (let k = 0; k <= 10; k++) {
+      const a = a0 + (k / 10) * (Math.PI / 2);
+      pts.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r });
+    }
   }
   return pts;
+}
+
+/**
+ * Les marches de chaque bout (DP.9, piste « C1 » choisie par Clément) : un escalier en
+ * demi-cercle qui descend dans l'eau, du crème au sec jusqu'au bleu pâle immergé. Le casier de
+ * la bande est posé sur la marche du haut, au sec.
+ */
+function escaliers(g: Phaser.GameObjects.Graphics, cx: number, haut: number, bas: number): void {
+  const teintes = [0xa9e3dc, 0xd2ecd8, 0xf3f0d6, CREME];
+  const rayons = [158, 132, 106, 80];
+  for (const [y0, sens] of [
+    [haut, 1],
+    [bas, -1],
+  ] as const) {
+    rayons.forEach((r, i) => {
+      const pts: Point[] = [];
+      for (let k = 0; k <= 32; k++) {
+        const t = (k / 32) * Math.PI;
+        pts.push({ x: cx + Math.cos(t) * r, y: y0 + sens * Math.sin(t) * r * 0.92 });
+      }
+      forme(g, pts, { remplissage: teintes[i] ?? CREME, trait: 3.5 });
+    });
+  }
 }
 
 export function couchesPiscinePretes(scene: Phaser.Scene): boolean {
@@ -74,9 +94,10 @@ export function poserDecorPiscine(scene: Phaser.Scene): void {
   const ry = (b.y - a.y) / 2;
   const g = scene.add.graphics();
   // Margelle crème, puis l'eau, puis une bande d'eau claire le long du bord.
-  forme(g, contourBassin(cx, cy, rx, ry, 0.08), { remplissage: CREME, trait: 4, ombre: 5 });
-  forme(g, contourBassin(cx, cy, rx - 22, ry - 22, 0.085), { remplissage: EAU_CLAIRE, trait: 4 });
-  forme(g, contourBassin(cx, cy, rx - 34, ry - 34, 0.09), { remplissage: EAU, trait: 0 });
+  forme(g, rectRond(cx, cy, rx, ry, 22), { remplissage: CREME, trait: 4, ombre: 5 });
+  forme(g, rectRond(cx, cy, rx - 22, ry - 22, 11), { remplissage: EAU_CLAIRE, trait: 4 });
+  forme(g, rectRond(cx, cy, rx - 34, ry - 34, 6), { remplissage: EAU, trait: 0 });
+  escaliers(g, cx, a.y + 22, b.y - 22);
 
   const vivants: { objet: Phaser.GameObjects.Components.Transform; maj: (t: number) => void }[] =
     [];
