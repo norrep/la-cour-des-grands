@@ -5,6 +5,8 @@
 import type { Bande, EquipementId, RaisonFin, RoleId } from '../engine/types';
 import type { SkinId } from '../game/skins/types';
 import type { Niveau } from '../ia/index';
+import { equipeDe } from './equipes';
+import { surv } from './cartes';
 
 const ROLES: Record<RoleId, string> = {
   petit: 'Le Petit de maternelle',
@@ -47,7 +49,9 @@ const POUVOIRS: Record<RoleId, string> = {
   rapporteuse: '« Madame, c’est lui ! » : un adversaire voisin est puni.',
   fouine: 'Passe par les buissons : se pose même loin de ton chemin.',
   contagieux: 'Atchoum ! Un élève adverse au hasard rate son prochain tour.',
-  delegue: 'Mot d’excuse : la surveillante file 1 ou 2 goûters plus loin (au hasard).',
+  get delegue(): string {
+    return `Mot d’excuse : ${surv.role} file 1 ou 2 goûters plus loin (au hasard).`;
+  },
   grand: 'Pas de pouvoir : c’est le plus fort.',
 };
 
@@ -63,7 +67,10 @@ const EFFETS_EQUIPEMENTS: Record<EquipementId, string> = {
   bancMaitresses: 'Sous le regard des maîtresses, les pouvoirs des élèves ne s’appliquent pas ici.',
 };
 
-const BANDES: Record<Bande, string> = { rouge: 'bande rouge', bleu: 'bande bleue' };
+/** Nom de chaque camp, selon l'équipe qui le joue (DB.1). */
+const BANDES = new Proxy({} as Record<Bande, string>, {
+  get: (_, b) => equipeDe(b as Bande).bande,
+});
 
 const NIVEAUX_ORDI: Record<Niveau, string> = {
   hasard: 'au hasard',
@@ -71,7 +78,12 @@ const NIVEAUX_ORDI: Record<Niveau, string> = {
   moyen: 'moyen',
   difficile: 'difficile',
 };
-const BANDES_TITRE: Record<Bande, string> = { rouge: 'Bande rouge', bleu: 'Bande bleue' };
+const BANDES_TITRE = new Proxy({} as Record<Bande, string>, {
+  get: (_, b) => {
+    const nom = equipeDe(b as Bande).bande;
+    return nom.charAt(0).toUpperCase() + nom.slice(1);
+  },
+});
 
 const RAISONS: Record<RaisonFin, string> = {
   cabane: 'a pris la cabane adverse !',
@@ -105,6 +117,22 @@ export const TEXTES = {
     sons: 'Sons',
     style: (nom: string) => `Style : ${nom}`,
   },
+  /** Écran de choix avant la partie : la carte, puis l'équipe de chaque camp (DB.5). */
+  choixPartie: {
+    titreCarte: 'Où on joue ?',
+    titreEquipe: 'Choisis ta bande',
+    titreBas: 'Joueur 1 (en bas) : ta bande ?',
+    titreHaut: 'Joueur 2 (en haut) : ta bande ?',
+    pris: 'Déjà prise',
+    retour: 'Retour',
+    chargement: 'On prépare la cour…',
+    /** La variante de chaque carte en quelques mots, sous sa vignette. */
+    variante: {
+      'cour-premier-jour': 'Les bancs planques',
+      piscine: 'Le courant fait tourner le grand bain',
+      'camp-scout': 'Tyrolienne et échelle à sens unique',
+    } as Record<string, string>,
+  },
   hud: {
     tourDe: (b: Bande) => `Au tour de la ${BANDES[b]}`,
     seuil: (n: number) => `Objectif : ${n} goûters`,
@@ -135,7 +163,9 @@ export const TEXTES = {
     rapporteuse: 'Rapporteuse : touche l’adversaire qui tremble pour le faire punir.',
     contagieux:
       'Contagieux : touche la pioche d’en face, un adversaire au hasard rate son prochain tour.',
-    delegue: 'Délégué : touche Mme Josiane pour qu’elle file 1 ou 2 goûters plus loin, ou passe.',
+    get delegue(): string {
+      return `Délégué : touche ${surv.nom} pour qu’${surv.il} file 1 ou 2 goûters plus loin, ou passe.`;
+    },
     banc: '★ Banc : ton élève est planqué, personne ne peut plus le toucher.',
     cabanePerchee: '★ Cabane perchée : touche ta pioche pour piocher 1 élève.',
     porteVieScolaire: '★ Vie scolaire : touche l’élève puni à faire revenir.',
@@ -154,13 +184,15 @@ export const TEXTES = {
     titreIlot: 'Un îlot',
     pile: (lignes: string[]) => `Pile, du dessus au dessous : ${lignes.join(', ')}.`,
     elevePile: (role: RoleId, b: Bande, valeur: number | null) =>
-      `${ROLES_COURTS[role]} ${b === 'rouge' ? 'rouge' : 'bleu'} (${valeur === null ? 'J' : valeur})`,
-    garde: 'La surveillante le garde : personne ne peut le ramasser tant qu’elle est là.',
+      `${ROLES_COURTS[role]} ${equipeDe(b).court} (${valeur === null ? 'J' : valeur})`,
+    get garde(): string {
+      return `${surv.Role} le garde : personne ne peut le ramasser tant qu’${surv.il} est là.`;
+    },
     cabane: (b: Bande) =>
       `Cabane de la ${BANDES[b]}. L’adversaire qui y pose un élève relié à sa cabane gagne aussitôt.`,
     special: '★ Îlot spécial : ',
     surveillante: (actuelle: string) =>
-      `Elle garde ${actuelle.charAt(0).toLowerCase()}${actuelle.slice(1)} : personne ne peut le ramasser. Après chaque tour complet, elle part garder le goûter suivant. Dès qu’elle s’en va, un goûter déjà entouré est ramassé.`,
+      `${surv.Il} garde ${actuelle.charAt(0).toLowerCase()}${actuelle.slice(1)} : personne ne peut le ramasser. Après chaque tour complet, ${surv.il} part garder le goûter suivant. Dès qu’${surv.il} s’en va, un goûter déjà entouré est ramassé.`,
   },
   /** Les zones à bons points sont des goûters à ramasser, un par zone, dans l'ordre de la cour. */
   gouters: ['La tablette de chocolat', 'Le paquet de biscuits', 'Le bonbon', 'La sucette'],
@@ -178,7 +210,9 @@ export const TEXTES = {
     },
     sonnerie: { titre: 'DRIIIIING !', sous: 'La récré est finie.' },
     toboggan: { titre: 'Wiiiiz !', sous: 'Glissade sur le toboggan.' },
-    delegue: { titre: 'Mot d’excuse !', sous: 'Le Délégué déplace la surveillante.' },
+    get delegue(): { titre: string; sous: string } {
+      return { titre: 'Mot d’excuse !', sous: `Le Délégué déplace ${surv.role}.` };
+    },
     gouter: (b: Bande, nom: string, n: number) => ({
       titre: 'Miam !',
       sous: `La ${BANDES[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} (+${n}).`,
@@ -212,8 +246,9 @@ export const TEXTES = {
       'Un adversaire plus faible peut être plaqué : ton élève se pose dessus, l’autre reste coincé dessous.',
     pouvoir:
       'Cet élève a un pouvoir en arrivant : touche sa cible sur la cour (elle clignote en jaune).',
-    surveillante:
-      'La surveillante garde un goûter (rond lilas) : personne ne peut le ramasser tant qu’elle est là. Après chaque tour complet, elle passe au goûter suivant.',
+    get surveillante(): string {
+      return `${surv.Role} garde un goûter (rond lilas) : personne ne peut le ramasser tant qu’${surv.il} est là. Après chaque tour complet, ${surv.il} passe au goûter suivant.`;
+    },
     zones:
       'Les friandises +1 / +2 sont des goûters : occupe tous les îlots autour pour les ramasser. Touche une friandise pour voir lesquels.',
   },
@@ -223,13 +258,15 @@ export const TEXTES = {
     tour: 'À ton tour, une seule action : appeler des copains (piocher 2) ou envoyer un élève sur un îlot relié à ta cabane par tes élèves. Tu peux plaquer un adversaire plus faible : il reste dessous.',
     eleves: 'Les 8 élèves (3 de chaque par bande)',
     special: 'L’îlot spécial de cette cour',
-    legende: [
-      'Rond = bande rouge, carré = bande bleue.',
-      'Petits badges à gauche d’un îlot = élèves plaqués dessous ; « ×3 » = hauteur de la pile.',
-      'Rond lilas autour d’un goûter = la surveillante le garde : personne ne le ramasse. Elle change de goûter après chaque tour. Touche-la pour le détail.',
-      'Trait épais rouge ou bleu = chemin d’une bande depuis sa cabane : elle pose autour.',
-      'Friandises +1 / +2 = goûters : touche-les pour voir quels îlots occuper.',
-    ],
+    get legende(): string[] {
+      return [
+        `Rond = ${equipeDe('rouge').bande}, carré = ${equipeDe('bleu').bande}.`,
+        'Petits badges à gauche d’un îlot = élèves plaqués dessous ; « ×3 » = hauteur de la pile.',
+        `Rond lilas autour d’un goûter = ${surv.role} le garde : personne ne le ramasse. ${surv.Il} change de goûter après chaque tour. Touche-${surv.il === 'il' ? 'le' : 'la'} pour le détail.`,
+        'Trait épais de la couleur d’une bande = son chemin depuis sa cabane : elle pose autour.',
+        'Friandises +1 / +2 = goûters : touche-les pour voir quels îlots occuper.',
+      ];
+    },
     fermer: 'Fermer',
   },
   planque: 'Planqué !',
@@ -245,14 +282,28 @@ export const TEXTES = {
       gouter: (seuil: number) =>
         `Entoure un goûter d’élèves pour le ramasser. ${seuil} bons points : gagné !`,
       banc: '★ Le banc est une planque : là, personne ne peut te toucher.',
-      josiane: 'Mme Josiane garde ce goûter. Elle bouge à chaque tour.',
+      get josiane(): string {
+        return `${surv.nom} garde ce goûter. ${surv.Il} bouge à chaque tour.`;
+      },
     },
     cours: {
       'cour-premier-jour': {
         contexte:
-          'Premier jour de récré ! Les rouges et les bleus se disputent la cour et ses goûters avant la sonnerie.',
+          'Premier jour de récré ! Deux bandes se disputent la cour et ses goûters avant la sonnerie.',
         regle:
           'Deux bancs planques : l’élève assis dessus ne peut être ni plaqué, ni puni, ni déplacé.',
+      },
+      piscine: {
+        contexte:
+          'Sortie piscine ! Deux bandes se disputent les goûters du bord et du grand bain sous l’œil de Monsieur Yvon.',
+        regle:
+          'Le courant : après chaque tour complet, les quatre bouées du grand bain tournent d’un cran, avec tout ce qu’il y a dessus.',
+      },
+      'camp-scout': {
+        contexte:
+          'Camp scout ! Deux bandes se disputent les goûters du camp avant que Babette ne sonne le rassemblement.',
+        regle:
+          'Sens unique : la tyrolienne ne fait que descendre (du hamac vers la source), l’échelle de corde ne fait que monter (du totem vers le tas de bois).',
       },
     } as Partial<Record<string, { contexte: string; regle: string }>>,
   },
@@ -269,10 +320,14 @@ export const TEXTES = {
     /** En solo : la phrase continue par « a envahi… » ou « a ramassé… ». */
     gagnantSolo: (ordi: boolean) => (ordi ? 'L’ordi' : 'Ta bande'),
     raison: (r: RaisonFin) => RAISONS[r],
-    score: (rouge: number, bleu: number) => `Goûters : rouge ${rouge}, bleu ${bleu}`,
+    score: (rouge: number, bleu: number) =>
+      // Le nom de l'équipe sans « Les » : « Rouges 4, Vers de terre 1 » (pas « ver 1 »).
+      `Goûters : ${equipeDe('rouge').nom.replace(/^Les /, '')} ${rouge}, ${equipeDe('bleu').nom.replace(/^Les /, '')} ${bleu}`,
     tours: (n: number) => `Partie en ${n} tours`,
   },
-  surveillante: 'Mme Josiane',
+  get surveillante(): string {
+    return surv.nom;
+  },
   /** Verbes posés sur les cibles des pouvoirs qui se jouent en touchant un lieu ou un personnage. */
   pouvoirsSurLaCour: {
     piocher: 'Appeler !',
@@ -312,9 +367,13 @@ export const TEXTES = {
     pioche: (b: Bande, n: number) => `${BANDES_TITRE[b]} pioche ${n} élève${n > 1 ? 's' : ''}.`,
     cpe: (role: RoleId, b: Bande) => `${ROLES[role]} (${BANDES[b]}) est puni !`,
     infirmerie: (b: Bande) => `Atchoum ! Un élève de la ${BANDES[b]} part à l’infirmerie.`,
-    surveillanteDelegue:
-      'Le Délégué brandit son mot d’excuse : la surveillante va garder un autre goûter.',
-    surveillante: 'La surveillante poursuit sa ronde.',
+    get surveillanteDelegue(): string {
+      return `Le Délégué brandit son mot d’excuse : ${surv.role} va garder un autre goûter.`;
+    },
+    get surveillante(): string {
+      return `${surv.Role} poursuit sa ronde.`;
+    },
+    courant: 'Le courant fait tourner le grand bain d’un cran.',
     rappel: (b: Bande) => `${BANDES_TITRE[b]} rappelle un élève dans son rang.`,
     repechage: (b: Bande) => `${BANDES_TITRE[b]} fait revenir un élève puni.`,
     glissade: (role: RoleId) => `${ROLES[role]} glisse sur le toboggan !`,

@@ -12,6 +12,9 @@ export const ECART_CONSEQUENCES = 320;
 /** Durée d'une conséquence (vol jusqu'à un lieu, marche de la surveillante…) (ms). */
 export const DUREE_CONSEQUENCE = 760;
 
+/** Tourbillon du courant de la piscine (ms) : on le laisse finir avant de redessiner. */
+export const DUREE_COURANT = 1000;
+
 /** Petit arrêt de la surveillante sur le goûter où elle arrive, avant la suite (ms). */
 export const PAUSE_SURVEILLANTE = 160;
 
@@ -64,7 +67,14 @@ export function dureeAnimations(nouveaux: readonly Evenement[]): number {
   const plan = planAnimations(nouveaux);
   let fin = 0;
   for (const { ev, debut } of plan) {
-    const duree = ev.type === 'pose' ? DUREE_ARRIVEE : estConsequence(ev) ? DUREE_CONSEQUENCE : 0;
+    const duree =
+      ev.type === 'pose'
+        ? DUREE_ARRIVEE
+        : ev.type === 'courant'
+          ? DUREE_COURANT
+          : estConsequence(ev)
+            ? DUREE_CONSEQUENCE
+            : 0;
     fin = Math.max(fin, debut + duree);
   }
   return fin;

@@ -1,4 +1,4 @@
-import { distancesDepuis, ilotsVoisins } from './cour';
+import { alleeOuverte, distancesDepuis, ilotsVoisins } from './cour';
 import { graineVersEtat, melanger, tirerEntier } from './rng';
 import {
   ABSENTS_A_L_APPEL,
@@ -171,6 +171,8 @@ export function noeudsConnectes(e: EtatPartie, bande: Bande): Set<string> {
   while (file.length > 0) {
     const n = file.shift() as string;
     for (const v of e.cour.voisins[n] ?? []) {
+      // Sentier à sens unique : la chaîne ne se prolonge que dans le sens de la flèche.
+      if (!alleeOuverte(e.cour, v.allee, n)) continue;
       atteints.add(v.noeud);
       if (
         !traverses.has(v.noeud) &&
@@ -617,6 +619,18 @@ function deplacerSurveillante(e: EtatPartie, pas: number, parDelegue: boolean): 
   verifierRegions(e);
 }
 
+/** Le courant : chaque pile de l'anneau avance d'un îlot, la dernière revient à la première place. */
+function faireTournerCourant(e: EtatPartie): void {
+  const anneau = e.cour.courant;
+  if (anneau.length < 2) return;
+  const piles = anneau.map((id) => e.piles[id] as Eleve[]);
+  anneau.forEach((id, i) => {
+    e.piles[id] = piles[(i - 1 + anneau.length) % anneau.length] as Eleve[];
+  });
+  noter(e, { type: 'courant', tour: e.tour, anneau: anneau.slice() });
+  verifierRegions(e);
+}
+
 /** Attribue les régions complétées (bande courante d'abord) et vérifie le seuil de bons points. */
 function verifierRegions(e: EtatPartie): void {
   for (const bande of [e.courant, adversaire(e.courant)]) {
@@ -662,8 +676,13 @@ function finirTour(e: EtatPartie): void {
   const bande = e.courant;
   // Les élèves de l'infirmerie reviennent à la fin du tour où ils étaient bloqués.
   e.joueurs[bande].infirmerie = [];
-  // La surveillante avance après chaque tour complet (les deux joueurs ont joué).
-  if (bande !== e.premier) deplacerSurveillante(e, 1, false);
+  // La surveillante avance après chaque tour complet (les deux joueurs ont joué),
+  // puis le courant fait tourner l'anneau (piscine).
+  if (bande !== e.premier) {
+    deplacerSurveillante(e, 1, false);
+    if (e.fin) return;
+    faireTournerCourant(e);
+  }
   if (e.fin) return;
   e.courant = adversaire(bande);
   e.tour += 1;

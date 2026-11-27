@@ -21,7 +21,7 @@ export type SonId =
   | 'pendule'
   | 'passe';
 
-/** Fichiers audio définitifs, ton « dessin animé » (DF.38). Les autres sons gardent leur bruitage provisoire. */
+/** Fichiers audio définitifs, ton « dessin animé » (DF.39). Les autres sons gardent leur bruitage provisoire. */
 export const FICHIERS_SONS: Partial<Record<SonId, string>> = {
   pose: avecVersion('sons/pose.mp3'),
   gouter: avecVersion('sons/gouter.mp3'),
