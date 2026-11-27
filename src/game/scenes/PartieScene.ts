@@ -116,6 +116,8 @@ export class PartieScene extends Phaser.Scene {
   private animations = true;
   /** Un coup vient de finir : on montre son effet avant l'écran « Passe le téléphone ». */
   private entreDeuxTours = false;
+  /** La partie vient de se finir : la cour finit de jouer le coup avant l'écran de victoire. */
+  private finEnAttente = false;
   /** Fiche de la cour affichée au lancement, avant le premier « Passe le téléphone ». */
   private presentation = true;
   /**
@@ -165,6 +167,7 @@ export class PartieScene extends Phaser.Scene {
     this.cinematiques = [];
     this.cinematiqueEnCours = null;
     this.entreDeuxTours = false;
+    this.finEnAttente = false;
     this.presentation = true;
     this.attenteAdversaire = false;
     this.tourHorloge = 0;
@@ -240,7 +243,7 @@ export class PartieScene extends Phaser.Scene {
       else if (this.entreDeuxTours) this.dessinerFinDeTour();
       else this.dessinerPasse();
     }
-    if (this.ctrl.phase === 'fin') this.dessinerFin();
+    if (this.ctrl.phase === 'fin' && !this.finEnAttente) this.dessinerFin();
     if (this.fiche) this.dessinerFiche(this.fiche.titre, this.fiche.texte, this.fiche.ancre);
     if (this.aideOuverte) this.dessinerAide();
     else this.dessinerConseil();
@@ -1162,6 +1165,16 @@ export class PartieScene extends Phaser.Scene {
       this.finDeTour?.remove();
       this.finDeTour = this.time.delayedCall(Math.max(DUREE_FIN_DE_TOUR, duree + 250), () => {
         this.entreDeuxTours = false;
+        this.rafraichir();
+      });
+    }
+    if (this.ctrl.phase === 'fin' && this.animations && duree > 0) {
+      // Victoire : on laisse la cour finir le coup (la surveillante qui marche, le goûter qui
+      // vole au cartable) avant de cacher la cour sous l'écran de fin.
+      this.finEnAttente = true;
+      this.finDeTour?.remove();
+      this.finDeTour = this.time.delayedCall(duree + 250, () => {
+        this.finEnAttente = false;
         this.rafraichir();
       });
     }
