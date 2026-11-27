@@ -211,7 +211,9 @@ export const TEXTES = {
     },
     sonnerie: { titre: 'DRIIIIING !', sous: 'La récré est finie.' },
     toboggan: { titre: 'Wiiiiz !', sous: 'Glissade sur le toboggan.' },
-    delegue: { titre: 'Mot d’excuse !', sous: 'Le Délégué déplace la surveillante.' },
+    get delegue(): { titre: string; sous: string } {
+      return { titre: 'Mot d’excuse !', sous: `Le Délégué déplace ${surv.role}.` };
+    },
     gouter: (b: Bande, nom: string, n: number) => ({
       titre: 'Miam !',
       sous: `La ${BANDES[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} (+${n}).`,

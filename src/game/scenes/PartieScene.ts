@@ -49,6 +49,7 @@ import {
   MONTEE,
   positionLieu,
   type Lieu,
+  versEcran,
 } from '../disposition';
 import { nomGouter, phraseEvenement } from '../journal';
 import { aide, tonFun, tutoPasse } from '../ton';
@@ -917,6 +918,8 @@ export class PartieScene extends Phaser.Scene {
   private positionGouter(regionId: string): Point {
     const r = this.cour.regions.find((x) => x.id === regionId);
     if (!r) return { x: 0, y: 0 };
+    // Goûter placé par le plan (piscine : sur le carrelage, entre la cabane et les deux îlots).
+    if (r.gouter) return versEcran(r.gouter.x, r.gouter.y);
     const c = centreRegion(this.cour, r.ilots);
     const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? -22 : 0;
     return { x: c.x, y: c.y + decalage };
@@ -2266,11 +2269,9 @@ export class PartieScene extends Phaser.Scene {
       this.cour.regions.find((r) => r.id === 'bas') ??
       [...this.cour.regions]
         .filter((r) => r.id !== gardee)
-        .sort(
-          (r1, r2) => centreRegion(this.cour, r2.ilots).y - centreRegion(this.cour, r1.ilots).y,
-        )[0];
+        .sort((r1, r2) => this.positionGouter(r2.id).y - this.positionGouter(r1.id).y)[0];
     if (region) {
-      const c = centreRegion(this.cour, region.ilots);
+      const c = this.positionGouter(region.id);
       bulles.push({
         ancre: { x: c.x, y: region.id === 'bas' ? c.y + 22 : c.y - 26 },
         texte: P.bulles.gouter(this.cour.seuilBonsPoints),
@@ -2297,22 +2298,35 @@ export class PartieScene extends Phaser.Scene {
       });
     }
     const posees: Phaser.Geom.Rectangle[] = [];
+    const gouters = this.cour.regions.map((r) => surPlateau(this.positionGouter(r.id)));
     const cadre = (c: Phaser.GameObjects.Container): Phaser.Geom.Rectangle =>
       c.getData('cadre') as Phaser.Geom.Rectangle;
     bulles.forEach((b, i) => {
-      const poser = (dessous: boolean | undefined): Phaser.GameObjects.Container =>
-        this.bulle(null, b.texte, surPlateau(b.ancre), COULEURS.papier, 300, dessous, b.decalage);
-      const chevauche = (r: Phaser.Geom.Rectangle): boolean =>
-        posees.some((q) => Phaser.Geom.Intersects.RectangleToRectangle(q, r));
-      // Une bulle qui en couvrirait une autre passe de l'autre côté de ce qu'elle montre.
-      let c = poser(b.dessous);
-      if (chevauche(cadre(c))) {
-        const autre = poser(!b.dessous);
-        if (!chevauche(cadre(autre))) {
+      const poser = (
+        dessous: boolean | undefined,
+        decalage?: number,
+      ): Phaser.GameObjects.Container =>
+        this.bulle(null, b.texte, surPlateau(b.ancre), COULEURS.papier, 300, dessous, decalage);
+      // Une bulle ne cache ni une autre bulle ni un goûter : sinon elle passe de l'autre côté de
+      // ce qu'elle montre, ou de côté (sa pointe reste sur sa cible).
+      const gene = (r: Phaser.Geom.Rectangle): boolean =>
+        posees.some((q) => Phaser.Geom.Intersects.RectangleToRectangle(q, r)) ||
+        gouters.some((g) => Phaser.Geom.Rectangle.Contains(r, g.x, g.y));
+      const essais: [boolean | undefined, number | undefined][] = [
+        [b.dessous, b.decalage],
+        [b.dessous, 150],
+        [b.dessous, -150],
+        [!b.dessous, b.decalage],
+      ];
+      let c = poser(b.dessous, b.decalage);
+      for (const [dessous, decalage] of essais.slice(1)) {
+        if (!gene(cadre(c))) break;
+        const autre = poser(dessous, decalage);
+        if (gene(cadre(autre))) {
+          autre.destroy();
+        } else {
           c.destroy();
           c = autre;
-        } else {
-          autre.destroy();
         }
       }
       posees.push(cadre(c));

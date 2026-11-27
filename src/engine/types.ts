@@ -68,6 +68,8 @@ export interface RegionData {
   nom: string;
   ilots: string[];
   bonsPoints: number;
+  /** Où dessiner le goûter (fractions de la cour), s'il ne va pas au centre de ses îlots. */
+  gouter?: { x: number; y: number };
 }
 
 export interface CourData {
