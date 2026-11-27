@@ -387,6 +387,22 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.7 — Tour d'en face bien visible.** Pendant le tour de l'ordi (ou de l'ami en ligne), la main
   descend et pâlit, un bandeau à la couleur d'en face dit « L'ordi réfléchit… » et un cadre de sa
   couleur borde l'écran. Quand le tour revient : un tampon « À toi ! » et un petit son.
+- **DL.8 — « +2 copains » devient un gros rond jaune au-dessus du coin droit de la main**
+  (retour de Clément : le bouton à côté de la pioche n'était pas clair). Essayée d'abord, une carte
+  au début de la main serrait trop les élèves ; parmi trois maquettes (rond flottant, onglet sur la
+  main, pioche qui s'allume), Clément a choisi le rond : sous le pouce, il respire et dit « +2
+  copains ».
+- **DL.9 — Les punis passent à côté de la pioche**, à gauche de la cabane (essai demandé par
+  Clément), pour les deux bandes et sur toutes les cartes. La droite de la cabane reste libre pour
+  le rond « +2 copains » en bas et le rang adverse en haut.
+- **DL.10 — La zone des punis disparaît quand la cour n'a pas de porte de la vie scolaire** (aucune
+  des trois cartes actuelles) : elle ne faisait qu'afficher les exclus. Les punis sont comptés par
+  une pastille rouge « N punis » sous la pioche (le détail est dans la fiche de la pioche), et
+  l'exclu vole jusqu'à la pioche. La pioche reste au bord de l'écran : rapprochée de la cabane, elle touchait des îlots (piscine surtout). Le code de
+  la zone reste : elle revient d'elle-même sur une cour qui a la porte (`avecZonePunis`).
+- **DL.11 — Rond « +2 copains » redessiné** : jeton jaune au trait épais avec reflet, deux cartes
+  de la pioche en éventail qui se dandinent, « +2 » en autocollant blanc cerclé de noir, « copains »
+  sur un ruban à la couleur de l'équipe, halo qui respire, et le rond s'enfonce sous le pouce.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 

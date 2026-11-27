@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { HAUTEUR, LARGEUR } from '../../src/game/config';
-import { noeudSous, positionNoeud, RANG, versEcran, xCarteRang } from '../../src/game/disposition';
+import {
+  avecZonePunis,
+  noeudSous,
+  positionLieu,
+  positionNoeud,
+  RANG,
+  versEcran,
+  xCarteRang,
+} from '../../src/game/disposition';
 import { cour1 } from '../engine/aide';
 
 const cour = cour1();
@@ -32,5 +40,13 @@ describe('Disposition à l’écran (720×1280)', () => {
     expect(gauche).toBeGreaterThanOrEqual(0);
     expect(droite).toBeLessThanOrEqual(LARGEUR);
     expect(RANG.y + RANG.hauteurCarte / 2).toBeLessThanOrEqual(HAUTEUR);
+  });
+
+  it('sans porte de la vie scolaire, pas de zone des punis : ils sont comptés sur la pioche', () => {
+    const avecPorte = Object.values(cour.noeuds).some((n) => n.equipement === 'porteVieScolaire');
+    expect(avecZonePunis(cour)).toBe(avecPorte);
+    if (!avecPorte) {
+      expect(positionLieu(cour, 'rouge', 'cpe')).toEqual(positionLieu(cour, 'rouge', 'portail'));
+    }
   });
 });
