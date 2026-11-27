@@ -47,6 +47,7 @@ import {
   MONTEE,
   positionLieu,
   type Lieu,
+  ZONE_COUR,
 } from '../disposition';
 import { nomGouter, phraseEvenement } from '../journal';
 import { aide, tonFun, tutoPasse } from '../ton';
@@ -112,6 +113,13 @@ export class PartieScene extends Phaser.Scene {
   private animations = true;
   /** Un coup vient de finir : on montre son effet avant l'écran « Passe le téléphone ». */
   private entreDeuxTours = false;
+  /** Fiche de la cour affichée au lancement, avant le premier « Passe le téléphone ». */
+  private presentation = true;
+  /**
+   * Plus tard, en ligne : la fiche sert d'écran d'attente pendant qu'on cherche un adversaire
+   * (le bouton laisse place à « On attend un adversaire… »).
+   */
+  private attenteAdversaire = false;
   private finDeTour: Phaser.Time.TimerEvent | null = null;
   /** Cinématiques en attente, jouées l'une après l'autre. */
   private cinematiques: Cinematique[] = [];
@@ -148,6 +156,8 @@ export class PartieScene extends Phaser.Scene {
     this.cinematiques = [];
     this.cinematiqueEnCours = null;
     this.entreDeuxTours = false;
+    this.presentation = true;
+    this.attenteAdversaire = false;
     this.tourHorloge = 0;
     this.animations = !(window as unknown as { __sansAnimations?: boolean }).__sansAnimations;
     activerSons(lireSons());
@@ -199,7 +209,8 @@ export class PartieScene extends Phaser.Scene {
       this.bulleConsigne();
     }
     if (this.ctrl.phase === 'passe') {
-      if (this.entreDeuxTours) this.dessinerFinDeTour();
+      if (this.presentation) this.dessinerPresentation();
+      else if (this.entreDeuxTours) this.dessinerFinDeTour();
       else this.dessinerPasse();
     }
     if (this.ctrl.phase === 'fin') this.dessinerFin();
@@ -1886,6 +1897,188 @@ export class PartieScene extends Phaser.Scene {
     );
     v.setOrigin(0, 0);
     v.setInteractive();
+  }
+
+  /**
+   * Fiche de la cour, au lancement (demande de Clément) : le contexte, la carte légendée et la
+   * règle spéciale. En ligne, elle servira d'écran d'attente (`attenteAdversaire`).
+   */
+  private dessinerPresentation(): void {
+    const P = TEXTES.presentation;
+    const infos = P.cours[this.cour.id];
+    this.voile(0.82);
+    const x0 = 40;
+    const largeur = LARGEUR - 80;
+    const haut = 120 + MONTEE;
+    const bas = Math.min(BAS - 40, 1220 + DESCENTE);
+    const g = this.ajouter(this.add.graphics());
+    panneau(g, x0, haut, largeur, bas - haut, {
+      remplissage: COULEURS.papier,
+      rayon: 30,
+      ombre: 10,
+    });
+    const cx = LARGEUR / 2;
+    let y = haut + 26;
+    this.texte(cx, y, P.surtitre, 18, COULEURS.texteSombre, { fontStyle: '600' }).setOrigin(0.5, 0);
+    y += 28;
+    this.texte(cx, y, this.cour.nom, 38, COULEURS.texteSombre, {
+      fontFamily: POLICE_TITRE,
+      fontStyle: '700',
+    }).setOrigin(0.5, 0);
+    y += 56;
+    if (infos) {
+      const t = this.texte(cx, y, infos.contexte, 18, COULEURS.texteSombre, {
+        fontStyle: '500',
+        align: 'center',
+        wordWrap: { width: largeur - 60 },
+      }).setOrigin(0.5, 0);
+      y += t.height + 14;
+    }
+
+    // La carte : le plan de la cour en petit, légendé.
+    // Elle prend toute la place laissée par la légende, la règle et le bouton.
+    const hauteurCarte = Math.max(280, Math.min(640, bas - y - 380));
+    this.dessinerMiniCour(cx, y + hauteurCarte / 2, largeur - 70, hauteurCarte);
+    y += hauteurCarte + 14;
+    const legende = [
+      P.legende.cabanes,
+      P.legende.gouters(this.cour.seuilBonsPoints),
+      ...(this.cour.ronde.length > 0 ? [P.legende.josiane] : []),
+    ];
+    for (const ligne of legende) {
+      const t = this.texte(x0 + 34, y, `•  ${ligne}`, 17, COULEURS.texteSombre, {
+        fontStyle: '500',
+        wordWrap: { width: largeur - 68 },
+      });
+      y += t.height + 6;
+    }
+    y += 8;
+
+    // La règle spéciale, dans un encadré jaune.
+    const regle = this.etat.equipements && infos ? infos.regle : P.sansRegle;
+    const titre = this.texte(x0 + 40, y + 12, P.regleTitre, 20, COULEURS.texteSombre, {
+      fontStyle: '700',
+    });
+    const corps = this.texte(x0 + 40, y + 12 + titre.height + 2, regle, 17, COULEURS.texteSombre, {
+      fontStyle: '500',
+      wordWrap: { width: largeur - 80 },
+    });
+    const hRegle = titre.height + corps.height + 30;
+    const cadre = this.add.graphics();
+    forme(cadre, contourRect(x0 + 22, y, largeur - 44, hRegle, 16, graineDe(y, 3), 0.8), {
+      remplissage: COULEURS.jaune,
+      trait: 3,
+      ombre: 4,
+    });
+    this.dyn.addAt(cadre, this.dyn.getIndex(titre));
+
+    // En bas : « C'est parti ! », ou l'attente d'un adversaire (plus tard, en ligne).
+    const yBouton = bas - 62;
+    if (this.attenteAdversaire) {
+      const t = this.texte(cx, yBouton, `${P.attente}…`, 24, COULEURS.texteSombre, {
+        fontStyle: '700',
+      }).setOrigin(0.5);
+      this.tweens.add({ targets: t, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
+      return;
+    }
+    this.ajouter(
+      creerBouton(
+        this,
+        cx,
+        yBouton,
+        P.bouton,
+        () => {
+          this.presentation = false;
+          this.rafraichir();
+        },
+        { largeur: 400, hauteur: 84, taille: 30, couleur: COULEURS.jaune },
+      ),
+    );
+  }
+
+  /**
+   * Le plan de la cour en petit, centré en (cx, cy) dans une boîte l × h : allées, îlots, bancs,
+   * goûters et cabanes, dessinés comme sur la vraie cour puis réduits.
+   */
+  private dessinerMiniCour(cx: number, cy: number, l: number, h: number): void {
+    const zone = { x: ZONE_COUR.x, y: ZONE_COUR.y, l: ZONE_COUR.largeur, h: ZONE_COUR.hauteur };
+    const echelle = Math.min(l / zone.l, h / zone.h);
+    const c = this.ajouter(this.add.container(cx, cy)).setScale(echelle);
+    const local = (id: string): Point => {
+      const p = this.pos(id);
+      return { x: p.x - (zone.x + zone.l / 2), y: p.y - (zone.y + zone.h / 2) };
+    };
+    const g = this.add.graphics();
+    c.add(g);
+    // Le goudron.
+    forme(g, contourRect(-zone.l / 2 - 30, -zone.h / 2 - 20, zone.l + 60, zone.h + 40, 40, 7, 1), {
+      remplissage: 0xd9d6ee,
+      trait: 4,
+    });
+    g.lineStyle(8, 0x8a8698, 1);
+    for (const [a, b] of this.cour.allees) {
+      const pa = local(a);
+      const pb = local(b);
+      g.lineBetween(pa.x, pa.y, pb.x, pb.y);
+    }
+    // Les goûters.
+    this.cour.regions.forEach((r, i) => {
+      const p = centreRegion(this.cour, r.ilots);
+      const q = { x: p.x - (zone.x + zone.l / 2), y: p.y - (zone.y + zone.h / 2) };
+      // Le goûter que Mme Josiane garde au début : rond lilas en pointillés, comme sur la cour.
+      if (this.cour.ronde[this.etat.surveillante % this.cour.ronde.length] === i) {
+        g.lineStyle(7, COULEURS.surveillante, 1);
+        for (let k = 0; k < 14; k += 2) {
+          g.beginPath();
+          g.arc(q.x, q.y, 46, (k / 14) * Math.PI * 2, ((k + 1) / 14) * Math.PI * 2);
+          g.strokePath();
+        }
+      }
+      this.dessinerFriandise(g, i, q.x, q.y);
+      const t = this.add
+        .text(q.x - 40, q.y - 40, `+${r.bonsPoints}`, {
+          fontFamily: POLICE,
+          fontSize: '38px',
+          color: COULEURS.texteSombre,
+          fontStyle: '700',
+          stroke: '#ffffff',
+          strokeThickness: 6,
+        })
+        .setOrigin(0.5);
+      c.add(t);
+    });
+    // Les îlots (les bancs en jaune, avec une étoile) et les cabanes.
+    for (const id of Object.keys(this.cour.noeuds)) {
+      const n = this.cour.noeuds[id];
+      if (!n) continue;
+      const p = local(id);
+      if (n.type === 'cabane') {
+        const coul = n.bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+        g.fillStyle(coul, 1);
+        g.lineStyle(5, COULEURS.encre, 1);
+        g.fillRect(p.x - 50, p.y - 26, 100, 66);
+        g.strokeRect(p.x - 50, p.y - 26, 100, 66);
+        g.fillStyle(0xfff4dc, 1);
+        g.fillTriangle(p.x - 62, p.y - 24, p.x + 62, p.y - 24, p.x, p.y - 74);
+        g.strokeTriangle(p.x - 62, p.y - 24, p.x + 62, p.y - 24, p.x, p.y - 74);
+        continue;
+      }
+      const special = this.etat.equipements && n.equipement;
+      forme(g, contourRond(p.x, p.y, RAYON_ILOT, graineDe(p.x, p.y)), {
+        remplissage: special ? COULEURS.ilotSpecial : COULEURS.ilot,
+        trait: 5,
+      });
+      if (special) {
+        const etoile = this.add
+          .text(p.x, p.y, '★', {
+            fontFamily: POLICE,
+            fontSize: '52px',
+            color: '#1d1d1b',
+          })
+          .setOrigin(0.5);
+        c.add(etoile);
+      }
+    }
   }
 
   /** Ce que l'adversaire vient de faire (remplace l'ancien journal en bas de l'écran). */
