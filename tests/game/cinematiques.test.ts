@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { cinematiquesPour as brut } from '../../src/game/cinematiques';
+import {
+  cinematiqueDuPouvoir,
+  cinematiquesPour as brut,
+  roleDuPouvoir,
+} from '../../src/game/cinematiques';
 import type { Evenement } from '../../src/engine/index';
 
 const cinematiquesPour = (evs: Evenement[], gf = false) => brut(evs, gf).map((c) => c.id);
@@ -136,5 +140,16 @@ describe('Cinématiques', () => {
         { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'b', role: 'grand', cible: 'Q' },
       ]),
     ).toEqual(['grandsFreres']);
+  });
+
+  it('à la pose, chaque pouvoir avec un choix retrouve son moment et son élève (DV.7)', () => {
+    for (const role of ['contagieux', 'chouchou', 'delegue', 'rapporteuse'] as const) {
+      const cin = cinematiqueDuPouvoir(role, 'bleu');
+      expect(cin?.bande).toBe('bleu');
+      expect(cin && roleDuPouvoir(cin)).toBe(role);
+    }
+    expect(cinematiqueDuPouvoir('grand', 'rouge')).toBeUndefined();
+    expect(roleDuPouvoir({ id: 'cpe' })).toBeUndefined();
+    expect(roleDuPouvoir({ id: 'petit' })).toBe('petit');
   });
 });
