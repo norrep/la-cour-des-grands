@@ -2779,7 +2779,9 @@ export class PartieScene extends Phaser.Scene {
     const cx = pts.reduce((t, p) => t + p.x, 0) / pts.length;
     const cy = pts.reduce((t, p) => t + p.y, 0) / pts.length;
     const r = Math.max(...pts.map((p) => Math.hypot(p.x - cx, p.y - cy))) * 0.62;
-    const g = this.add.graphics().setPosition(cx, cy).setDepth(50);
+    // Dans le calque du plateau : redessiner l'écran l'efface (sinon, ses tweens arrêtés, il restait
+    // affiché pour toujours, jusque sur l'écran de fin).
+    const g = this.ajouter(this.add.graphics()).setPosition(cx, cy);
     for (let k = 0; k < 4; k++) {
       const a0 = (k * Math.PI) / 2 + 0.2;
       const a1 = a0 + Math.PI / 2 - 0.5;
