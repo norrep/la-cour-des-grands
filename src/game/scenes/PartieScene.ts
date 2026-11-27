@@ -70,6 +70,7 @@ import { cleGouter, DECOR, ILLUSTRATIONS, JOSIANE, PLATEAU } from './ChargementS
 import { cadrer, decorPlein } from '../ui/ecran';
 import { animerMarionnette, Marionnette } from '../ui/marionnette';
 import { RIG_JOSIANE } from '../skins/cartoon/rig';
+import { jouerIncrust } from '../ui/incrust';
 
 const RAYON_ILOT = 48;
 /** Haut de la cour, à défaut de cabane en haut (fiche de la cour). */
@@ -2749,6 +2750,8 @@ export class PartieScene extends Phaser.Scene {
     const p = this.pos(id);
     jouerSon('plaque');
     this.secousse(0.014, 240);
+    // Le nuage de bagarre, par-dessus l'îlot (DF.38).
+    jouerIncrust(this, 'plaquage', p.x, p.y - 10, 260);
     // Arrêt sur image : tout se fige un très court instant, ça donne du poids au choc.
     this.tweens.timeScale = 0.05;
     this.time.delayedCall(70, () => (this.tweens.timeScale = 1));
@@ -2892,6 +2895,9 @@ export class PartieScene extends Phaser.Scene {
   /** Les copains appelés : le portail s'ouvre (leurs cartes volent jusqu'au rang). */
   private copainsArrivent(bande: Bande): void {
     this.rebondLieu(bande, 'portail');
+    // Le mégaphone qui appelle les copains, au-dessus du portail (DF.38).
+    const portail = positionLieu(this.cour, bande, 'portail');
+    jouerIncrust(this, 'appelCopains', portail.x, portail.y - 40, 230);
   }
 
   /** Atchoum : un nuage de microbes part de l'élève vers le portail de la bande adverse. */
@@ -3105,6 +3111,7 @@ export class PartieScene extends Phaser.Scene {
     });
     const picto = this.add.graphics();
     this.dessinerPictogramme(picto, id, 150, 640, cin);
+    if (id === 'sonnerie') picto.setVisible(false);
     const style = { fontFamily: POLICE, color: COULEURS.texteSombre };
     const titre = this.add
       .text(270, 610, C.titre, {
@@ -3137,6 +3144,8 @@ export class PartieScene extends Phaser.Scene {
     }
     const imagePicto = picto.getData('image') as string | undefined;
     if (imagePicto) scene.add(this.add.image(picto.x, picto.y, imagePicto).setScale(190 / 512));
+    // Le réveil qui sonne remplace le pictogramme de la sonnerie (DF.38).
+    if (id === 'sonnerie') jouerIncrust(this, 'sonnerie', 150, 640, 240, { parent: scene });
     const tout = this.add.container(0, 0, [fond, scene, passer]).setDepth(1000);
     this.cinematiqueEnCours = tout;
 
