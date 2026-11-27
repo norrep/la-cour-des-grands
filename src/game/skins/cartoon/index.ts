@@ -11,7 +11,6 @@ import { equipeDe } from '../../../data/equipes';
 import Phaser from 'phaser';
 import { ROLES, type Bande, type RoleId } from '../../../engine/index';
 import { COULEURS } from '../../config';
-import { creerBadge } from '../../ui/badge';
 import { animerMarionnette, Marionnette, type Rig } from '../../ui/marionnette';
 import { animerVer, Ver } from '../../ui/ver';
 import type { Acteur, P, RenduPantin, Skin, TextureSkin } from '../types';
@@ -27,8 +26,6 @@ const PIXELS_REF = 880;
 const NUMERO = 0.4;
 /** L'élève est remonté d'une fraction de sa taille : ses pieds ne cachent pas le nom de l'îlot. */
 const REMONTE = 0.4;
-/** Pastille de valeur à côté de l'élève, en fraction de `taille`. */
-const PASTILLE = 0.42;
 /** Hauteur du Grand tenu par la main, en pixels de jeu. */
 const HAUTEUR_PANTIN = 170;
 /** Rayon du buste dans la pastille, en pixels de texture (le même pour tous : le Petit y a sa grosse tête). */
@@ -148,12 +145,8 @@ export const SKIN_CARTOON: Skin = {
     const ver = estVer(bande) ? new Ver(scene, cleCorps(bande, role), echelle) : null;
     const m = ver ?? new Marionnette(scene, cle(bande, role), r, echelle);
     m.racine.setY(pieds);
-    const pastille = creerBadge(scene, bande, role, taille * PASTILLE);
-    pastille.setPosition(
-      (r.pieces.tronc.cadre[2] / 2) * echelle + taille * 0.12,
-      pieds + basBuste(r) * echelle * 0.85,
-    );
-    const eleve = scene.add.container(0, 0, [m.racine, pastille]);
+    // Pas de pastille de valeur : le numéro est déjà sur la chasuble (DP.1).
+    const eleve = scene.add.container(0, 0, [m.racine]);
     if (ver) animerVer(scene, ver, eleve, { caractere: role });
     else animerMarionnette(scene, m as Marionnette, eleve, { caractere: role });
     return eleve;
@@ -182,9 +175,7 @@ export const SKIN_CARTOON: Skin = {
     const m = ver ?? new Marionnette(scene, cle(bande, role), r, echelle);
     // Le bas du débardeur au bas de la carte.
     m.racine.setY(hauteur / 2 - bas * echelle);
-    const pastille = creerBadge(scene, bande, role, 24);
-    pastille.setPosition(largeur / 2 - 10, hauteur / 2 - 14);
-    const buste = scene.add.container(0, 0, [m.racine, pastille]);
+    const buste = scene.add.container(0, 0, [m.racine]);
     const masque = masqueQuiSuit(scene, buste, (g) =>
       g.fillRect(-largeur / 2, -hauteur / 2 - hauteur, largeur, hauteur * 2),
     );
@@ -218,9 +209,7 @@ export const SKIN_CARTOON: Skin = {
     const m = ver ?? new Marionnette(scene, cle(bande, role), rg, echelle);
     // Le bas du débardeur au bas de la pastille ; la tête dépasse en haut.
     m.racine.setY(r - 4 - basBuste(rg) * echelle);
-    const valeur = creerBadge(scene, bande, role, diametre * 0.36);
-    valeur.setPosition(r * 0.78, r * 0.72);
-    const pastille = scene.add.container(0, 0, [fond, m.racine, valeur]);
+    const pastille = scene.add.container(0, 0, [fond, m.racine]);
     // Le corps est coupé au bord intérieur du liseré (rond ou carré selon la bande), libre au-dessus :
     // la tête sort de la pastille. Les bras ne sont pas coupés : ils passent par-dessus la pastille.
     const masque = masqueQuiSuit(scene, pastille, (g) => {
