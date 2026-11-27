@@ -3,6 +3,7 @@ import type { Evenement } from '../../src/engine/index';
 import {
   DUREE_ARRIVEE,
   DUREE_CONSEQUENCE,
+  DUREE_PLAQUAGE,
   ECART_CONSEQUENCES,
   dureeAnimations,
   planAnimations,
@@ -34,6 +35,11 @@ const region: Evenement = {
 };
 
 describe('Mise en scène d’un coup', () => {
+  it('laisse le nuage du plaquage finir avant de redessiner', () => {
+    expect(dureeAnimations([{ ...pose, plaque: 'petit' }])).toBe(DUREE_PLAQUAGE);
+    expect(DUREE_PLAQUAGE).toBeGreaterThan(DUREE_ARRIVEE);
+  });
+
   it('joue l’arrivée, puis les conséquences l’une après l’autre', () => {
     const plan = planAnimations([pose, cpe, region]);
     expect(plan.map((e) => e.debut)).toEqual([

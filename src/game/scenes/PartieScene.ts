@@ -74,7 +74,7 @@ import { cadrer, decorPlein } from '../ui/ecran';
 import { animerMarionnette, Marionnette } from '../ui/marionnette';
 import { visuelCarte, type VisuelCarte } from '../cartes';
 import { choisirCarte } from '../../data/cartes';
-import { jouerIncrust } from '../ui/incrust';
+import { effacerIncrustations, jouerIncrust } from '../ui/incrust';
 import { couchesPiscinePretes, poserDecorPiscine } from '../ui/decorPiscine';
 
 const RAYON_ILOT = 48;
@@ -244,6 +244,8 @@ export class PartieScene extends Phaser.Scene {
     }
     // Les animations du plateau s'arrêtent ; celles d'une cinématique continuent.
     for (const t of this.tweens.getTweens()) if (!this.tweensCinematique.has(t)) t.stop();
+    // Leurs tweens arrêtés, les incrustations (nuage, mégaphone) resteraient figées (DB.7).
+    effacerIncrustations(this);
     this.dyn.removeAll(true);
     this.badges.clear();
     this.surbrillances = [];
