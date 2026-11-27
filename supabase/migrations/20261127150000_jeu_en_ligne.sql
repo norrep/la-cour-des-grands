@@ -61,7 +61,7 @@ create function public.enregistrer_partie(
   p_vues jsonb
 ) returns boolean
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 declare
