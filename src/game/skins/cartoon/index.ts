@@ -93,10 +93,37 @@ function masqueQuiSuit(
   return masque;
 }
 
+/**
+ * Vidéos de pouvoir (`public/videos/cartoon/<rôle>-<rouge|bleu>.mp4`), sur fond manga « éclairs »
+ * à la couleur de l'équipe (DV.4, DV.5). Les Bleus sont les mêmes vidéos, maillot recoloré.
+ * Le Contagieux n'a qu'une version (ancien style), pour les Rouges.
+ */
+const ROLES_VIDEO: readonly RoleId[] = ['chouchou', 'rapporteuse', 'fouine', 'delegue', 'petit'];
+const VIDEOS: Partial<Record<EquipeId, Partial<Record<RoleId, string>>>> = {
+  rouges: {
+    contagieux: 'videos/cartoon/contagieux.mp4',
+    ...Object.fromEntries(ROLES_VIDEO.map((r) => [r, `videos/cartoon/${r}-rouge.mp4`])),
+  },
+  bleus: Object.fromEntries(ROLES_VIDEO.map((r) => [r, `videos/cartoon/${r}-bleu.mp4`])),
+};
+/** Goûters, dans l'ordre des régions de la cour (comme GOUTERS du chargement), avec la couleur
+ * mesurée du fond crème en haut et en bas de chaque vidéo. */
+const VIDEOS_GOUTERS = (
+  [
+    ['chocolat', 0xdfccb6, 0xe3d6c0],
+    ['biscuits', 0xeadecd, 0xe9dcc9],
+    ['bonbon', 0xdaccb5, 0xdfd3c0],
+    ['sucette', 0xe6d7c0, 0xeadcc9],
+  ] as const
+).map(([nom, haut, bas]) => ({ url: `videos/cartoon/gouter-${nom}.mp4`, haut, bas }));
+
 export const SKIN_CARTOON: Skin = {
   id: 'cartoon',
   textures,
   texturesEquipe,
+  // Vidéos tournées avec les élèves en débardeur rouge : seulement pour l'équipe des Rouges.
+  videoPouvoir: (bande, role) => VIDEOS[equipeDe(bande).id]?.[role],
+  videoGouter: (index) => (index >= 0 ? VIDEOS_GOUTERS[index % VIDEOS_GOUTERS.length] : undefined),
   eleve(scene, bande, role, taille) {
     const r = rig(bande, role);
     const echelle = (HAUTEUR_REF * taille) / PIXELS_REF;

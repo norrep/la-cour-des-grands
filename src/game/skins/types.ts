@@ -103,4 +103,17 @@ export interface Skin {
   acteur(scene: Phaser.Scene, bande: Bande, role: RoleId, taille: number): Acteur;
   /** Le dessin de l'élève qu'on tient pendant qu'on le glisse (le seul où il est entier). */
   pantin(scene: Phaser.Scene, eleve: Eleve): RenduPantin;
+  /**
+   * Courte vidéo qui raconte le pouvoir d'un élève quand il se déclenche (chemin depuis la
+   * racine du site). Facultatif : sans vidéo, le jeu montre le panneau habituel. L'élève y est
+   * toujours seul, pour qu'une vidéo serve contre n'importe quel adversaire et n'importe quel skin.
+   */
+  videoPouvoir?(bande: Bande, role: RoleId): string | undefined;
+  /**
+   * Courte vidéo carrée du goûter n° `index` (ordre des régions de la cour : chocolat, biscuits,
+   * bonbon, sucette), filmée sur fond crème. Facultatif : sans vidéo, le panneau habituel.
+   * `haut` et `bas` : la couleur du fond de la vidéo en haut et en bas, pour la prolonger
+   * jusqu'aux bords de l'écran sans cassure.
+   */
+  videoGouter?(index: number): { url: string; haut: number; bas: number } | undefined;
 }

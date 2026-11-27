@@ -3,6 +3,7 @@ import { COULEURS, HAUTEUR, LARGEUR, POLICE } from '../config';
 import { preparerSkin, choisirSkin, skinActif } from '../skins/index';
 import { cadrer } from '../ui/ecran';
 import { TEXTES } from '../../data/textes';
+import { ROLES } from '../../engine/index';
 import { avecVersion } from '../../version';
 import { chargerIncrustations } from '../ui/incrust';
 
@@ -42,6 +43,17 @@ function chargerPolice(): Promise<unknown> {
     ['500', '600', '700'].map((poids) => fonts.load(`${poids} 24px Fredoka`)),
   );
   return Promise.race([attente, new Promise((ok) => setTimeout(ok, 2000))]);
+}
+
+/** Les vidéos de pouvoir et de goûter du skin se téléchargent en fond : elles seront prêtes en partie. */
+function prechargerVideos(): void {
+  const skin = skinActif();
+  if ((!skin.videoPouvoir && !skin.videoGouter) || typeof fetch !== 'function') return;
+  const urls = new Set(
+    ROLES.flatMap(({ id }) => (['rouge', 'bleu'] as const).map((b) => skin.videoPouvoir?.(b, id))),
+  );
+  if (skin.videoGouter) for (let i = 0; i < GOUTERS.length; i++) urls.add(skin.videoGouter(i)?.url);
+  for (const url of urls) if (url) void fetch(url).catch(() => undefined);
 }
 
 /** Prépare la police, le décor et les images du skin actif, puis ouvre l'accueil. */
@@ -85,6 +97,9 @@ export class ChargementScene extends Phaser.Scene {
       // Un skin qui ne se charge pas ne doit pas bloquer le jeu : retour aux jetons.
       choisirSkin('classique');
     });
-    void Promise.all([skin, chargerPolice()]).finally(() => this.scene.start('accueil'));
+    void Promise.all([skin, chargerPolice()]).finally(() => {
+      prechargerVideos();
+      this.scene.start('accueil');
+    });
   }
 }

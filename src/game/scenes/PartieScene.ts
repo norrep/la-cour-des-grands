@@ -5,6 +5,7 @@ import { TEXTES } from '../../data/textes';
 import {
   actionsLegales,
   chargerCour,
+  noeudsConnectes,
   ciblesPossibles,
   gouterSurveille,
   ROLES,
@@ -21,6 +22,7 @@ import {
   type RoleId,
 } from '../../engine/index';
 import { apercu } from '../apercu';
+import { cadreManga, fondManga } from '../ui/fondManga';
 import { DUREE_CONSEQUENCE, dureeAnimations, planAnimations, rondeParcourue } from '../sequence';
 import {
   BAS,
@@ -34,7 +36,12 @@ import {
   POLICE_TITRE,
 } from '../config';
 import { alleesDuChemin } from '../chemins';
-import { cinematiquesPour, type Cinematique, type CinematiqueId } from '../cinematiques';
+import {
+  CINEMATIQUES_VIDEO_SEULE,
+  cinematiquesPour,
+  type Cinematique,
+  type CinematiqueId,
+} from '../cinematiques';
 import { NB_CONSEILS, prochainConseil, type ConseilId } from '../conseils';
 import { Controleur } from '../controleur';
 import { Ordi } from '../ordi';
@@ -1385,8 +1392,13 @@ export class PartieScene extends Phaser.Scene {
     const avant = this.etat.journal.length;
     const bande = this.bandeActive;
     const rangAvant = new Set(this.etat.joueurs[bande].rang.map((el) => el.id));
+    // Îlots reliés avant le coup : une Fouine posée ailleurs s'est faufilée (vidéo).
+    const connectesAvant = noeudsConnectes(this.etat, bande);
     if (!action()) return false;
     const nouveaux = this.etat.journal.slice(avant);
+    const fouineLoin = nouveaux.some(
+      (ev) => ev.type === 'pose' && ev.role === 'fouine' && !connectesAvant.has(ev.cible),
+    );
     const origines = new Map<string, Point>();
     for (const ev of nouveaux) {
       if (ev.type === 'rappel') origines.set(ev.eleveId, this.pos(ev.ilot));
@@ -1436,7 +1448,7 @@ export class PartieScene extends Phaser.Scene {
     this.rafraichir();
     this.gouterEnVol = { rouge: 0, bleu: 0 };
     this.rangAvant = null;
-    this.animer(nouveaux, grandsFreres, duree);
+    this.animer(nouveaux, grandsFreres, duree, fouineLoin);
     return true;
   }
 
@@ -2703,7 +2715,12 @@ export class PartieScene extends Phaser.Scene {
    * l'autre : l'adversaire file chez la CPE, le goûter vole au cartable, la surveillante marche,
    * les copains arrivent du portail… Les panneaux des moments marquants viennent après.
    */
-  private animer(nouveaux: Evenement[], grandsFreres: boolean, duree: number): void {
+  private animer(
+    nouveaux: Evenement[],
+    grandsFreres: boolean,
+    duree: number,
+    fouineLoin = false,
+  ): void {
     const plan = planAnimations(nouveaux);
     // Origine des effets à distance (éternuement) : l'îlot où l'élève vient d'arriver.
     const derniereCible = [...nouveaux].reverse().find((ev) => ev.type === 'pose');
@@ -2717,7 +2734,7 @@ export class PartieScene extends Phaser.Scene {
       else this.time.delayedCall(debut, jouer);
     }
     if (!this.animations) return;
-    const suite = cinematiquesPour(nouveaux, grandsFreres);
+    const suite = cinematiquesPour(nouveaux, grandsFreres, fouineLoin);
     if (suite.length === 0) return;
     // Les panneaux attendent que la cour ait montré le coup.
     this.time.delayedCall(duree, () => {
@@ -3200,6 +3217,12 @@ export class PartieScene extends Phaser.Scene {
       return;
     }
     const id = cin.id;
+    if (!cin.sansVideo && this.cinematiqueVideo(cin)) return;
+    // Moment qui n'existe qu'en vidéo (Fouine, Petit) : sans vidéo, on ne montre rien.
+    if (CINEMATIQUES_VIDEO_SEULE.includes(id)) {
+      this.cinematiqueSuivante();
+      return;
+    }
     const T = TEXTES.cinematiques;
     const C =
       id === 'gouter'
@@ -3217,6 +3240,8 @@ export class PartieScene extends Phaser.Scene {
       gouter: 'gouter',
       toboggan: 'glissade',
       delegue: 'pioche',
+      fouine: 'pose',
+      petit: 'plaque',
     };
     jouerSon(SONS[id]);
     const fond = this.add.rectangle(
@@ -3237,6 +3262,8 @@ export class PartieScene extends Phaser.Scene {
       gouter: 0xffc48a,
       toboggan: 0x8fe3cf,
       delegue: 0xb8c2ff,
+      fouine: 0xc8e6a0,
+      petit: 0xffb3d1,
     };
     const couleur = COULEURS_PANNEAU[id];
     forme(bandeau, contourRect(-40, 470, LARGEUR + 80, 340, 30, 31, 3), {
@@ -3311,6 +3338,185 @@ export class PartieScene extends Phaser.Scene {
     if (id === 'sonnerie') this.secousse(0.01, 700);
     fond.on('pointerup', finir);
     this.time.delayedCall(1100, finir);
+  }
+
+  /**
+   * Vidéo du pouvoir, si le skin actif en a une (pour l'instant : le Contagieux). Elle couvre
+   * l'écran, le titre du panneau s'affiche par-dessus après l'éternuement, et toucher la passe.
+   * Si la vidéo ne démarre pas (réseau, navigateur), on retombe sur le panneau habituel.
+   * Renvoie `false` quand il n'y a pas de vidéo à jouer.
+   */
+  private cinematiqueVideo(cin: Cinematique): boolean {
+    const ROLE_DU_POUVOIR: Partial<Record<CinematiqueId, RoleId>> = {
+      infirmerie: 'contagieux',
+      grandsFreres: 'chouchou',
+      delegue: 'delegue',
+      fouine: 'fouine',
+      petit: 'petit',
+    };
+    const skin = skinActif();
+    const gouter = cin.id === 'gouter';
+    const role = cin.id === 'cpe' ? cin.pouvoir : ROLE_DU_POUVOIR[cin.id];
+    const creme = gouter
+      ? skin.videoGouter?.(this.cour.regions.findIndex((r) => r.id === cin.region))
+      : undefined;
+    const url = gouter
+      ? creme?.url
+      : role
+        ? skin.videoPouvoir?.(cin.bande ?? 'rouge', role)
+        : undefined;
+    if (!url) return false;
+
+    // Les goûters sont filmés en carré : on les montre entiers dans une case de manga, sur un
+    // fond manga animé à la couleur de la bande (DV.3).
+    const yVideo = creme ? HAUTEUR / 2 - 90 : HAUTEUR / 2;
+    const fond = this.add
+      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 1)
+      .setOrigin(0, 0)
+      .setInteractive();
+    const video = this.add.video(0, 0);
+    const COTE_CASE = 600;
+    const decor: Phaser.GameObjects.GameObject[] = [];
+    let laCase: Phaser.GameObjects.Container | undefined;
+    if (creme) {
+      decor.push(
+        fondManga(
+          this,
+          { x: GAUCHE, y: HAUT, w: DROITE - GAUCHE, h: BAS - HAUT },
+          { x: LARGEUR / 2, y: yVideo },
+          equipeDe(cin.bande ?? 'rouge').couleur,
+        ),
+      );
+      laCase = this.add
+        .container(LARGEUR / 2, yVideo, [video, cadreManga(this, 0, 0, COTE_CASE)])
+        .setAngle(-3);
+      decor.push(laCase);
+    } else {
+      video.setPosition(LARGEUR / 2, yVideo);
+      decor.push(video);
+    }
+    const T = TEXTES.cinematiques;
+    const C =
+      cin.id === 'gouter'
+        ? T.gouter(
+            cin.bande ?? 'rouge',
+            nomGouter(this.cour, cin.region ?? ''),
+            cin.bonsPoints ?? 1,
+          )
+        : T[cin.id];
+    const style = { fontFamily: POLICE, color: COULEURS.texteClair, align: 'center' };
+    const titre = this.add
+      .text(LARGEUR / 2, 1010, C.titre, {
+        ...style,
+        fontSize: '64px',
+        fontStyle: '700',
+        stroke: '#1d1a16',
+        strokeThickness: 10,
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
+    const sous = this.add
+      .text(LARGEUR / 2, 1090, C.sous, {
+        ...style,
+        fontSize: '30px',
+        fontStyle: '600',
+        stroke: '#1d1a16',
+        strokeThickness: 7,
+        wordWrap: { width: LARGEUR - 80 },
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
+    const passer = this.add
+      .text(LARGEUR / 2, 1190, TEXTES.cinematiques.passer, {
+        ...style,
+        fontSize: '18px',
+        stroke: '#1d1a16',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setAlpha(0.7);
+    const tout = this.add
+      .container(0, 0, [fond, ...decor, titre, sous, passer])
+      .setDepth(1000)
+      .setAlpha(0);
+    this.cinematiqueEnCours = tout;
+
+    let fini = false;
+    let demarree = false;
+    const finir = (repli = false): void => {
+      if (fini) return;
+      fini = true;
+      this.tweenCinematique({
+        targets: tout,
+        alpha: 0,
+        duration: repli ? 0 : 260,
+        onComplete: () => {
+          video.stop();
+          tout.destroy();
+          // La vidéo n'a pas pu démarrer : le panneau prend le relais.
+          if (repli) this.cinematiques.unshift({ ...cin, sansVideo: true });
+          this.cinematiqueSuivante();
+        },
+      });
+    };
+    const demarrer = (): void => {
+      if (demarree || fini) return;
+      demarree = true;
+      // La vidéo couvre tout l'écran, quelle que soit sa forme, sans être déformée.
+      const w = video.width || LARGEUR;
+      const h = video.height || HAUTEUR;
+      video.setScale(laCase ? COTE_CASE / w : Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
+      // La case du goûter arrive d'un coup, en se penchant, comme une case de manga.
+      if (laCase)
+        this.tweenCinematique({
+          targets: laCase,
+          scale: { from: 1.35, to: 1 },
+          angle: { from: 6, to: -3 },
+          duration: 320,
+          ease: 'Back.easeOut',
+        });
+      this.tweenCinematique({ targets: tout, alpha: 1, duration: 160 });
+      // Le titre arrive avec l'éternuement, vers la fin : on suit l'horloge de la vidéo, pas
+      // celle du jeu, pour rester calé même si le téléphone rame.
+      const duree = Math.max(1, video.getDuration() || 4);
+      const guetter = (): void => {
+        if (fini || video.getCurrentTime() < duree - 0.9) return;
+        this.events.off(Phaser.Scenes.Events.UPDATE, guetter);
+        this.tweenCinematique({ targets: [titre, sous], alpha: 1, duration: 160 });
+        this.tweenCinematique({
+          targets: titre,
+          scale: { from: 1.6, to: 1 },
+          duration: 260,
+          ease: 'Back.easeOut',
+        });
+      };
+      this.events.on(Phaser.Scenes.Events.UPDATE, guetter);
+      tout.once(Phaser.GameObjects.Events.DESTROY, () =>
+        this.events.off(Phaser.Scenes.Events.UPDATE, guetter),
+      );
+      // Filet de sécurité si la fin de la vidéo n'est jamais annoncée.
+      this.time.delayedCall(duree * 1000 + 2000, () => finir());
+    };
+
+    // Première image prête : on montre la vidéo.
+    video.on(Phaser.GameObjects.Events.VIDEO_PLAY, demarrer);
+    video.on(Phaser.GameObjects.Events.VIDEO_COMPLETE, () => {
+      if (!fini) this.time.delayedCall(700, () => finir());
+    });
+    video.on(Phaser.GameObjects.Events.VIDEO_ERROR, () => finir(!demarree));
+    // Le navigateur refuse le son sans geste récent : on rejoue la vidéo en muet.
+    video.on(Phaser.GameObjects.Events.VIDEO_LOCKED, () => {
+      video.setMute(true);
+      video.play();
+    });
+    fond.on('pointerup', () => finir());
+    // Rien après 2,5 s (réseau lent) : on montre le panneau plutôt que de faire attendre.
+    this.time.delayedCall(2500, () => {
+      if (!demarree) finir(true);
+    });
+    video.loadURL(url, !lireSons());
+    video.play();
+    return true;
   }
 
   /** Emplacement de l'animation de chaque cinématique : pictogramme provisoire. */
