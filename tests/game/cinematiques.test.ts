@@ -56,7 +56,27 @@ describe('Cinématiques', () => {
         { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'a', role: 'rapporteuse', cible: 'P' },
         { type: 'cpe', tour: 1, bande: 'bleu', eleveId: 'c', role: 'grand', ilot: 'P' },
       ]),
-    ).toEqual([{ id: 'cpe', pouvoir: 'rapporteuse' }]);
+    ).toEqual([{ id: 'cpe', pouvoir: 'rapporteuse', bande: 'rouge' }]);
+  });
+
+  it('chaque vidéo de pouvoir montre l’élève de la bande qui vient de jouer', () => {
+    const pose = (role: 'chouchou' | 'petit' | 'delegue'): Evenement => ({
+      type: 'pose',
+      tour: 1,
+      bande: 'bleu',
+      eleveId: 'a',
+      role,
+      cible: 'P',
+      ...(role === 'petit' ? { plaque: 'grand' as const } : {}),
+    });
+    expect(brut([pose('chouchou')], true)).toEqual([{ id: 'grandsFreres', bande: 'bleu' }]);
+    expect(brut([pose('petit')])).toEqual([{ id: 'petit', bande: 'bleu' }]);
+    expect(
+      brut([
+        pose('delegue'),
+        { type: 'surveillante', tour: 1, position: 2, pas: 1, parDelegue: true },
+      ]),
+    ).toEqual([{ id: 'delegue', bande: 'bleu' }]);
   });
 
   it('pas de sonnerie pour une victoire par la cabane', () => {
@@ -109,7 +129,7 @@ describe('Cinématiques', () => {
         { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'a', role: 'rapporteuse', cible: 'L' },
         { type: 'cpe', tour: 1, bande: 'bleu', eleveId: 'c', role: 'grand', ilot: 'Q' },
       ]),
-    ).toEqual([{ id: 'cpe', pouvoir: 'rapporteuse' }]);
+    ).toEqual([{ id: 'cpe', pouvoir: 'rapporteuse', bande: 'rouge' }]);
     expect(
       cinematiquesPour([
         { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'a', role: 'chouchou', cible: 'P' },

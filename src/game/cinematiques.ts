@@ -44,7 +44,13 @@ export function cinematiquesPour(
 ): Cinematique[] {
   const liste: Cinematique[] = [];
   const victoire = nouveaux.some((ev) => ev.type === 'fin' && ev.raison !== 'sonnerie');
-  if (grandsFreres) liste.push({ id: 'grandsFreres' });
+  // La bande qui vient de jouer : c'est son élève qui apparaît dans la vidéo du pouvoir (DV.6).
+  const premiere = nouveaux.find((ev) => ev.type === 'pose');
+  if (grandsFreres)
+    liste.push({
+      id: 'grandsFreres',
+      ...(premiere?.type === 'pose' ? { bande: premiere.bande } : {}),
+    });
   // Le dernier élève posé : son pouvoir explique ce qui suit (Rapporteuse → CPE). Quand le
   // pouvoir s'applique tout seul (DF.40), la pose et ses effets arrivent dans le même coup.
   let pose: Evenement | undefined;
@@ -53,18 +59,21 @@ export function cinematiquesPour(
     if (ev.type === 'pose') {
       // 2e élève du Chouchou posé tout seul (un seul possible) : même panneau qu'à la main.
       if (!grandsFreres && pose?.type === 'pose' && pose.role === 'chouchou') {
-        liste.push({ id: 'grandsFreres' });
+        liste.push({ id: 'grandsFreres', bande: pose.bande });
       }
       pose = ev;
     }
-    if (ev.type === 'pose' && ev.role === 'petit' && ev.plaque) liste.push({ id: 'petit' });
-    else if (ev.type === 'pose' && ev.role === 'fouine' && fouineLoin) liste.push({ id: 'fouine' });
+    const auteur = pose?.type === 'pose' ? { bande: pose.bande } : {};
+    if (ev.type === 'pose' && ev.role === 'petit' && ev.plaque)
+      liste.push({ id: 'petit', bande: ev.bande });
+    else if (ev.type === 'pose' && ev.role === 'fouine' && fouineLoin)
+      liste.push({ id: 'fouine', bande: ev.bande });
     else if (ev.type === 'cpe')
-      liste.push(parRapporteuse ? { id: 'cpe', pouvoir: 'rapporteuse' } : { id: 'cpe' });
+      liste.push(parRapporteuse ? { id: 'cpe', pouvoir: 'rapporteuse', ...auteur } : { id: 'cpe' });
     else if (ev.type === 'infirmerie')
       liste.push({ id: 'infirmerie', bande: adversaire(ev.bande) });
     else if (ev.type === 'glissade') liste.push({ id: 'toboggan' });
-    else if (ev.type === 'surveillante' && ev.parDelegue) liste.push({ id: 'delegue' });
+    else if (ev.type === 'surveillante' && ev.parDelegue) liste.push({ id: 'delegue', ...auteur });
     else if (ev.type === 'region' && !victoire) {
       liste.push({ id: 'gouter', region: ev.region, bande: ev.bande, bonsPoints: ev.bonsPoints });
     } else if (ev.type === 'fin' && ev.raison === 'sonnerie') liste.push({ id: 'sonnerie' });
