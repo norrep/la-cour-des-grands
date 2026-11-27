@@ -26,7 +26,8 @@ export class Controleur {
     readonly cour: Cour,
     readonly options: OptionsPartie,
   ) {
-    this.etat = creerPartie(cour, options);
+    // À l'écran, un pouvoir sans vrai choix s'applique tout seul (DF.40).
+    this.etat = creerPartie(cour, { pouvoirsAuto: true, ...options });
   }
 
   /** Joue une action. Renvoie `false` si elle est illégale (l'état ne change pas). */

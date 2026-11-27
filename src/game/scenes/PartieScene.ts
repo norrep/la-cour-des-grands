@@ -2740,8 +2740,18 @@ export class PartieScene extends Phaser.Scene {
         : { x: LARGEUR / 2, y: 500 };
     for (const { ev, debut } of plan) {
       const jouer = (): void => this.animerEvenement(ev, origine);
-      if (debut === 0 || !this.animations) jouer();
-      else this.time.delayedCall(debut, jouer);
+      if (debut === 0 || !this.animations) {
+        jouer();
+        continue;
+      }
+      // Un 2e élève posé plus tard dans le coup (Chouchou appliqué tout seul) reste caché
+      // jusqu'à son arrivée.
+      const badge = ev.type === 'pose' ? this.badges.get(ev.cible) : undefined;
+      badge?.setAlpha(0);
+      this.time.delayedCall(debut, () => {
+        badge?.setAlpha(1);
+        jouer();
+      });
     }
     if (!this.animations) return;
     const suite = cinematiquesPour(nouveaux, grandsFreres, fouineLoin);
