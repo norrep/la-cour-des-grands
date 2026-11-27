@@ -60,7 +60,7 @@ import { ecrireConseils, lireSons } from '../preferences';
 import { activerSons, jouerSon, type SonId } from '../sons';
 import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
-import { DECOR, ILLUSTRATIONS, JOSIANE } from './ChargementScene';
+import { cleGouter, DECOR, ILLUSTRATIONS, JOSIANE, PLATEAU } from './ChargementScene';
 import { cadrer, decorPlein } from '../ui/ecran';
 import { animerMarionnette, Marionnette } from '../ui/marionnette';
 import { RIG_JOSIANE } from '../skins/cartoon/rig';
@@ -72,7 +72,8 @@ const TAILLE_BADGE = 70;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
 const DIAMETRE_PASTILLE = 92;
 const RAYON_DEPOT = 75;
-const Y_ACTIONS = 1052 + DESCENTE;
+const Y_ACTIONS = 1064 + DESCENTE;
+
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
 const DUREE_FIN_DE_TOUR = 900;
 /** Annonce d'une arrivée : l'élève se ramasse en l'air avant de tomber (ms). */
@@ -397,7 +398,15 @@ export class PartieScene extends Phaser.Scene {
       const p = this.pos(id);
       const n = this.cour.noeuds[id];
       const special = e.equipements && n?.equipement;
+      const pieceIlot = special ? PLATEAU.ilotSpecial : PLATEAU.ilot;
+      if (this.textures.exists(pieceIlot)) {
+        // Îlot illustré (phase 2) : une touffe d'herbe, jaune à étoile pour un îlot spécial.
+        const im = this.add.image(p.x, p.y + 6, pieceIlot);
+        im.setScale((RAYON_ILOT * 2.4) / 512);
+        this.ajouter(im);
+      }
       const gi = this.ajouter(this.add.graphics());
+      if (this.textures.exists(pieceIlot)) gi.setVisible(false);
       forme(gi, contourRond(p.x, p.y, RAYON_ILOT, graineDe(p.x, p.y)), {
         remplissage: special ? COULEURS.ilotSpecial : COULEURS.ilot,
         ombre: 8,
@@ -558,6 +567,14 @@ export class PartieScene extends Phaser.Scene {
 
   private dessinerCabane(id: string, bande: Bande): void {
     const p = this.pos(id);
+    const piece = bande === 'rouge' ? PLATEAU.cabaneRouge : PLATEAU.cabaneBleue;
+    if (this.textures.exists(piece)) {
+      const im = this.add.image(p.x, p.y - 8, piece);
+      im.setScale(136 / 512);
+      this.ajouter(im);
+      // La forme de la bande est dans la fenêtre : ronde chez les rouges, carrée chez les bleus.
+      return;
+    }
     const g = this.ajouter(this.add.graphics());
     const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
     const graine = graineDe(p.x, p.y);
@@ -644,6 +661,10 @@ export class PartieScene extends Phaser.Scene {
       ),
     );
     const g = this.add.graphics();
+    if (this.textures.exists(PLATEAU.portail)) {
+      c.add(this.add.image(-28, 6, PLATEAU.portail).setScale(78 / 512));
+      g.setVisible(false);
+    }
     // Grille du portail : deux piliers et des barreaux.
     g.fillStyle(0xbfb3a0, 1);
     g.lineStyle(3, COULEURS.encre, 1);
@@ -707,6 +728,10 @@ export class PartieScene extends Phaser.Scene {
       ),
     );
     const g = this.add.graphics();
+    if (this.textures.exists(PLATEAU.cpe)) {
+      c.add(this.add.image(-36, 4, PLATEAU.cpe).setScale(74 / 512));
+      g.setVisible(false);
+    }
     // Porte vitrée du bureau.
     forme(g, contourRect(-54, -18, 34, 52, 4, graineDe(bande.length, 3), 0.5), {
       remplissage: 0x8a5a3b,
@@ -891,7 +916,17 @@ export class PartieScene extends Phaser.Scene {
       }
     }
     g.setAlpha(prise ? 0.8 : 1);
-    this.dessinerFriandise(g, index, x, y);
+    const illu = cleGouter(index);
+    if (this.textures.exists(illu)) {
+      this.ajouter(
+        this.add
+          .image(x, y, illu)
+          .setScale(64 / 512)
+          .setAlpha(prise ? 0.85 : 1),
+      );
+    } else {
+      this.dessinerFriandise(g, index, x, y);
+    }
     const t = this.texte(x - 26, y - 24, `+${points}`, 17, COULEURS.texteSombre, {
       fontStyle: '700',
     }).setOrigin(0.5);
@@ -1544,16 +1579,7 @@ export class PartieScene extends Phaser.Scene {
     const e = this.etat;
     const j = e.joueurs[bande];
     // Le couloir et la CPE sont dessinés autour de la cour (portail, bureau) : plus de compteurs ici.
-    if (j.rang.length > 0 && interactif) {
-      this.texte(
-        LARGEUR - 30,
-        RANG.y - RANG.hauteurCarte / 2 - 28,
-        aide(TEXTES.hud.toucherCarte, FUN.hud.toucherCarte, this.etat.tour),
-        16,
-        COULEURS.texteSombre,
-        { fontStyle: '600', stroke: '#fff6e4', strokeThickness: 5 },
-      ).setOrigin(1, 0);
-    }
+    // Plus de « Touche un élève » au-dessus du rang (DF.24) : le tuto l'expliquera.
     if (j.rang.length === 0 && interactif) {
       this.texte(
         LARGEUR / 2,
@@ -2892,6 +2918,10 @@ export class PartieScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0.8);
     const scene = this.add.container(-LARGEUR, 0, [bandeau, picto, titre, sous]);
+    const gouter = picto.getData('gouter') as number | undefined;
+    if (gouter !== undefined) {
+      scene.add(this.add.image(picto.x, picto.y, cleGouter(gouter)).setScale(170 / 512));
+    }
     const tout = this.add.container(0, 0, [fond, scene, passer]).setDepth(1000);
     this.cinematiqueEnCours = tout;
 
@@ -2969,7 +2999,8 @@ export class PartieScene extends Phaser.Scene {
           this.cour.regions.findIndex((r) => r.id === cin?.region),
         );
         g.setScale(2.6);
-        this.dessinerFriandise(g, i, 0, 0);
+        if (this.textures.exists(cleGouter(i))) g.setData('gouter', i);
+        else this.dessinerFriandise(g, i, 0, 0);
         break;
       }
       case 'toboggan':

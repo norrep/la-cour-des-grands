@@ -9,6 +9,26 @@ import { avecVersion } from '../../version';
 export const DECOR = 'decor-cour';
 /** Mme Josiane, la surveillante, et les illustrations des îlots spéciaux (par équipement). */
 export const JOSIANE = 'decor-josiane';
+/** Pièces illustrées du plateau (phase 2) : sans elles, le plateau est dessiné en code. */
+export const PLATEAU = {
+  ilot: 'plateau-ilot',
+  ilotSpecial: 'plateau-ilot-special',
+  cabaneRouge: 'plateau-cabane-rouge',
+  cabaneBleue: 'plateau-cabane-bleue',
+  portail: 'plateau-portail',
+  cpe: 'plateau-cpe',
+} as const;
+/** Goûters illustrés (DF.21), dans l'ordre des régions de la cour : chocolat, biscuits, bonbon, sucette. */
+export const GOUTERS = [
+  'gouter-chocolat',
+  'gouter-biscuits',
+  'gouter-bonbon',
+  'gouter-sucette',
+] as const;
+/** Clé de l'image du goûter de la région n° `i`. */
+export function cleGouter(i: number): string {
+  return GOUTERS[i % GOUTERS.length] ?? GOUTERS[0];
+}
 export const ILLUSTRATIONS: Partial<Record<string, string>> = { banc: 'decor-banc' };
 
 /** La police ronde du jeu doit être prête avant d'écrire quoi que ce soit (2 s au plus). */
@@ -30,6 +50,18 @@ export class ChargementScene extends Phaser.Scene {
   preload(): void {
     this.load.image(DECOR, avecVersion('decor/cour.jpg'));
     this.load.image(JOSIANE, avecVersion('skins/dodu/josiane.png'));
+    const fichiers: Record<keyof typeof PLATEAU, string> = {
+      ilot: 'ilot',
+      ilotSpecial: 'ilot-special',
+      cabaneRouge: 'cabane-rouge',
+      cabaneBleue: 'cabane-bleue',
+      portail: 'portail',
+      cpe: 'cpe',
+    };
+    for (const [piece, cle] of Object.entries(PLATEAU)) {
+      this.load.image(cle, avecVersion(`plateau/${fichiers[piece as keyof typeof PLATEAU]}.png`));
+    }
+    for (const cle of GOUTERS) this.load.image(cle, avecVersion(`gouters/${cle.slice(7)}.png`));
     for (const [equipement, cle] of Object.entries(ILLUSTRATIONS)) {
       if (cle) this.load.image(cle, avecVersion(`decor/${equipement}.png`));
     }
