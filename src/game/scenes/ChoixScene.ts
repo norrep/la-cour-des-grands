@@ -1,7 +1,14 @@
 import Phaser from 'phaser';
 import { TEXTES } from '../../data/textes';
 import { CARTES, ORDRE_CARTES, type CarteId } from '../../data/cartes';
-import { choisirEquipes, EQUIPES, ORDRE_EQUIPES, type EquipeId } from '../../data/equipes';
+import {
+  choisirEquipes,
+  EQUIPES,
+  ORDRE_EQUIPES,
+  TENUES,
+  tenuesPour,
+  type EquipeId,
+} from '../../data/equipes';
 import type { Bande } from '../../engine/index';
 import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
 import { preparerCarte } from '../cartes';
@@ -18,7 +25,8 @@ const VIGNETTE = (id: CarteId): string => `vignette-${id}`;
 
 /**
  * Avant la partie (DB.5) : on choisit la carte, puis la bande. Contre l'ordi, le joueur choisit
- * la sienne et l'ordi en prend une autre ; à deux, le joueur du bas choisit, puis celui du haut.
+ * la sienne et l'ordi tire la sienne ; à deux, le joueur du bas choisit, puis celui du haut.
+ * Les deux camps peuvent avoir la même bande (DE.1).
  */
 export class ChoixScene extends Phaser.Scene {
   private donnees!: DonneesPartie;
@@ -183,7 +191,11 @@ export class ChoixScene extends Phaser.Scene {
     this.retour(c, () => this.scene.start('accueil'));
   }
 
-  /** Étape 2 : les quatre bandes en 2 × 2, chacune montrée par son Grand et son Petit. */
+  /**
+   * Étape 2 : les bandes l'une sous l'autre, chacune montrée par son Grand et son Petit, dans sa
+   * seule couleur (DE.1). Deux camps peuvent prendre la même bande : celui du haut joue alors dans
+   * la seconde tenue de la bande, jamais montrée ici.
+   */
   private montrerEquipes(): void {
     const c = this.vider();
     const solo = this.donnees.ordi !== undefined;
@@ -193,39 +205,32 @@ export class ChoixScene extends Phaser.Scene {
         ? TEXTES.choixPartie.titreBas
         : TEXTES.choixPartie.titreHaut;
     this.titre(c, titre);
-    const l = 300;
-    const h = 380;
+    const l = 600;
+    const h = 262;
     ORDRE_EQUIPES.forEach((id, i) => {
-      const x = LARGEUR / 2 + (i % 2 === 0 ? -1 : 1) * (l / 2 + 10);
-      const y = 440 + Math.floor(i / 2) * (h + 24);
-      const prise = id === this.bas;
+      const y = 372 + i * (h + 26);
       const equipe = EQUIPES[id];
-      // Les élèves sont dessinés avec la bande `rouge` habillée aux couleurs de cette équipe.
-      choisirEquipes({ rouge: id, bleu: id === 'bleus' ? 'rouges' : 'bleus' });
+      // Les élèves sont dessinés avec le camp `rouge`, qui porte la tenue de l'équipe.
+      choisirEquipes({ rouge: id, bleu: id });
+      const tenue = TENUES[equipe.tenue];
       const skin = skinActif();
-      const grand = skin.eleve(this, 'rouge', 'grand', 74).setPosition(-62, -10);
-      const petit = skin.eleve(this, 'rouge', 'petit', 74).setPosition(66, 10);
+      const grand = skin.eleve(this, 'rouge', 'grand', 74).setPosition(-196, 4);
+      const petit = skin.eleve(this, 'rouge', 'petit', 74).setPosition(-72, 24);
       // Une ombre sous les pieds de chacun (le Grand et le Petit n'ont pas les pieds au même niveau).
       const sol = this.add.graphics();
       sol.fillStyle(COULEURS.encre, 0.18);
-      for (const [el, l] of [
+      for (const [el, lo] of [
         [grand, 100],
         [petit, 90],
       ] as const) {
-        const b = el.getBounds();
-        sol.fillEllipse(el.x, b.bottom - 4, l, 18);
+        const bord = el.getBounds();
+        sol.fillEllipse(el.x, bord.bottom - 4, lo, 18);
       }
-      const nom = this.texte(0, 154, prise ? TEXTES.choixPartie.pris : equipe.nom, 28, l - 20);
-      this.carteTouchable(
-        c,
-        x,
-        y,
-        l,
-        h,
-        [sol, grand, petit, nom],
-        prise ? null : () => this.choisir(id),
-        equipe.clair,
-      );
+      const contenu: Phaser.GameObjects.GameObject[] = [sol, grand, petit];
+      const prise = id === this.bas;
+      contenu.push(this.texte(140, prise ? -18 : 0, equipe.nom, 30, 270));
+      if (prise) contenu.push(this.texte(140, 34, TEXTES.choixPartie.pris, 20, 270));
+      this.carteTouchable(c, LARGEUR / 2, y, l, h, contenu, () => this.choisir(id), tenue.clair);
     });
     this.retour(c, () => {
       if (this.bas !== null && !solo) {
@@ -246,21 +251,20 @@ export class ChoixScene extends Phaser.Scene {
       return;
     }
     const bas = solo ? id : (this.bas as EquipeId);
-    const haut = solo ? this.equipeOrdi(id) : id;
+    const haut = solo ? this.equipeOrdi() : id;
     void this.lancer({ rouge: bas, bleu: haut });
   }
 
-  /** L'ordi prend une autre bande, au hasard de la graine. */
-  private equipeOrdi(joueur: EquipeId): EquipeId {
-    const autres = ORDRE_EQUIPES.filter((e) => e !== joueur);
-    return autres[Math.abs(this.donnees.graine) % autres.length] ?? 'bleus';
+  /** L'ordi tire sa bande au hasard de la graine, la même que le joueur comprise (miroir). */
+  private equipeOrdi(): EquipeId {
+    return ORDRE_EQUIPES[Math.abs(this.donnees.graine) % ORDRE_EQUIPES.length] ?? 'ecoliers';
   }
 
   private async lancer(equipes: Record<Bande, EquipeId>): Promise<void> {
     const c = this.vider();
     c.add(this.texte(LARGEUR / 2, HAUTEUR / 2, TEXTES.choixPartie.chargement, 32, 600));
     await Promise.all([
-      preparerEquipes(this, [equipes.rouge, equipes.bleu]).catch(() => undefined),
+      preparerEquipes(this, Object.values(tenuesPour(equipes))).catch(() => undefined),
       preparerCarte(this, this.carte),
     ]);
     const donnees: DonneesPartie = { ...this.donnees, carte: this.carte, equipes };

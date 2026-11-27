@@ -255,3 +255,14 @@ Clément : « Lorsqu'un pouvoir ne demande pas de choix à l'utilisateur, appliq
 - **Le Délégué demande toujours** : garder son mot d'excuse reste un vrai choix (« Passer », DF.8). Ambiguïté à confirmer par Clément s'il le veut automatique aussi.
 - Interprétation pour la Chouchou : s'il y a plusieurs élèves ou plusieurs îlots possibles, le choix reste à faire au doigt (c'est un vrai choix).
 - Réglage du moteur `pouvoirsAuto`, activé par le jeu (`Controleur`) ; les tests de règles et l'arène gardent la règle stricte (pouvoir facultatif). L'ordi joue avec le même réglage que l'écran.
+
+## DE.1 — Une équipe, une couleur ; la seconde ne sert qu'en miroir (27/11)
+
+Clément, sur l'écran « Choisis ta bande » : « Chaque équipe devrait avoir une seule couleur et une seconde non affichée si jamais deux équipes identiques s'affrontent. » Les Rouges et les Bleus étaient en fait les mêmes élèves, dessinés en deux couleurs : l'écran montrait une même équipe deux fois.
+
+- On choisit maintenant parmi **trois équipes** : **Les Écoliers** (rouge), **Les Vers de terre** (jaune moutarde), **Les Aliens** (violet). Chacune n'est montrée que dans sa couleur. Le nom « Les Écoliers » est une proposition, à changer si Clément préfère autre chose.
+- Chaque équipe a une **seconde tenue cachée** : Écoliers bleus, Vers turquoise, Aliens orange. Elle ne sert que si les deux camps prennent la même équipe : le camp du haut l'enfile (`tenuesPour`, `data/equipes.ts`). Le modèle sépare l'équipe (ce qu'on choisit) de la tenue (couleur + dessins à l'écran).
+- À deux, le joueur 2 peut prendre la même équipe que le joueur 1 (la carte dit « Aussi celle du joueur 1 » au lieu de « Déjà prise »). Contre l'ordi, l'ordi tire son équipe parmi les trois, la même comprise.
+- Tenues miroir des Vers et des Aliens : seule la chasuble est recolorée, en local, sans génération (`scripts/tenue-miroir.py`, images `vers2-*`, `aliens2-*`) ; les marionnettes reprennent les attaches de la tenue d'origine. Les Écoliers bleus gardent leurs dessins et leurs vidéos de pouvoir existants.
+- En jeu, les Écoliers restent « bande rouge » / « bande bleue » dans le journal (court et clair), « Écoliers » au score. Accueil et partie par défaut : Écoliers contre Écoliers (donc rouges contre bleus, comme avant).
+- Les cartes du rang prennent le fond clair de la tenue (avant : rose ou bleu selon le camp).

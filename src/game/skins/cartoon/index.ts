@@ -17,7 +17,7 @@ import { animerVer, Ver } from '../../ui/ver';
 import type { Acteur, P, RenduPantin, Skin, TextureSkin } from '../types';
 import { RIGS } from './rig';
 import { RIGS_EQUIPES } from './rigEquipes';
-import { EQUIPES, type EquipeId } from '../../../data/equipes';
+import { TENUES, type TenueId } from '../../../data/equipes';
 
 /** Hauteur de l'élève le plus grand, en multiples de `taille`. */
 const HAUTEUR_REF = 2.5;
@@ -43,23 +43,26 @@ const estVer = (bande: Bande) => equipeDe(bande).sansBras === true;
 const cleCorps = (bande: Bande, role: RoleId) => `${cle(bande, role)}-corps`;
 
 function rig(bande: Bande, role: RoleId): Rig {
-  const r = RIGS[nom(bande, role)] ?? RIGS_EQUIPES[nom(bande, role)];
-  if (!r) throw new Error(`Élève sans marionnette : ${nom(bande, role)}`);
+  // Une tenue miroir reprend les attaches de la tenue dont elle est recolorée (DE.1).
+  const t = equipeDe(bande);
+  const n = `${t.rig ?? t.prefixe}-${role}`;
+  const r = RIGS[n] ?? RIGS_EQUIPES[n];
+  if (!r) throw new Error(`Élève sans marionnette : ${n}`);
   return r;
 }
 
 /** Les images des élèves d'une équipe. */
-export function texturesEquipe(equipe: EquipeId): TextureSkin[] {
-  const prefixe = EQUIPES[equipe].prefixe;
+export function texturesEquipe(tenue: TenueId): TextureSkin[] {
+  const prefixe = TENUES[tenue].prefixe;
   // Un ver n'a que son corps entier ; les autres, leur planche de pièces.
-  const suffixe = EQUIPES[equipe].sansBras ? '-corps' : '';
+  const suffixe = TENUES[tenue].sansBras ? '-corps' : '';
   return ROLES.map(({ id }) => ({
     cle: `dodu-${prefixe}-${id}${suffixe}`,
     url: `skins/dodu/${prefixe}-${id}${suffixe}.png`,
   }));
 }
 
-/** Au chargement, les Rouges et les Bleus ; les autres équipes sont chargées une fois choisies. */
+/** Au chargement, les Écoliers (rouges, et bleus pour le miroir) ; les autres équipes sont chargées une fois choisies. */
 function textures(): TextureSkin[] {
   return [...texturesEquipe('rouges'), ...texturesEquipe('bleus')];
 }
@@ -105,7 +108,7 @@ function masqueQuiSuit(
  * Le Contagieux n'a qu'une version (ancien style), pour les Rouges.
  */
 const ROLES_VIDEO: readonly RoleId[] = ['chouchou', 'rapporteuse', 'fouine', 'delegue', 'petit'];
-const VIDEOS: Partial<Record<EquipeId, Partial<Record<RoleId, string>>>> = {
+const VIDEOS: Partial<Record<TenueId, Partial<Record<RoleId, string>>>> = {
   rouges: {
     contagieux: 'videos/cartoon/contagieux.mp4',
     ...Object.fromEntries(ROLES_VIDEO.map((r) => [r, `videos/cartoon/${r}-rouge.mp4`])),

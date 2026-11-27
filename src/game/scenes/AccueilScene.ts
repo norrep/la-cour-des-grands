@@ -32,7 +32,7 @@ export interface DonneesPartie {
   ordi?: Niveau;
   /** La carte jouée (la récré par défaut, DB.5). */
   carte?: CarteId;
-  /** L'équipe de chaque camp (DB.1) : les Rouges en bas, les Bleus en haut par défaut. */
+  /** L'équipe de chaque camp (DB.1, DE.1) : les Écoliers des deux côtés par défaut. */
   equipes?: Record<Bande, EquipeId>;
 }
 
@@ -54,8 +54,8 @@ export class AccueilScene extends Phaser.Scene {
   create(): void {
     cadrer(this);
     activerSons(lireSons());
-    // De retour à l'accueil : les Rouges et les Bleus, sur la cour de récré.
-    choisirEquipes({ rouge: 'rouges', bleu: 'bleus' });
+    // De retour à l'accueil : les Écoliers contre eux-mêmes (rouges et bleus), sur la récré.
+    choisirEquipes({ rouge: 'ecoliers', bleu: 'ecoliers' });
     choisirCarte('cour-premier-jour');
     this.cameras.main.setBackgroundColor(COULEURS.fond);
     const cx = LARGEUR / 2;
