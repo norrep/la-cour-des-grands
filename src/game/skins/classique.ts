@@ -15,6 +15,16 @@ export const SKIN_CLASSIQUE: Skin = {
   id: 'classique',
   textures: () => [],
   eleve: (scene, bande, role, taille) => creerBadge(scene, bande, role, taille),
+  // Un jeton n'a pas de membres : il saute et penche, c'est tout.
+  acteur(scene, bande, role, taille) {
+    const jeton = creerBadge(scene, bande, role, taille).setY(-taille / 2);
+    const objet = scene.add.container(0, 0, [jeton]);
+    return {
+      objet,
+      hauteur: taille,
+      poser: (p) => jeton.setY(-taille / 2 + p.saut * taille).setRotation(p.tronc),
+    };
+  },
   pantin(scene, eleve): RenduPantin {
     const g = scene.add.graphics();
     const maillot = creerBadge(scene, eleve.bande, eleve.role, 40);

@@ -12,7 +12,7 @@ import { ROLES, type Bande, type RoleId } from '../../../engine/index';
 import { COULEURS } from '../../config';
 import { creerBadge } from '../../ui/badge';
 import { animerMarionnette, Marionnette, type Rig } from '../../ui/marionnette';
-import type { P, RenduPantin, Skin, TextureSkin } from '../types';
+import type { Acteur, P, RenduPantin, Skin, TextureSkin } from '../types';
 import { RIGS } from './rig';
 
 /** Hauteur de l'élève le plus grand, en multiples de `taille`. */
@@ -101,6 +101,16 @@ export const SKIN_CARTOON: Skin = {
     const eleve = scene.add.container(0, 0, [m.racine, pastille]);
     animerMarionnette(scene, m, eleve, { caractere: role });
     return eleve;
+  },
+  acteur(scene, bande, role, taille): Acteur {
+    const m = new Marionnette(
+      scene,
+      cle(bande, role),
+      rig(bande, role),
+      (HAUTEUR_REF * taille) / PIXELS_REF,
+    );
+    const objet = scene.add.container(0, 0, [m.racine]);
+    return { objet, hauteur: m.hauteur, poser: (p) => m.poser(p) };
   },
   buste(scene, bande, role, largeur, hauteur) {
     const r = rig(bande, role);
