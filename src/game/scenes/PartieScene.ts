@@ -59,7 +59,7 @@ import { ecrireConseils, lireSons } from '../preferences';
 import { activerSons, jouerSon, type SonId } from '../sons';
 import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
-import { DECOR, ILLUSTRATIONS, JOSIANE } from './ChargementScene';
+import { DECOR, ILLUSTRATIONS, JOSIANE, PLATEAU } from './ChargementScene';
 import { cadrer, decorPlein } from '../ui/ecran';
 import { animerMarionnette, Marionnette } from '../ui/marionnette';
 import { RIG_JOSIANE } from '../skins/cartoon/rig';
@@ -340,7 +340,15 @@ export class PartieScene extends Phaser.Scene {
       const p = this.pos(id);
       const n = this.cour.noeuds[id];
       const special = e.equipements && n?.equipement;
+      const pieceIlot = special ? PLATEAU.ilotSpecial : PLATEAU.ilot;
+      if (this.textures.exists(pieceIlot)) {
+        // Îlot illustré (phase 2) : une touffe d'herbe, jaune à étoile pour un îlot spécial.
+        const im = this.add.image(p.x, p.y + 6, pieceIlot);
+        im.setScale((RAYON_ILOT * 2.4) / 512);
+        this.ajouter(im);
+      }
       const gi = this.ajouter(this.add.graphics());
+      if (this.textures.exists(pieceIlot)) gi.setVisible(false);
       forme(gi, contourRond(p.x, p.y, RAYON_ILOT, graineDe(p.x, p.y)), {
         remplissage: special ? COULEURS.ilotSpecial : COULEURS.ilot,
         ombre: 8,
@@ -501,6 +509,23 @@ export class PartieScene extends Phaser.Scene {
 
   private dessinerCabane(id: string, bande: Bande): void {
     const p = this.pos(id);
+    const piece = bande === 'rouge' ? PLATEAU.cabaneRouge : PLATEAU.cabaneBleue;
+    if (this.textures.exists(piece)) {
+      const im = this.add.image(p.x, p.y - 12, piece);
+      im.setScale(150 / 512);
+      this.ajouter(im);
+      // Badge de forme de la bande (rond ou carré), lisible sans les couleurs.
+      const g = this.ajouter(this.add.graphics());
+      const graine = graineDe(p.x, p.y);
+      forme(
+        g,
+        bande === 'rouge'
+          ? contourRond(p.x + 44, p.y + 26, 12, graine + 2)
+          : contourRect(p.x + 32, p.y + 14, 24, 24, 3, graine + 2, 0.5),
+        { remplissage: bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu, trait: 3 },
+      );
+      return;
+    }
     const g = this.ajouter(this.add.graphics());
     const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
     const graine = graineDe(p.x, p.y);
@@ -587,6 +612,10 @@ export class PartieScene extends Phaser.Scene {
       ),
     );
     const g = this.add.graphics();
+    if (this.textures.exists(PLATEAU.portail)) {
+      c.add(this.add.image(-26, 8, PLATEAU.portail).setScale(64 / 512));
+      g.setVisible(false);
+    }
     // Grille du portail : deux piliers et des barreaux.
     g.fillStyle(0xbfb3a0, 1);
     g.lineStyle(3, COULEURS.encre, 1);
@@ -650,6 +679,10 @@ export class PartieScene extends Phaser.Scene {
       ),
     );
     const g = this.add.graphics();
+    if (this.textures.exists(PLATEAU.cpe)) {
+      c.add(this.add.image(-36, 8, PLATEAU.cpe).setScale(58 / 512));
+      g.setVisible(false);
+    }
     // Porte vitrée du bureau.
     forme(g, contourRect(-54, -18, 34, 52, 4, graineDe(bande.length, 3), 0.5), {
       remplissage: 0x8a5a3b,
