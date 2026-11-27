@@ -249,7 +249,7 @@ export const TEXTES = {
     pouvoir:
       'Cet élève a un pouvoir en arrivant : touche sa cible sur la cour (elle clignote en jaune).',
     get surveillante(): string {
-      return `${surv.Role} garde un goûter (rond lilas) : personne ne peut le ramasser tant qu’${surv.il} est là. Après chaque tour complet, ${surv.il} passe au goûter suivant.`;
+      return `${surv.Role} garde un goûter (rond pointillé jaune et bleu) : personne ne peut le ramasser tant qu’${surv.il} est là. Après chaque tour complet, ${surv.il} passe au goûter suivant.`;
     },
     zones:
       'Les friandises +1 / +2 sont des goûters : occupe tous les îlots autour pour les ramasser. Touche une friandise pour voir lesquels.',
@@ -264,7 +264,7 @@ export const TEXTES = {
       return [
         `Rond = ${equipeDe('rouge').bande}, carré = ${equipeDe('bleu').bande}.`,
         'Petits badges à gauche d’un îlot = élèves plaqués dessous ; « ×3 » = hauteur de la pile.',
-        `Rond lilas autour d’un goûter = ${surv.role} le garde : personne ne le ramasse. ${surv.Il} change de goûter après chaque tour. Touche-${surv.il === 'il' ? 'le' : 'la'} pour le détail.`,
+        `Rond pointillé jaune et bleu autour d’un goûter = ${surv.role} le garde : personne ne le ramasse. ${surv.Il} change de goûter après chaque tour. Touche-${surv.il === 'il' ? 'le' : 'la'} pour le détail.`,
         'Trait épais de la couleur d’une bande = son chemin depuis sa cabane : elle pose autour.',
         'Friandises +1 / +2 = goûters : touche-les pour voir quels îlots occuper.',
       ];

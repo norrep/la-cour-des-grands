@@ -256,6 +256,36 @@ Clément : « Lorsqu'un pouvoir ne demande pas de choix à l'utilisateur, appliq
 - Interprétation pour la Chouchou : s'il y a plusieurs élèves ou plusieurs îlots possibles, le choix reste à faire au doigt (c'est un vrai choix).
 - Réglage du moteur `pouvoirsAuto`, activé par le jeu (`Controleur`) ; les tests de règles et l'arène gardent la règle stricte (pouvoir facultatif). L'ordi joue avec le même réglage que l'écran.
 
+## Surveillants lisibles et vivants (27/11)
+
+### DS.1 — Sur la cour, le surveillant est un médaillon
+
+En pied à la taille de la cour, le surveillant était petit et illisible (demande de Clément). Il
+devient un médaillon (`ui/surveillant.ts`) : sa tête et ses épaules dans une rosette festonnée
+jaune à cœur bleu nuit, deux rubans dessous et son nom sur une banderole. Tout l'oppose aux
+pastilles d'élèves (rondes ou carrées, fond clair de l'équipe, chiffre) : la forme, les rubans,
+le cœur foncé, l'absence de chiffre. Le goûter gardé a un rond pointillé jaune et bleu, aux mêmes
+couleurs (il était lilas, trop proche des Aliens).
+
+Le médaillon se pose au-dessus du goûter gardé, ou sur le côté ou dessous quand un îlot, une
+cabane ou un autre goûter gêne : la place est calculée une fois par goûter.
+
+Sans corps, la tête doit compenser (demande de Clément) : elle respire, dodeline, et enchaîne des
+tics propres à chacun (Josiane : scrute, note dans son cahier, boit son café, remonte ses
+lunettes, bâille ; Yvon : jumelles, frime, sifflote ; Babette : chante, compte ses scouts,
+jumelles). Elle réagit au jeu : coup de sifflet quand il change de goûter (il regarde où il va,
+puis hoche la tête à l'arrivée), colère (rouge, fumée, « Grrr ! ») quand un élève part chez la
+CPE, sursaut « ! » quand un goûter est ramassé, « Hé ! » à un plaquage. Les accessoires (sifflet,
+tasse, jumelles, notes, fumée, éclats) sont dessinés en code, en 2D cartoon (DF.39).
+
+### DS.2 — À la présentation de la carte, il est en pied
+
+Pendant la fiche de la carte, le surveillant entre en marchant par la gauche, s'arrête, siffle
+(« TUUUT ! »), montre la règle spéciale du bras, puis s'agite en attendant (montre encore,
+gronde du doigt, tape du pied, saute). La règle se pousse à droite pour lui laisser la place.
+Sur « C'est parti ! », il saute jusqu'à sa place sur la cour en rapetissant, et le médaillon
+apparaît d'un bond avec un coup de sifflet.
+
 ## Piscine v3 (27/11)
 
 Clément, sur la piscine fusionnée : « La piscine ne doit pas être carrée. Trouver autre chose qu'une maison en bout de course (un casier ?). Les casiers sur les côtés sont tristes, il faut apporter de la vie. »
