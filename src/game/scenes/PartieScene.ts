@@ -831,17 +831,21 @@ export class PartieScene extends Phaser.Scene {
         positionLieu(this.cour, bande, 'cpe'),
       ),
     );
-    const g = this.add.graphics();
-    // Le bonnet d'âne seul (DF.28) : plus lisible que le coin de mur à cette taille.
-    this.dessinerBonnetAne(g, -6, 4, 0.82);
-    c.addAt(g, 0);
+    // Le bonnet d'âne seul (DF.28) : illustré, ou à défaut dessiné en code.
+    if (this.textures.exists(PLATEAU.bonnet)) {
+      c.addAt(this.add.image(0, -6, PLATEAU.bonnet).setScale(82 / 512), 0);
+    } else {
+      const g = this.add.graphics();
+      this.dessinerBonnetAne(g, -6, 4, 0.82);
+      c.addAt(g, 0);
+    }
     // Les punis de dos, face au mur (les 3 derniers), et leur nombre.
     punis.slice(-3).forEach((el, k) => {
       const b = creerBadge(this, el.bande, el.role, 22);
-      b.setPosition(-46 + k * 6, 10 + k * 14);
+      b.setPosition(-56 + k * 6, 8 + k * 14);
       c.add(b);
     });
-    c.add(this.compteurLieu(40, 34, punis.length === 0 ? '0' : `×${punis.length}`, bande));
+    c.add(this.compteurLieu(48, 40, punis.length === 0 ? '0' : `×${punis.length}`, bande));
   }
 
   /** Centre d'une zone, légèrement décalé pour ne pas gêner les allées. */
@@ -3061,7 +3065,8 @@ export class PartieScene extends Phaser.Scene {
     g.lineStyle(5, COULEURS.encre, 1);
     switch (id) {
       case 'cpe': // Le coin (DF.27), ou à défaut la porte du bureau
-        this.dessinerBonnetAne(g, 0, -10, 1.9);
+        if (this.textures.exists(PLATEAU.bonnet)) g.setData('image', PLATEAU.bonnet);
+        else this.dessinerBonnetAne(g, 0, -10, 1.9);
         break;
         g.fillStyle(0x8a5a2b, 1);
         g.fillRoundedRect(-55, -90, 110, 180, 8);

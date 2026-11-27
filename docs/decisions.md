@@ -155,3 +155,5 @@ Le prompt de Clément fait foi ; le document de conception sert de complément.
 ## DF.28 — Le coin = un bonnet d'âne seul (27/11)
 
 Clément : « Et le bonnet d'âne tout seul ? ». L'illustration du coin de mur (DF.27) ne se lisait pas à la taille du lieu. Le coin est maintenant un bonnet d'âne dessiné en code (cône crème, bandeau bleu, pompon jaune, oreilles d'âne pour qu'on reconnaisse l'objet), avec les 3 derniers punis empilés à sa gauche et leur nombre. Même bonnet, en grand, dans la cinématique « Au coin ! ». `public/plateau/coin.png` est retiré.
+
+Mise à jour : Clément ne reconnaissait pas le bonnet dessiné en code (« On ne reconnaît pas le bonnet d'âne. Généré le ? »). Bonnet illustré généré (Higgsfield, 2 versions, 4 cr., `lot6/`), version B retenue par défaut (« ÂNE » à l'horizontale, plus lisible en petit) : `public/plateau/bonnet.png`, clé `PLATEAU.bonnet`. Le dessin en code reste en secours si l'image manque.
