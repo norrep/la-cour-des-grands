@@ -200,3 +200,9 @@ Proposition validée par Clément le 27/11 : doc « La Cour des Grands : cartes 
 - Piscine : la planche de pièces n'a pas de frite ; F1 devient « Le beignet » (la bouée rose). Les îlots du bord (douches, plongeoir, échelle, bord) tombent sur le bord du grand bain dans le décor : à revoir si ça gêne.
 - Sentiers à sens unique : trois chevrons jaunes au milieu du sentier, dans le sens où l'on passe. Courant : tourbillon de flèches et « GLOUGLOU ! » autour du grand bain.
 - Populaire alien refaite fine avec une grosse coiffure (la ronde détonnait à côté des autres).
+
+### DB.6 — Le tourbillon du courant ne reste plus à l'écran
+
+- Bug (capture Android de Clément, 27/11) : les flèches du courant restaient affichées par-dessus l'écran de fin. Le tourbillon était dessiné hors du calque du plateau ; quand l'écran se redessinait avant la fin de son animation (fin de tour, victoire), ses tweens étaient arrêtés et il n'était jamais détruit. Il pouvait donc aussi rester planté sur le grand bain pendant la partie.
+- Il est maintenant dans le calque du plateau (effacé à chaque redessin), et le coup compte sa durée (1 s) avant de passer à la suite.
+- Score de fin : le nom de l'équipe sans « Les » (« Goûters : Rouges 4, Vers de terre 1 ») au lieu de l'adjectif court (« ver 1, rouge 4 »).

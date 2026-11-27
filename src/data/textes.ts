@@ -321,7 +321,8 @@ export const TEXTES = {
     gagnantSolo: (ordi: boolean) => (ordi ? 'L’ordi' : 'Ta bande'),
     raison: (r: RaisonFin) => RAISONS[r],
     score: (rouge: number, bleu: number) =>
-      `Goûters : ${equipeDe('rouge').court} ${rouge}, ${equipeDe('bleu').court} ${bleu}`,
+      // Le nom de l'équipe sans « Les » : « Rouges 4, Vers de terre 1 » (pas « ver 1 »).
+      `Goûters : ${equipeDe('rouge').nom.replace(/^Les /, '')} ${rouge}, ${equipeDe('bleu').nom.replace(/^Les /, '')} ${bleu}`,
     tours: (n: number) => `Partie en ${n} tours`,
   },
   get surveillante(): string {
