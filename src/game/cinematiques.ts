@@ -46,16 +46,20 @@ export function cinematiquesPour(
   const pose = nouveaux.find((ev) => ev.type === 'pose');
   const parRapporteuse = pose?.type === 'pose' && pose.role === 'rapporteuse';
   const victoire = nouveaux.some((ev) => ev.type === 'fin' && ev.raison !== 'sonnerie');
-  if (grandsFreres) liste.push({ id: 'grandsFreres' });
+  // La bande qui vient de jouer : c'est son élève qui apparaît dans la vidéo du pouvoir.
+  const auteur = pose?.type === 'pose' ? { bande: pose.bande } : {};
+  if (grandsFreres) liste.push({ id: 'grandsFreres', ...auteur });
   for (const ev of nouveaux) {
-    if (ev.type === 'pose' && ev.role === 'petit' && ev.plaque) liste.push({ id: 'petit' });
-    else if (ev.type === 'pose' && ev.role === 'fouine' && fouineLoin) liste.push({ id: 'fouine' });
+    if (ev.type === 'pose' && ev.role === 'petit' && ev.plaque)
+      liste.push({ id: 'petit', bande: ev.bande });
+    else if (ev.type === 'pose' && ev.role === 'fouine' && fouineLoin)
+      liste.push({ id: 'fouine', bande: ev.bande });
     else if (ev.type === 'cpe')
-      liste.push(parRapporteuse ? { id: 'cpe', pouvoir: 'rapporteuse' } : { id: 'cpe' });
+      liste.push(parRapporteuse ? { id: 'cpe', pouvoir: 'rapporteuse', ...auteur } : { id: 'cpe' });
     else if (ev.type === 'infirmerie')
       liste.push({ id: 'infirmerie', bande: adversaire(ev.bande) });
     else if (ev.type === 'glissade') liste.push({ id: 'toboggan' });
-    else if (ev.type === 'surveillante' && ev.parDelegue) liste.push({ id: 'delegue' });
+    else if (ev.type === 'surveillante' && ev.parDelegue) liste.push({ id: 'delegue', ...auteur });
     else if (ev.type === 'region' && !victoire) {
       liste.push({ id: 'gouter', region: ev.region, bande: ev.bande, bonsPoints: ev.bonsPoints });
     } else if (ev.type === 'fin' && ev.raison === 'sonnerie') liste.push({ id: 'sonnerie' });
