@@ -56,12 +56,15 @@ const basBuste = (r: Rig) => r.pieces.tronc.pos[1] - r.hauteur * 0.03;
 /**
  * Masque qui suit `porteur` à l'écran : la forme est dessinée une fois dans le repère du porteur,
  * puis replacée à chaque image (un masque Phaser vit dans le repère du monde).
+ * Le recalage se fait juste avant le rendu, une fois toutes les positions de l'image connues : un
+ * élève créé pendant l'image (à chaque redessin de l'écran) n'a sa place qu'après sa création, et
+ * un masque recalé trop tôt restait une image à l'origine, ce qui faisait clignoter le corps.
  */
 function masqueQuiSuit(
   scene: Phaser.Scene,
   porteur: Phaser.GameObjects.Container,
   forme: (g: Phaser.GameObjects.Graphics) => void,
-): { masque: Phaser.Display.Masks.GeometryMask; suivre: () => void } {
+): Phaser.Display.Masks.GeometryMask {
   const g = scene.make.graphics({}, false);
   g.fillStyle(0xffffff, 1);
   forme(g);
@@ -70,12 +73,14 @@ function masqueQuiSuit(
     const m = porteur.getWorldTransformMatrix();
     g.setPosition(m.tx, m.ty).setRotation(m.rotation).setScale(m.scaleX, m.scaleY);
   };
+  scene.events.on(Phaser.Scenes.Events.PRE_RENDER, suivre);
   porteur.once(Phaser.GameObjects.Events.DESTROY, () => {
+    scene.events.off(Phaser.Scenes.Events.PRE_RENDER, suivre);
     masque.destroy();
     g.destroy();
   });
   suivre();
-  return { masque, suivre };
+  return masque;
 }
 
 export const SKIN_CARTOON: Skin = {
@@ -108,11 +113,11 @@ export const SKIN_CARTOON: Skin = {
     const pastille = creerBadge(scene, bande, role, 24);
     pastille.setPosition(largeur / 2 - 10, hauteur / 2 - 14);
     const buste = scene.add.container(0, 0, [m.racine, pastille]);
-    const { masque, suivre } = masqueQuiSuit(scene, buste, (g) =>
+    const masque = masqueQuiSuit(scene, buste, (g) =>
       g.fillRect(-largeur / 2, -hauteur / 2 - hauteur, largeur, hauteur * 2),
     );
     m.racine.setMask(masque);
-    animerMarionnette(scene, m, buste, { caractere: role, calme: true, apres: suivre });
+    animerMarionnette(scene, m, buste, { caractere: role, calme: true });
     return buste;
   },
   pastille(scene, bande, role, diametre) {
@@ -144,12 +149,12 @@ export const SKIN_CARTOON: Skin = {
     const pastille = scene.add.container(0, 0, [fond, m.racine, valeur]);
     // Le corps est coupé au bord intérieur du liseré (rond ou carré selon la bande), libre au-dessus :
     // la tête sort de la pastille. Les bras ne sont pas coupés : ils passent par-dessus la pastille.
-    const { masque, suivre } = masqueQuiSuit(scene, pastille, (g) => {
+    const masque = masqueQuiSuit(scene, pastille, (g) => {
       dessiner(g, 0, 0, r - 5);
       g.fillRect(-r * 1.8, -r * 4, r * 3.6, r * 4);
     });
     for (const p of ['jambeG', 'jambeD', 'tronc', 'tete'] as const) m.pieces[p].setMask(masque);
-    animerMarionnette(scene, m, pastille, { caractere: role, calme: true, apres: suivre });
+    animerMarionnette(scene, m, pastille, { caractere: role, calme: true });
     return pastille;
   },
   pantin(scene, eleve): RenduPantin {

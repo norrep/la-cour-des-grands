@@ -124,7 +124,7 @@ export class Marionnette {
 
   constructor(
     scene: Phaser.Scene,
-    cle: string,
+    readonly cle: string,
     readonly rig: Rig,
     readonly echelle: number,
   ) {
@@ -492,12 +492,17 @@ const PROFILS: Record<Caractere, Profil> = {
   },
 };
 
+/** Nombre entre 0 et 10 tiré d'un texte : toujours le même pour le même texte. */
+function phaseDe(texte: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < texte.length; i++) h = Math.imul(h ^ texte.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 10000) / 1000;
+}
+
 export interface OptionsVie {
   caractere: Caractere;
   /** En buste (carte, pastille) : mêmes mouvements, plus doux, sans saut ni jambes. */
   calme?: boolean;
-  /** Appelé à chaque image, après la pose (par exemple pour suivre un masque). */
-  apres?: () => void;
 }
 
 /**
@@ -513,7 +518,9 @@ export function animerMarionnette(
 ): void {
   const profil = PROFILS[o.caractere];
   const doux = o.calme ? 0.6 : 1;
-  const phase = Math.random() * 10;
+  // Phase propre au personnage, et la même à chaque redessin de l'écran : sinon chaque coup
+  // (l'écran est redessiné) faisait sauter brusquement la pose de tous les élèves.
+  const phase = phaseDe(`${m.cle}/${o.caractere}`);
   const pause = () => (profil.pause[0] + Math.random() * profil.pause[1]) * 1000;
   let prochain = scene.time.now + 800 + Math.random() * pause();
   let geste: { faire: Geste; debut: number } | null = null;
@@ -552,7 +559,6 @@ export function animerMarionnette(
       pose.tronc *= 0.5;
     }
     m.poser(pose);
-    o.apres?.();
   };
   const ecouteur = (temps: number): void => maj(temps);
   maj(scene.time.now);
