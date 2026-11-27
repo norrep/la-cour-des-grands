@@ -181,3 +181,22 @@ Mise à jour : Clément trouve la boîte à cases « pas clair ». Remplacée pa
 ## DF.38 — Incrustations : mégaphone, réveil, nuage de bagarre (27/11)
 
 Clément : appeler les copains, la sonnerie de fin et le plaquage ne doivent pas être des vidéos plein écran mais des animations courtes et dynamiques, incrustées par-dessus le jeu. Trois animations sans élève (pour servir aux deux bandes et à tous les skins), générées sur fond vert (Higgsfield, jobs ed9f8d09 mégaphone, f4bec7b2 réveil, 4e6ce0cd nuage), accélérées à ≈ 1,3–1,6 s et détourées. Clément a écarté la cloche en laiton murale (« trop vieillot ») au profit du réveil. Elles sont jouées en planches de sprites WebP (`public/incrust/`, 256 px, 15 images/s) et non en vidéo, car la vidéo WebM transparente ne marche pas sur Safari iOS. Le mégaphone s'affiche au-dessus de la pioche de la bande qui appelle, le nuage sur l'îlot du plaquage, le réveil à la place du pictogramme dans le panneau « Sonnerie ». Les sons restent ceux du jeu (`jouerSon`). Code : `src/game/ui/incrust.ts`.
+
+## Bêta — Deux nouvelles cartes et deux nouvelles équipes
+
+Proposition validée par Clément le 27/11 : doc « La Cour des Grands : cartes et équipes de la bêta ».
+
+- **DB.1 — Une équipe est un look, pas une règle (choix de Clément : « on garde les mêmes règles »).** Les nouvelles équipes ont les mêmes 8 rôles, valeurs et pouvoirs que les Rouges et les Bleus. Le moteur continue de parler de deux camps (`rouge` = en bas, `bleu` = en haut) ; l'équipe choisie ne changera que l'affichage, par les skins.
+- **DB.2 — Camp scout : sentiers à sens unique.** Même plan que la cour du premier jour, sans bancs. La tyrolienne (A1 → M1 → B1) ne fait que descendre, l'échelle de corde (B2 → M3 → A2) ne fait que monter : chaque camp a un raccourci de son côté, plan symétrique par rotation. Le sens unique ne joue que sur la connexion à la cabane (où l'on peut poser) ; les pouvoirs qui comptent des voisins ou des distances (Rapporteuse, buts, toboggan) les comptent toujours dans les deux sens (D1.10).
+- **DB.3 — Piscine : le courant.** À la fin de chaque tour complet, après le pas du surveillant, les piles des 4 flotteurs (F1 → F2 → F3 → F4 → F1) avancent d'un cran, dans le sens des aiguilles d'une montre. Les places restent fixes, ce sont les piles qui bougent. Les régions sont ensuite vérifiées, comme après tout déplacement (D1.7). Objectif 4 glaces (grand bain 3, chaque bord 1) ; le maître-nageur garde tour à tour le bord du haut, le grand bain, le bord du bas, le grand bain.
+- **DB.4 — Équilibre mesuré (arène, IA moyen contre moyen, 300 parties, graine 3).** Cour du premier jour : rouges 48,3 %, premier joueur 50,3 %. Piscine : rouges 50,3 %, premier joueur 49,7 %, victoire aux glaces 86 %. Camp scout : rouges 49,7 %, premier joueur 48,3 %, victoire à la tente 55 %.
+
+### DB.5 — La carte et les bandes se choisissent avant la partie
+
+- Après « Jouer contre l'ordi » ou « Jouer à deux », un écran demande la carte (récré, piscine, camp scout) puis la bande. Contre l'ordi, le joueur prend la bande du bas et l'ordi une autre au hasard ; à deux, le joueur du bas choisit, puis celui du haut (une bande déjà prise est grisée).
+- Chaque carte a son décor, ses îlots illustrés (clé `decor` du plan), sa cabane (vestiaire, tente) et son surveillant (Monsieur Yvon le maître-nageur, Babette la cheftaine). Les textes qui parlaient de « Mme Josiane » / « la surveillante » lisent maintenant la carte en cours (`src/data/cartes.ts`).
+- Cabanes neutres : les murs (calque `-murs` en gris clair) sont teintés à la couleur de l'équipe. Le rond ou le carré de la bande reste dessiné sur la cabane, pour lire sans les couleurs.
+- Les goûters restent des goûters sur les trois cartes (le texte de la piscine ne parle pas de glaces) : à illustrer par carte plus tard si Clément le souhaite.
+- Piscine : la planche de pièces n'a pas de frite ; F1 devient « Le beignet » (la bouée rose). Les îlots du bord (douches, plongeoir, échelle, bord) tombent sur le bord du grand bain dans le décor : à revoir si ça gêne.
+- Sentiers à sens unique : trois chevrons jaunes au milieu du sentier, dans le sens où l'on passe. Courant : tourbillon de flèches et « GLOUGLOU ! » autour du grand bain.
+- Populaire alien refaite fine avec une grosse coiffure (la ronde détonnait à côté des autres).

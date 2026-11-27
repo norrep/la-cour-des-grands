@@ -16,6 +16,9 @@ export const PLATEAU = {
   ilotSpecial: 'plateau-ilot-special',
   cabaneRouge: 'plateau-cabane-rouge',
   cabaneBleue: 'plateau-cabane-bleue',
+  /** Murs seuls, en gris clair : teintés à la couleur de l'équipe par-dessus la cabane. */
+  mursRouge: 'plateau-cabane-rouge-murs',
+  mursBleue: 'plateau-cabane-bleue-murs',
   carton: 'plateau-carton',
 } as const;
 /** Goûters illustrés (DF.21), dans l'ordre des régions de la cour : chocolat, biscuits, bonbon, sucette. */
@@ -55,6 +58,8 @@ export class ChargementScene extends Phaser.Scene {
       ilotSpecial: 'ilot-special',
       cabaneRouge: 'cabane-rouge',
       cabaneBleue: 'cabane-bleue',
+      mursRouge: 'cabane-rouge-murs',
+      mursBleue: 'cabane-bleue-murs',
       carton: 'carton',
     };
     for (const [piece, cle] of Object.entries(PLATEAU)) {
