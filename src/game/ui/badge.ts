@@ -1,3 +1,4 @@
+import { equipeDe } from '../../data/equipes';
 import Phaser from 'phaser';
 import { valeur, type Bande, type RoleId } from '../../engine/index';
 import { COULEURS, POLICE } from '../config';
@@ -13,7 +14,7 @@ export function creerBadge(
   taille: number,
 ): Phaser.GameObjects.Container {
   const g = scene.add.graphics();
-  const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+  const couleur = equipeDe(bande).couleur;
   const r = taille / 2;
   g.fillStyle(0x000000, 0.25);
   if (bande === 'rouge') g.fillCircle(2, 4, r);

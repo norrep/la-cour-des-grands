@@ -6,6 +6,7 @@ import { HAUTEUR_ECRAN, LARGEUR_ECRAN, RESOLUTION } from './game/config';
 import { AccueilScene } from './game/scenes/AccueilScene';
 import { ChargementScene } from './game/scenes/ChargementScene';
 import { PartieScene } from './game/scenes/PartieScene';
+import { ChoixScene } from './game/scenes/ChoixScene';
 import { textesNets } from './game/ui/ecran';
 import { verifierMiseAJour } from './version';
 
@@ -36,5 +37,5 @@ new Phaser.Game({
   // (une texture par élève) clignotaient (DF.29).
   render: { antialias: true, mipmapFilter: 'LINEAR_MIPMAP_LINEAR', maxTextures: textures },
   fps: { target: 60 },
-  scene: [ChargementScene, AccueilScene, PartieScene],
+  scene: [ChargementScene, AccueilScene, ChoixScene, PartieScene],
 });

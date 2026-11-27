@@ -68,6 +68,8 @@ export interface RegionData {
   nom: string;
   ilots: string[];
   bonsPoints: number;
+  /** Où dessiner le goûter (fractions de la cour), s'il ne va pas au centre de ses îlots. */
+  gouter?: { x: number; y: number };
 }
 
 export interface CourData {
@@ -85,6 +87,16 @@ export interface CourData {
   ronde: string[];
   /** Index, dans la ronde, du goûter de départ. */
   departRonde: number;
+  /**
+   * Sentiers à sens unique (camp scout) : chaque paire [de, vers] est une allée existante
+   * qu'une chaîne d'élèves ne peut prolonger que dans ce sens.
+   */
+  sensUnique?: [string, string][];
+  /**
+   * Le courant (piscine) : à la fin de chaque tour complet, la pile de chaque îlot de
+   * l'anneau passe sur l'îlot suivant (le dernier revient au premier).
+   */
+  courant?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -123,6 +135,10 @@ export interface Cour {
   /** Index (dans `regions`) des goûters de la ronde, dans l'ordre. */
   ronde: number[];
   departRonde: number;
+  /** Allées à sens unique : index de l'allée → nœud d'où l'on peut la prendre. */
+  sensUnique: Record<number, string>;
+  /** Îlots de l'anneau du courant, dans l'ordre où les piles avancent (vide sans courant). */
+  courant: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +211,8 @@ export type Evenement =
   | { type: 'cpe'; tour: number; bande: Bande; eleveId: string; role: RoleId; ilot: string }
   | { type: 'infirmerie'; tour: number; bande: Bande; eleveId: string }
   | { type: 'surveillante'; tour: number; position: number; pas: number; parDelegue: boolean }
+  /** Le courant a fait tourner les piles de l'anneau d'un cran (piscine). */
+  | { type: 'courant'; tour: number; anneau: string[] }
   | { type: 'rappel'; tour: number; bande: Bande; eleveId: string; ilot: string }
   | { type: 'repechage'; tour: number; bande: Bande; eleveId: string }
   | {

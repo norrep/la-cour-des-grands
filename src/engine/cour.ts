@@ -99,6 +99,21 @@ export function chargerCour(data: CourData): Cour {
   }
   if (!(data.seuilBonsPoints > 0)) erreur('seuil de bons points invalide');
 
+  const sensUnique: Record<number, string> = {};
+  for (const [de, vers] of data.sensUnique ?? []) {
+    const index = indexAllee.get(cleAllee(de, vers));
+    if (index === undefined) erreur(`sens unique ${de}→${vers} : allée inconnue`);
+    if (sensUnique[index as number] !== undefined) erreur(`sens unique ${de}→${vers} en double`);
+    sensUnique[index as number] = de;
+  }
+
+  const courant = (data.courant ?? []).slice();
+  if (courant.length === 1) erreur('le courant doit compter au moins deux îlots');
+  for (const id of courant) {
+    if (noeuds[id]?.type !== 'ilot') erreur(`courant : « ${id} » n'est pas un îlot`);
+  }
+  if (new Set(courant).size !== courant.length) erreur('courant : îlot en double');
+
   return {
     id: data.id,
     nom: data.nom,
@@ -111,7 +126,15 @@ export function chargerCour(data: CourData): Cour {
     seuilBonsPoints: data.seuilBonsPoints,
     ronde,
     departRonde: data.departRonde,
+    sensUnique,
+    courant,
   };
+}
+
+/** Peut-on prendre l'allée `allee` en partant du nœud `depuis` ? (sentiers à sens unique) */
+export function alleeOuverte(cour: Cour, allee: number, depuis: string): boolean {
+  const de = cour.sensUnique[allee];
+  return de === undefined || de === depuis;
 }
 
 /** Distances (en nombre d'allées) depuis un nœud, par toutes les allées. */
