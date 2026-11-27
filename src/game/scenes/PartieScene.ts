@@ -705,6 +705,49 @@ export class PartieScene extends Phaser.Scene {
     c.add([m, tm]);
   }
 
+  /** Un bonnet d'âne : cône de papier, oreilles grises, pompon et bandeau bleu. */
+  private dessinerBonnetAne(g: Phaser.GameObjects.Graphics, x: number, y: number, k: number): void {
+    const P = (px: number, py: number): { x: number; y: number } => ({
+      x: x + px * k,
+      y: y + py * k,
+    });
+    // Oreilles d'âne, longues et dressées, derrière le cône.
+    for (const sens of [-1, 1]) {
+      forme(
+        g,
+        [
+          P(sens * 6, 6),
+          P(sens * 16, -16),
+          P(sens * 30, -36),
+          P(sens * 38, -34),
+          P(sens * 32, -12),
+          P(sens * 16, 12),
+        ],
+        { remplissage: 0xb9b3c2, trait: 3 },
+      );
+      forme(g, [P(sens * 14, 2), P(sens * 30, -28), P(sens * 26, -8)], {
+        remplissage: 0xf2b8c6,
+        trait: 0,
+      });
+    }
+    // Le cône, légèrement penché.
+    forme(g, [P(4, -46), P(-24, 34), P(-14, 40), P(14, 42), P(26, 34)], {
+      remplissage: 0xfffaf0,
+      trait: 3.5,
+      ombre: 4,
+    });
+    // Bandeau du bas.
+    forme(g, [P(-21, 26), P(23, 26), P(26, 34), P(14, 42), P(-14, 40), P(-24, 34)], {
+      remplissage: 0xa9bdf0,
+      trait: 3,
+    });
+    // Pompon au sommet.
+    g.fillStyle(COULEURS.jaune, 1);
+    g.fillCircle(x + 4 * k, y - 47 * k, 6 * k);
+    g.lineStyle(3, COULEURS.encre, 1);
+    g.strokeCircle(x + 4 * k, y - 47 * k, 6 * k);
+  }
+
   /**
    * La pioche (DF.27) : les copains pas encore appelés, en paquet de cartes face cachée, comme
    * les cartes du rang. Le nombre est dans une pastille ; le paquet maigrit quand il se vide.
@@ -789,54 +832,13 @@ export class PartieScene extends Phaser.Scene {
       ),
     );
     const g = this.add.graphics();
-    if (this.textures.exists(PLATEAU.coin)) {
-      c.addAt(this.add.image(0, 0, PLATEAU.coin).setScale(110 / 512), 0);
-    } else {
-      // Un coin de mur en brique : deux pans qui se rejoignent, vus d'en haut.
-      forme(
-        g,
-        [
-          { x: -50, y: -30 },
-          { x: 0, y: -46 },
-          { x: 0, y: 20 },
-          { x: -50, y: 34 },
-        ],
-        { remplissage: 0xf1c9a5, trait: 3 },
-      );
-      forme(
-        g,
-        [
-          { x: 0, y: -46 },
-          { x: 50, y: -30 },
-          { x: 50, y: 34 },
-          { x: 0, y: 20 },
-        ],
-        { remplissage: 0xe5b48c, trait: 3 },
-      );
-      g.lineStyle(2, 0xb98863, 1);
-      for (let r = 0; r < 4; r++) {
-        const y = -26 + r * 14;
-        g.lineBetween(-46, y + 4 - r * 0.5, -4, y - 10);
-        g.lineBetween(4, y - 10, 46, y + 4 - r * 0.5);
-      }
-      // Le bonnet d'âne accroché au mur.
-      forme(
-        g,
-        [
-          { x: 30, y: -40 },
-          { x: 22, y: -8 },
-          { x: 40, y: -8 },
-        ],
-        { remplissage: 0xfff4d6, trait: 3 },
-      );
-      g.fillStyle(COULEURS.encre, 1);
-      g.fillCircle(31, -18, 3);
-    }
+    // Le bonnet d'âne seul (DF.28) : plus lisible que le coin de mur à cette taille.
+    this.dessinerBonnetAne(g, -6, 4, 0.82);
     c.addAt(g, 0);
     // Les punis de dos, face au mur (les 3 derniers), et leur nombre.
-    punis.slice(-3).forEach((el, k, liste) => {
+    punis.slice(-3).forEach((el, k) => {
       const b = creerBadge(this, el.bande, el.role, 22);
-      b.setPosition((k - (liste.length - 1) / 2) * 19 - 14, 22 - k * 2);
+      b.setPosition(-46 + k * 6, 10 + k * 14);
       c.add(b);
     });
     c.add(this.compteurLieu(40, 34, punis.length === 0 ? '0' : `×${punis.length}`, bande));
@@ -3059,10 +3061,8 @@ export class PartieScene extends Phaser.Scene {
     g.lineStyle(5, COULEURS.encre, 1);
     switch (id) {
       case 'cpe': // Le coin (DF.27), ou à défaut la porte du bureau
-        if (this.textures.exists(PLATEAU.coin)) {
-          g.setData('image', PLATEAU.coin);
-          break;
-        }
+        this.dessinerBonnetAne(g, 0, -10, 1.9);
+        break;
         g.fillStyle(0x8a5a2b, 1);
         g.fillRoundedRect(-55, -90, 110, 180, 8);
         g.strokeRoundedRect(-55, -90, 110, 180, 8);
