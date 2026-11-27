@@ -1,3 +1,4 @@
+import { choisirEquipes, equipeDe } from '../../data/equipes';
 import Phaser from 'phaser';
 import { COURS } from '../../data/boards/index';
 import { TEXTES } from '../../data/textes';
@@ -60,10 +61,11 @@ import { ecrireConseils, lireSons } from '../preferences';
 import { activerSons, jouerSon, type SonId } from '../sons';
 import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
-import { cleGouter, DECOR, ILLUSTRATIONS, JOSIANE, PLATEAU } from './ChargementScene';
+import { cleGouter, DECOR, ILLUSTRATIONS, PLATEAU } from './ChargementScene';
 import { cadrer, decorPlein } from '../ui/ecran';
 import { animerMarionnette, Marionnette } from '../ui/marionnette';
-import { RIG_JOSIANE } from '../skins/cartoon/rig';
+import { visuelCarte, type VisuelCarte } from '../cartes';
+import { choisirCarte } from '../../data/cartes';
 
 const RAYON_ILOT = 48;
 /** Haut de la cour, à défaut de cabane en haut (fiche de la cour). */
@@ -88,6 +90,8 @@ export class PartieScene extends Phaser.Scene {
   private ctrl!: Controleur;
   private cour!: Cour;
   private donnees!: DonneesPartie;
+  /** Ce que montre la carte jouée : décor, îlots, cabanes, surveillant. */
+  private visuel!: VisuelCarte;
   /** Tout ce qui est redessiné à chaque changement d'état. */
   private dyn!: Phaser.GameObjects.Container;
   /** Badge visible de chaque îlot (pour le faire trembler). */
@@ -166,7 +170,12 @@ export class PartieScene extends Phaser.Scene {
 
   init(donnees: DonneesPartie): void {
     this.donnees = donnees;
-    this.cour = chargerCour(COURS['cour-premier-jour'] as CourData);
+    // La carte et les équipes choisies avant la partie (DB.1, DB.5) ; la récré par défaut.
+    const carte = donnees.carte ?? 'cour-premier-jour';
+    choisirCarte(carte);
+    choisirEquipes(donnees.equipes ?? { rouge: 'rouges', bleu: 'bleus' });
+    this.visuel = visuelCarte(carte);
+    this.cour = chargerCour(COURS[carte] as CourData);
     this.ctrl = new Controleur(this.cour, {
       graine: donnees.graine,
       equipements: donnees.equipements,
@@ -204,8 +213,9 @@ export class PartieScene extends Phaser.Scene {
   create(): void {
     cadrer(this);
     this.cameras.main.setBackgroundColor(COULEURS.fond);
-    if (this.textures.exists(DECOR)) {
-      decorPlein(this.add.image(LARGEUR / 2, HAUTEUR / 2, DECOR));
+    const decor = this.textures.exists(this.visuel.decor) ? this.visuel.decor : DECOR;
+    if (this.textures.exists(decor)) {
+      decorPlein(this.add.image(LARGEUR / 2, HAUTEUR / 2, decor));
     }
     this.dyn = this.add.container(0, 0);
     // Un toucher bref ouvre la fiche ; il faut bouger un peu le doigt pour glisser.
@@ -371,6 +381,36 @@ export class PartieScene extends Phaser.Scene {
   // La cour
   // -------------------------------------------------------------------------
 
+  /** Trois chevrons d'encre au milieu d'un sentier à sens unique, pointés de `a` vers `b`. */
+  private flechesSensUnique(a: Point, b: Point): void {
+    const g = this.ajouter(this.add.graphics());
+    const ang = Math.atan2(b.y - a.y, b.x - a.x);
+    const ux = Math.cos(ang);
+    const uy = Math.sin(ang);
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    for (const k of [-1, 0, 1]) {
+      const cx = mx + ux * k * 26;
+      const cy = my + uy * k * 26;
+      const pointe = { x: cx + ux * 12, y: cy + uy * 12 };
+      const aile = (s: number) => ({
+        x: cx - ux * 8 + Math.cos(ang + (s * Math.PI) / 2) * 14,
+        y: cy - uy * 8 + Math.sin(ang + (s * Math.PI) / 2) * 14,
+      });
+      for (const [l, c] of [
+        [12, COULEURS.encre],
+        [6, COULEURS.jaune],
+      ] as const) {
+        g.lineStyle(l, c, 1);
+        g.beginPath();
+        g.moveTo(aile(1).x, aile(1).y);
+        g.lineTo(pointe.x, pointe.y);
+        g.lineTo(aile(-1).x, aile(-1).y);
+        g.strokePath();
+      }
+    }
+  }
+
   private dessinerCour(): void {
     const e = this.etat;
     const g = this.ajouter(this.add.graphics());
@@ -380,13 +420,18 @@ export class PartieScene extends Phaser.Scene {
       g.lineStyle(7, COULEURS.encre, 0.55);
       this.pointilles(g, this.pos(a), this.pos(b), 14, 10);
     }
+    // Sentiers à sens unique (camp scout, DB.2) : des flèches dans le sens où l'on passe.
+    for (const [i, depuis] of Object.entries(this.cour.sensUnique)) {
+      const [a, b] = this.cour.allees[Number(i)] as [string, string];
+      this.flechesSensUnique(this.pos(depuis), this.pos(depuis === a ? b : a));
+    }
 
     // Chemin de chaque bande : un gros trait de couleur cerné d'encre.
     for (const b of ['rouge', 'bleu'] as const) {
       const segments = alleesDuChemin(e, b).map((i) => this.cour.allees[i] as [string, string]);
       for (const [largeur, couleur] of [
         [26, COULEURS.encre],
-        [18, b === 'rouge' ? COULEURS.rouge : COULEURS.bleu],
+        [18, equipeDe(b).couleur],
       ] as const) {
         g.lineStyle(largeur, couleur, 1);
         for (const [a, c] of segments) {
@@ -419,7 +464,13 @@ export class PartieScene extends Phaser.Scene {
       const p = this.pos(id);
       const n = this.cour.noeuds[id];
       const special = e.equipements && n?.equipement;
-      const pieceIlot = special ? PLATEAU.ilotSpecial : PLATEAU.ilot;
+      const dessin = n?.decor ? this.visuel.ilots[n.decor] : undefined;
+      const pieceIlot =
+        dessin && this.textures.exists(dessin)
+          ? dessin
+          : special
+            ? PLATEAU.ilotSpecial
+            : PLATEAU.ilot;
       if (this.textures.exists(pieceIlot)) {
         // Îlot illustré (phase 2) : une touffe d'herbe, jaune à étoile pour un îlot spécial.
         const im = this.add.image(p.x, p.y + 6, pieceIlot);
@@ -588,16 +639,43 @@ export class PartieScene extends Phaser.Scene {
 
   private dessinerCabane(id: string, bande: Bande): void {
     const p = this.pos(id);
+    const cabaneCarte = this.visuel.cabane;
+    if (cabaneCarte && this.textures.exists(cabaneCarte.image)) {
+      // Cabane de la carte (vestiaire, tente) : neutre, les murs prennent la couleur de l'équipe.
+      this.ajouter(this.add.image(p.x, p.y - 8, cabaneCarte.image).setScale(136 / 512));
+      if (this.textures.exists(cabaneCarte.murs)) {
+        const m = this.add.image(p.x, p.y - 8, cabaneCarte.murs).setScale(136 / 512);
+        this.ajouter(m.setTint(equipeDe(bande).couleur));
+      }
+      // La forme de la bande (rond ou carré), lisible sans les couleurs.
+      const g = this.ajouter(this.add.graphics());
+      const graine = graineDe(p.x, p.y);
+      forme(
+        g,
+        bande === 'rouge'
+          ? contourRond(p.x + 40, p.y + 30, 11, graine)
+          : contourRect(p.x + 29, p.y + 19, 22, 22, 3, graine, 0.5),
+        { remplissage: COULEURS.papier, trait: 3 },
+      );
+      return;
+    }
     const piece = bande === 'rouge' ? PLATEAU.cabaneRouge : PLATEAU.cabaneBleue;
     if (this.textures.exists(piece)) {
       const im = this.add.image(p.x, p.y - 8, piece);
       im.setScale(136 / 512);
       this.ajouter(im);
+      // Les murs prennent la couleur de l'équipe qui joue ce camp (DB.1).
+      const murs = bande === 'rouge' ? PLATEAU.mursRouge : PLATEAU.mursBleue;
+      if (this.textures.exists(murs)) {
+        const m = this.add.image(p.x, p.y - 8, murs).setScale(136 / 512);
+        m.setTint(equipeDe(bande).couleur);
+        this.ajouter(m);
+      }
       // La forme de la bande est dans la fenêtre : ronde chez les rouges, carrée chez les bleus.
       return;
     }
     const g = this.ajouter(this.add.graphics());
-    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const couleur = equipeDe(bande).couleur;
     const graine = graineDe(p.x, p.y);
     // Murs, toit, porte : une cabane de bric et de broc au trait noir.
     forme(g, contourRect(p.x - 56, p.y - 22, 112, 62, 8, graine), {
@@ -655,7 +733,7 @@ export class PartieScene extends Phaser.Scene {
       .setOrigin(0.5);
     const e = this.add.graphics();
     forme(e, contourRect(-t.width / 2 - 9, -48, t.width + 18, 24, 10, graine + 1, 0.6), {
-      remplissage: bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu,
+      remplissage: equipeDe(bande).couleur,
       trait: 3,
     });
     c.add([g, e, t]);
@@ -680,7 +758,7 @@ export class PartieScene extends Phaser.Scene {
     const p = this.pos(cabane);
     const n = this.etat.joueurs[bande].rang.length;
     const c = this.add.container(p.x + 106, p.y + (bande === 'rouge' ? -20 : 0));
-    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const couleur = equipeDe(bande).couleur;
     const clair = bande === 'rouge' ? 0xffd2c8 : 0xd5dcff;
     const visibles = Math.min(3, n);
     for (let k = 0; k < visibles; k++) {
@@ -852,12 +930,13 @@ export class PartieScene extends Phaser.Scene {
 
   /** Mme Josiane : la marionnette dodue, ou à défaut un dessin au trait (robe lilas, chignon). */
   private silhouette(x: number, y: number, alpha: number): void {
-    if (this.textures.exists(JOSIANE)) {
+    const { texture, rig } = this.visuel.surveillant;
+    if (this.textures.exists(texture)) {
       const ombre = this.ajouter(this.add.graphics());
       ombre.fillStyle(COULEURS.encre, 0.25);
       ombre.fillEllipse(x + 2, y + 30, 46, 12);
       // Marionnette articulée, comme les élèves (pieds à l'origine).
-      const corps = new Marionnette(this, JOSIANE, RIG_JOSIANE, 100 / RIG_JOSIANE.hauteur);
+      const corps = new Marionnette(this, texture, rig, 100 / rig.hauteur);
       const josiane = this.add.container(x, y + 30, [corps.racine]).setAlpha(alpha);
       this.ajouter(josiane);
       this.josiane = josiane;
@@ -973,7 +1052,7 @@ export class PartieScene extends Phaser.Scene {
     const g = this.ajouter(this.add.graphics());
     if (prise) {
       forme(g, contourRond(x, y, 30, graineDe(x, y)), {
-        remplissage: prise === 'rouge' ? COULEURS.rouge : COULEURS.bleu,
+        remplissage: equipeDe(prise).couleur,
         trait: 3,
       });
     } else if (garde) {
@@ -1323,7 +1402,7 @@ export class PartieScene extends Phaser.Scene {
       const l = t.width + 28;
       const fond = this.add.graphics();
       forme(fond, contourRect(LARGEUR / 2 - l / 2, 60, l, 33, 16, 11), {
-        remplissage: b === 'rouge' ? COULEURS.rouge : COULEURS.bleu,
+        remplissage: equipeDe(b).couleur,
         trait: 3,
         ombre: 3,
       });
@@ -1344,7 +1423,7 @@ export class PartieScene extends Phaser.Scene {
 
   private dessinerCartable(bande: Bande, cx: number, cy: number, points: number): void {
     const g = this.ajouter(this.add.graphics());
-    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const couleur = equipeDe(bande).couleur;
     const n = Math.max(1, this.cour.seuilBonsPoints);
     const l = n * 34 + 34;
     const graine = graineDe(cx, cy);
@@ -1977,7 +2056,7 @@ export class PartieScene extends Phaser.Scene {
     if (!a) return [];
     const objets: Phaser.GameObjects.GameObject[] = [];
     const bande = this.bandeActive;
-    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const couleur = equipeDe(bande).couleur;
     const p = this.pos(cible);
 
     // Le chemin gagné, en pointillés de la couleur de la bande.
@@ -2572,12 +2651,58 @@ export class PartieScene extends Phaser.Scene {
       case 'surveillante':
         this.marcheSurveillante(ev.position, ev.pas);
         break;
+      case 'courant':
+        this.tourbillon(ev.anneau);
+        break;
       case 'fin':
         this.victoire(ev.raison === 'cabane');
         break;
       default:
         break;
     }
+  }
+
+  /** Le courant de la piscine (DB.3) : un tourbillon de flèches autour du grand bain. */
+  private tourbillon(anneau: string[]): void {
+    if (!this.animations || anneau.length === 0) return;
+    const pts = anneau.map((id) => this.pos(id));
+    const cx = pts.reduce((t, p) => t + p.x, 0) / pts.length;
+    const cy = pts.reduce((t, p) => t + p.y, 0) / pts.length;
+    const r = Math.max(...pts.map((p) => Math.hypot(p.x - cx, p.y - cy))) * 0.62;
+    const g = this.add.graphics().setPosition(cx, cy).setDepth(50);
+    for (let k = 0; k < 4; k++) {
+      const a0 = (k * Math.PI) / 2 + 0.2;
+      const a1 = a0 + Math.PI / 2 - 0.5;
+      for (const [l, c] of [
+        [14, COULEURS.encre],
+        [7, 0xffffff],
+      ] as const) {
+        g.lineStyle(l, c, 1);
+        g.beginPath();
+        g.arc(0, 0, r, a0, a1);
+        g.strokePath();
+        const bout = { x: Math.cos(a1) * r, y: Math.sin(a1) * r };
+        const t = { x: -Math.sin(a1), y: Math.cos(a1) };
+        const n = { x: Math.cos(a1), y: Math.sin(a1) };
+        g.beginPath();
+        g.moveTo(bout.x - t.x * 14 + n.x * 12, bout.y - t.y * 14 + n.y * 12);
+        g.lineTo(bout.x + t.x * 6, bout.y + t.y * 6);
+        g.lineTo(bout.x - t.x * 14 - n.x * 12, bout.y - t.y * 14 - n.y * 12);
+        g.strokePath();
+      }
+    }
+    g.setScale(0.6).setAlpha(0);
+    this.tweens.add({ targets: g, alpha: 1, scale: 1, duration: 220, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: g, angle: 120, duration: 900, ease: 'Sine.easeInOut' });
+    this.tweens.add({
+      targets: g,
+      alpha: 0,
+      delay: 700,
+      duration: 300,
+      onComplete: () => g.destroy(),
+    });
+    jouerSon('glissade');
+    this.onomatopee(cx, cy, 'GLOUGLOU !', 34, '#bfefff');
   }
 
   private secousse(force: number, duree = 180): void {

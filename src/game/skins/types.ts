@@ -6,6 +6,7 @@
  */
 import type Phaser from 'phaser';
 import type { Bande, Eleve, RoleId } from '../../engine/index';
+import type { EquipeId } from '../../data/equipes';
 
 export type SkinId = 'cartoon' | 'classique';
 
@@ -52,6 +53,8 @@ export interface Skin {
   id: SkinId;
   /** Images à préparer avant d'afficher quoi que ce soit. */
   textures(): TextureSkin[];
+  /** Images des élèves d'une équipe, à charger quand elle est choisie (DB.1). Facultatif. */
+  texturesEquipe?(equipe: EquipeId): TextureSkin[];
   /**
    * L'élève debout, centré sur son numéro. `taille` est la largeur de référence : celle d'un
    * jeton rond du skin classique.

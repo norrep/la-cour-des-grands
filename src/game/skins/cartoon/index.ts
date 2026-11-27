@@ -7,6 +7,7 @@
  * Sur la cour et dans le rang, l'élève est en buste ; on ne le voit en entier que quand on le
  * tient par la main pour le transporter, et sur les grands écrans (accueil, passage du téléphone).
  */
+import { equipeDe } from '../../../data/equipes';
 import Phaser from 'phaser';
 import { ROLES, type Bande, type RoleId } from '../../../engine/index';
 import { COULEURS } from '../../config';
@@ -14,6 +15,8 @@ import { creerBadge } from '../../ui/badge';
 import { animerMarionnette, Marionnette, type Rig } from '../../ui/marionnette';
 import type { P, RenduPantin, Skin, TextureSkin } from '../types';
 import { RIGS } from './rig';
+import { RIGS_EQUIPES } from './rigEquipes';
+import { EQUIPES, type EquipeId } from '../../../data/equipes';
 
 /** Hauteur de l'élève le plus grand, en multiples de `taille`. */
 const HAUTEUR_REF = 2.5;
@@ -31,21 +34,28 @@ const HAUTEUR_PANTIN = 170;
 const RAYON_BUSTE = 150;
 /** Tenu par la main gauche, le corps penche vers la droite : la grosse tête ne cache pas le bras. */
 const PENCHE = 0.45;
-const BANDES: Bande[] = ['rouge', 'bleu'];
-
-const nom = (bande: Bande, role: RoleId) => `${bande}-${role}`;
+/** Nom de l'image d'un élève : préfixe de l'équipe qui joue ce camp (DB.1), puis le rôle. */
+const nom = (bande: Bande, role: RoleId) => `${equipeDe(bande).prefixe}-${role}`;
 const cle = (bande: Bande, role: RoleId) => `dodu-${nom(bande, role)}`;
 
 function rig(bande: Bande, role: RoleId): Rig {
-  const r = RIGS[nom(bande, role)];
+  const r = RIGS[nom(bande, role)] ?? RIGS_EQUIPES[nom(bande, role)];
   if (!r) throw new Error(`Élève sans marionnette : ${nom(bande, role)}`);
   return r;
 }
 
+/** Les images des élèves d'une équipe. */
+export function texturesEquipe(equipe: EquipeId): TextureSkin[] {
+  const prefixe = EQUIPES[equipe].prefixe;
+  return ROLES.map(({ id }) => ({
+    cle: `dodu-${prefixe}-${id}`,
+    url: `skins/dodu/${prefixe}-${id}.png`,
+  }));
+}
+
+/** Au chargement, les Rouges et les Bleus ; les autres équipes sont chargées une fois choisies. */
 function textures(): TextureSkin[] {
-  return ROLES.flatMap(({ id }) =>
-    BANDES.map((b) => ({ cle: cle(b, id), url: `skins/dodu/${nom(b, id)}.png` })),
-  );
+  return [...texturesEquipe('rouges'), ...texturesEquipe('bleus')];
 }
 
 /** Haut de la tête, en pixels de texture depuis les pieds (négatif). */
@@ -86,6 +96,7 @@ function masqueQuiSuit(
 export const SKIN_CARTOON: Skin = {
   id: 'cartoon',
   textures,
+  texturesEquipe,
   eleve(scene, bande, role, taille) {
     const r = rig(bande, role);
     const echelle = (HAUTEUR_REF * taille) / PIXELS_REF;
@@ -125,8 +136,8 @@ export const SKIN_CARTOON: Skin = {
     const rg = rig(bande, role);
     const echelle = r / RAYON_BUSTE;
     const fond = scene.add.graphics();
-    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
-    const clair = bande === 'rouge' ? 0xffd2c8 : 0xd5dcff;
+    const couleur = equipeDe(bande).couleur;
+    const clair = equipeDe(bande).clair;
     // Ombre, fond clair, liseré de la couleur de la bande : rond pour les rouges, carré arrondi pour
     // les bleus (lisible sans distinguer les couleurs).
     const dessiner = (g: Phaser.GameObjects.Graphics, dx: number, dy: number, rr: number): void => {

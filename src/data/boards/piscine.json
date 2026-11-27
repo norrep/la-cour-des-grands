@@ -8,7 +8,7 @@
   "ilots": [
     { "id": "H1", "nom": "Les douches", "x": 0.25, "y": 0.22, "decor": "douches" },
     { "id": "H2", "nom": "Le plongeoir", "x": 0.75, "y": 0.22, "decor": "plongeoir" },
-    { "id": "F1", "nom": "La frite", "x": 0.32, "y": 0.4, "decor": "frite" },
+    { "id": "F1", "nom": "Le beignet", "x": 0.32, "y": 0.4, "decor": "beignet" },
     { "id": "F2", "nom": "Le matelas", "x": 0.68, "y": 0.4, "decor": "matelas" },
     { "id": "F3", "nom": "La bouée", "x": 0.68, "y": 0.58, "decor": "bouee" },
     { "id": "F4", "nom": "Le canard", "x": 0.32, "y": 0.58, "decor": "canard" },

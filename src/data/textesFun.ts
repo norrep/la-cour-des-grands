@@ -5,6 +5,7 @@
  */
 import type { Bande, RaisonFin, RoleId } from '../engine/types';
 import { TEXTES } from './textes';
+import { surv } from './cartes';
 
 const B = (b: Bande) => TEXTES.bandes[b];
 const BT = (b: Bande) => TEXTES.bandesTitre[b];
@@ -35,7 +36,9 @@ export const FUN = {
     chouchou: ['« Mon grand frère va venir ! » Glisse un 5 ou plus (cartes claires).'],
     rapporteuse: ['« Madaaame ! » Touche l’adversaire qui tremble, direction la CPE.'],
     contagieux: ['Atchoum ! Touche le portail d’en face pour refiler le rhume.'],
-    delegue: ['Mot d’excuse en main : touche Mme Josiane pour l’éloigner, ou garde-le pour toi.'],
+    get delegue(): string[] {
+      return [`Mot d’excuse en main : touche ${surv.nom} pour l’éloigner, ou garde-le pour toi.`];
+    },
     banc: ['★ Banc : planqué sur le banc, il ne bouge plus d’un poil.'],
     cabanePerchee: ['★ Cabane perchée : touche ton portail, un copain grimpe.'],
     porteVieScolaire: ['★ Vie scolaire : touche le copain à faire sortir de chez la CPE.'],
@@ -91,10 +94,12 @@ export const FUN = {
       'Glouglou ! Le courant embarque tout le grand bain d’un cran.',
       'Le grand bain tourne comme une machine à laver.',
     ],
-    surveillanteDelegue: [
-      'Le Délégué agite son mot d’excuse : la surveillante file garder un autre goûter.',
-      '« C’est signé par le directeur ! » La surveillante change de goûter.',
-    ],
+    get surveillanteDelegue(): string[] {
+      return [
+        `Le Délégué agite son mot d’excuse : ${surv.role} file garder un autre goûter.`,
+        `« C’est signé par le directeur ! » ${surv.Role} change de goûter.`,
+      ];
+    },
     rappel: (b: Bande) => [`${BT(b)} rappelle un élève : « Reviens, on a besoin de toi ! »`],
     repechage: (b: Bande) => [`${BT(b)} négocie un retour de chez la CPE. Promis, il sera sage.`],
     glissade: (role: RoleId) => [`Wiiiz ! ${R(role)} dévale le toboggan.`],

@@ -7,6 +7,7 @@ import { lireSkin, ecrireSkin } from '../preferences';
 import { SKIN_CARTOON } from './cartoon/index';
 import { SKIN_CLASSIQUE } from './classique';
 import type { Skin, SkinId, TextureSkin } from './types';
+import type { EquipeId } from '../../data/equipes';
 import { avecVersion } from '../../version';
 
 export type { Skin, SkinId } from './types';
@@ -65,4 +66,12 @@ function chargerImage(scene: Phaser.Scene, t: TextureSkin): Promise<void> {
 /** Prépare les images d'un skin (une seule fois par partie). */
 export async function preparerSkin(scene: Phaser.Scene, id: SkinId): Promise<void> {
   await Promise.all(SKINS[id].textures().map((t) => chargerImage(scene, t)));
+}
+
+/** Charge les élèves des équipes choisies pour la partie (les Rouges et les Bleus le sont déjà). */
+export async function preparerEquipes(scene: Phaser.Scene, equipes: EquipeId[]): Promise<void> {
+  const skin = skinActif();
+  if (!skin.texturesEquipe) return;
+  const t = equipes.flatMap((e) => skin.texturesEquipe?.(e) ?? []);
+  await Promise.all(t.map((x) => chargerImage(scene, x)));
 }

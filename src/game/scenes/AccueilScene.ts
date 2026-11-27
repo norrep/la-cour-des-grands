@@ -18,6 +18,9 @@ import { VERSION } from '../../version';
 import { DECOR } from './ChargementScene';
 import type { Niveau } from '../../ia/index';
 import { NIVEAUX_ORDI } from '../ordi';
+import { choisirCarte, type CarteId } from '../../data/cartes';
+import { choisirEquipes, type EquipeId } from '../../data/equipes';
+import type { Bande } from '../../engine/index';
 
 export interface DonneesPartie {
   equipements: boolean;
@@ -26,6 +29,10 @@ export interface DonneesPartie {
   graine: number;
   /** Partie en solo contre l'ordinateur : son niveau (le joueur a la bande rouge). */
   ordi?: Niveau;
+  /** La carte jouée (la récré par défaut, DB.5). */
+  carte?: CarteId;
+  /** L'équipe de chaque camp (DB.1) : les Rouges en bas, les Bleus en haut par défaut. */
+  equipes?: Record<Bande, EquipeId>;
 }
 
 /** Largeur commune du bloc des boutons. */
@@ -46,6 +53,9 @@ export class AccueilScene extends Phaser.Scene {
   create(): void {
     cadrer(this);
     activerSons(lireSons());
+    // De retour à l'accueil : les Rouges et les Bleus, sur la cour de récré.
+    choisirEquipes({ rouge: 'rouges', bleu: 'bleus' });
+    choisirCarte('cour-premier-jour');
     this.cameras.main.setBackgroundColor(COULEURS.fond);
     const cx = LARGEUR / 2;
 
@@ -209,7 +219,7 @@ export class AccueilScene extends Phaser.Scene {
         graine: Date.now(),
         ...(ordi ? { ordi } : {}),
       };
-      this.scene.start('partie', donnees);
+      this.scene.start('choix', donnees);
     };
 
     creerBouton(this, cx, 716, TEXTES.accueil.contreOrdi, () => lancer(lireNiveauOrdi()), {

@@ -2,6 +2,7 @@
  * Skin « Classique » : les jetons d'origine (rond rouge, carré bleu, valeur au centre) et le
  * pantin en bâtons. Il sert aussi de modèle simple pour écrire un nouveau skin.
  */
+import { equipeDe } from '../../data/equipes';
 import type Phaser from 'phaser';
 import { COULEURS } from '../config';
 import { creerBadge } from '../ui/badge';
@@ -18,7 +19,7 @@ export const SKIN_CLASSIQUE: Skin = {
   pantin(scene, eleve): RenduPantin {
     const g = scene.add.graphics();
     const maillot = creerBadge(scene, eleve.bande, eleve.role, 40);
-    const couleur = eleve.bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const couleur = equipeDe(eleve.bande).couleur;
     const trait = (de: P, vers: P) => {
       g.lineStyle(10, COULEURS.craie, 1);
       g.lineBetween(de.x, de.y, vers.x, vers.y);
