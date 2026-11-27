@@ -62,7 +62,8 @@ describe('Partie en ligne : déroulé', () => {
     expect(v.bande).toBe('rouge');
     expect(v.etat).toBeNull();
     expect(v.code).toMatch(new RegExp(`^[${ALPHABET_CODE}]{6}$`));
-    const w = await ami.rejoindre(v.code.toLowerCase());
+    const w = await ami.rejoindre(v.code.toLowerCase(), 'aliens');
+    expect(w.reglages.equipes.bleu).toBe('aliens');
     expect(w.statut).toBe('en_cours');
     expect(w.bande).toBe('bleu');
     expect(w.adversairePresent).toBe(true);

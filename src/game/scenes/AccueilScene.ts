@@ -22,6 +22,9 @@ import { choisirCarte, type CarteId } from '../../data/cartes';
 import { choisirEquipes, type EquipeId } from '../../data/equipes';
 import type { Bande } from '../../engine/index';
 import { DuoAccueil } from '../ui/duoAccueil';
+import { normaliserCode } from '../../reseau/codes';
+import type { EtapeEnLigne } from '../enLigne/etapes';
+import { codeDeLAdresse, jeuEnLigneDisponible } from '../enLigne/session';
 
 export interface DonneesPartie {
   equipements: boolean;
@@ -34,6 +37,8 @@ export interface DonneesPartie {
   carte?: CarteId;
   /** L'équipe de chaque camp (DB.1, DE.1) : les Écoliers des deux côtés par défaut. */
   equipes?: Record<Bande, EquipeId>;
+  /** Jeu en ligne avec un ami : où on en est (voir `enLigne/etapes.ts`). */
+  enLigne?: EtapeEnLigne;
 }
 
 /** Largeur commune du bloc des boutons. */
@@ -62,6 +67,20 @@ export class AccueilScene extends Phaser.Scene {
 
     if (this.textures.exists(DECOR)) {
       decorPlein(this.add.image(cx, HAUTEUR / 2, DECOR));
+    }
+
+    // Ouvert par le lien d'un ami : on va droit au choix de sa bande, une seule fois.
+    const code = jeuEnLigneDisponible() ? codeDeLAdresse() : null;
+    if (code) {
+      const url = new URL(location.href);
+      url.searchParams.delete('code');
+      history.replaceState(null, '', url);
+      const propre = normaliserCode(code);
+      this.scene.start(
+        propre ? 'choix' : 'enLigne',
+        this.donneesEnLigne(propre ? { etape: 'invite', code: propre } : { etape: 'code' }),
+      );
+      return;
     }
 
     this.dessinerTitre(cx);
@@ -251,14 +270,36 @@ export class AccueilScene extends Phaser.Scene {
     };
     poserPastilles();
 
+    // À deux sur ce téléphone, ou avec un ami en ligne : deux boutons côte à côte.
+    const enLigne = jeuEnLigneDisponible();
+    const l = enLigne ? (BLOC - 14) / 2 : BLOC;
     creerBouton(
       this,
-      cx,
+      enLigne ? cx - l / 2 - 7 : cx,
       912,
       `${TEXTES.accueil.jouerADeux}\n${TEXTES.accueil.sousJouerADeux}`,
       () => lancer(),
-      { largeur: BLOC, hauteur: 92, taille: 28, couleur: 0xc9d3ff },
+      { largeur: l, hauteur: 92, taille: enLigne ? 24 : 28, couleur: 0xc9d3ff },
     );
+    if (enLigne) {
+      creerBouton(
+        this,
+        cx + l / 2 + 7,
+        912,
+        TEXTES.enLigne.bouton,
+        () => this.scene.start('enLigne', this.donneesEnLigne({ etape: 'menu' })),
+        { largeur: l, hauteur: 92, taille: 24, couleur: COULEURS.ilot },
+      );
+    }
+  }
+
+  private donneesEnLigne(enLigne: EtapeEnLigne): DonneesPartie {
+    return {
+      equipements: this.equipements,
+      conseils: lireConseils(),
+      graine: Date.now(),
+      enLigne,
+    };
   }
 
   /** Réglages : quatre petites cases à cocher, en deux rangées, sous les boutons de jeu. */

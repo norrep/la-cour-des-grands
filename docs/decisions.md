@@ -342,3 +342,14 @@ prototype jetable : l'architecture est celle de la sortie. Le détail est dans
 - **DR.7 — Le serveur du jeu a son propre projet Supabase** (`la-cour-des-grands`, Paris, offre
   gratuite). Choix de Clément : mettre en pause son ancien projet « norrep's Project » pour
   libérer la place gratuite. Pro (environ 25 $/mois) seulement à la sortie sur les stores.
+- **DR.8 — L'écran du jeu en ligne.** À l'accueil, « Avec un ami en ligne » est à côté de « Jouer
+  à deux ». L'hôte choisit la carte et SA bande, puis reçoit un code de 6 lettres et un bouton
+  « Envoyer le lien » (partage du téléphone, ou copie). L'ami tape le code, ou ouvre le lien qui
+  l'amène droit au choix de SA bande. Pendant la partie : « À toi de jouer ! » ou « Au tour de ton
+  ami », le temps restant sous la pastille (en rouge sous 15 s), et « Ton ami réfléchit… ». Un coup
+  qui ne pioche rien et ne dépend d'aucun hasard est montré tout de suite ; un appel de copains ou
+  un pouvoir au hasard attend la réponse du serveur (« C'est envoyé… », une fraction de seconde).
+  Après une coupure, « Reprendre ma partie » apparaît dans le menu en ligne.
+- **DR.9 — Pour l'instant, l'invité joue en haut de la cour** (le camp bleu), comme le joueur 2 à
+  deux sur un téléphone. Retourner la cour pour que chacun ait sa cabane en bas demande de revoir
+  les décors : à faire dans une prochaine étape si Clément le souhaite.

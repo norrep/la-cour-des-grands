@@ -55,6 +55,12 @@ Store. Les choix ci-dessous visent la sortie, pas un prototype.
 - Temps par tour (DR.3) : l'échéance est stockée dans la partie ; l'adversaire peut réclamer la
   victoire une fois l'échéance passée, et une tâche planifiée (pg_cron) clôt les parties oubliées.
 
+## Tester sans réseau
+
+`?serveur=memoire` dans l'adresse remplace Supabase par un serveur dans la page
+(`SalleMemoire`). L'ami se joue alors depuis la console ou un test Playwright :
+`window.__salle.client('ami').rejoindre(code)`.
+
 ## Appli mobile (plus tard)
 
 - Empaquetage **Capacitor** : le même build Vite dans une coquille iOS/Android.
@@ -66,7 +72,7 @@ Store. Les choix ci-dessous visent la sortie, pas un prototype.
 
 1. Arbitre, vues masquées, serveur en mémoire, tests. ← fait
 2. Projet Supabase : tables, sécurité, comptes anonymes, fonction arbitre. ← fait
-3. Écran : jouer en ligne, inviter par lien ou code, partie en direct, reprise.
+3. Écran : jouer en ligne, inviter par lien ou code, partie en direct, reprise. ← fait
 4. Amis, abandon et temps à l'écran, notifications.
 
 ## Projet Supabase et mise en ligne du serveur

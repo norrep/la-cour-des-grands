@@ -1031,7 +1031,10 @@ function ouvrirPartie(id, code, hote, reglages, maintenant) {
     majLe: maintenant
   };
 }
-function rejoindrePartie(p, invite, graine, maintenant) {
+function rejoindrePartie(p, invite, graine, maintenant, equipe) {
+  if (equipe !== void 0 && !(equipe in EQUIPES)) {
+    throw new Refus("reglages_invalides", "\xC9quipe inconnue.");
+  }
   if (p.joueurs.rouge === invite || p.joueurs.bleu === invite) {
     throw new Refus("deja_dedans", "Tu es d\xE9j\xE0 dans cette partie.");
   }
@@ -1042,8 +1045,10 @@ function rejoindrePartie(p, invite, graine, maintenant) {
     // Comme à l'écran : un pouvoir sans vrai choix s'applique tout seul (DF.40).
     pouvoirsAuto: true
   });
+  const reglages = equipe ? { ...p.reglages, equipes: { ...p.reglages.equipes, bleu: equipe } } : p.reglages;
   return {
     ...p,
+    reglages,
     statut: "en_cours",
     joueurs: { ...p.joueurs, bleu: invite },
     etat: stocker(etat),
@@ -1209,13 +1214,13 @@ var SalleMemoire = class {
         salle.enregistrer(p);
         return vuePour(p, compte);
       },
-      async rejoindre(saisie) {
+      async rejoindre(saisie, equipe) {
         const code = normaliserCode(saisie);
         const p = [...salle.parties.values()].find(
           (q2) => q2.code === code && q2.statut === "attente"
         );
         if (!p) throw new Refus("partie_introuvable", "Aucune partie n\u2019attend avec ce code.");
-        const q = rejoindrePartie(p, compte, salle.hasard(), salle.horloge());
+        const q = rejoindrePartie(p, compte, salle.hasard(), salle.horloge(), equipe);
         salle.enregistrer(q);
         return vuePour(q, compte);
       },

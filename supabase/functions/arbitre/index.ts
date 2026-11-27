@@ -35,7 +35,7 @@ const ENTETES = {
 type Requete =
   | { op: 'profil'; pseudo: string }
   | { op: 'ouvrir'; reglages: Partial<ReglagesEnLigne> }
-  | { op: 'rejoindre'; code: string }
+  | { op: 'rejoindre'; code: string; equipe?: string }
   | { op: 'envoyer'; partieId: string; demande: Demande };
 
 function hasard(): number {
@@ -136,7 +136,7 @@ async function traiterRequete(compte: string, r: Requete): Promise<unknown> {
       if (error) throw error;
       if (!data) throw new Refus('partie_introuvable', 'Aucune partie n’attend avec ce code.');
       const p = data.donnees as PartieServeur;
-      const q = rejoindrePartie(p, compte, hasard(), maintenant);
+      const q = rejoindrePartie(p, compte, hasard(), maintenant, r.equipe);
       await enregistrer(q, p.version);
       return vuePour(q, compte);
     }

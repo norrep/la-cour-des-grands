@@ -1,3 +1,4 @@
+import type { EquipeId } from '../../data/equipes';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
   Refus,
@@ -73,8 +74,8 @@ export class ServeurSupabase implements ServeurParties {
     return (await this.appeler({ op: 'ouvrir', reglages })) as VueJoueur;
   }
 
-  async rejoindre(code: string): Promise<VueJoueur> {
-    return (await this.appeler({ op: 'rejoindre', code })) as VueJoueur;
+  async rejoindre(code: string, equipe?: EquipeId): Promise<VueJoueur> {
+    return (await this.appeler({ op: 'rejoindre', code, equipe })) as VueJoueur;
   }
 
   async envoyer(partieId: string, demande: Demande): Promise<VueJoueur> {

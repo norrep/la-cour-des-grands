@@ -2,6 +2,7 @@
  * Ce que le jeu demande au serveur de parties en ligne. L'écran ne parle qu'à cette interface :
  * derrière, il y a Supabase (en vrai) ou `SalleMemoire` (tests, développement sans réseau).
  */
+import type { EquipeId } from '../data/equipes';
 import { ouvrirPartie, rejoindrePartie, traiter, verifierTemps, vuePour } from './arbitre';
 import { nouveauCode, normaliserCode } from './codes';
 import {
@@ -15,8 +16,8 @@ import {
 export interface ServeurParties {
   /** Ouvre une partie et rend sa vue (avec le code à partager). */
   ouvrir(reglages: Partial<ReglagesEnLigne>): Promise<VueJoueur>;
-  /** Rejoint la partie d'un ami par son code : elle commence aussitôt. */
-  rejoindre(code: string): Promise<VueJoueur>;
+  /** Rejoint la partie d'un ami par son code, avec sa bande : elle commence aussitôt. */
+  rejoindre(code: string, equipe?: EquipeId): Promise<VueJoueur>;
   /** Envoie un coup, un abandon ou une réclamation ; rend la vue à jour. */
   envoyer(partieId: string, demande: Demande): Promise<VueJoueur>;
   /** Relit la partie (après une coupure, ou en ouvrant l'appli). */
@@ -77,13 +78,13 @@ export class SalleMemoire {
         salle.enregistrer(p);
         return vuePour(p, compte);
       },
-      async rejoindre(saisie) {
+      async rejoindre(saisie, equipe) {
         const code = normaliserCode(saisie);
         const p = [...salle.parties.values()].find(
           (q) => q.code === code && q.statut === 'attente',
         );
         if (!p) throw new Refus('partie_introuvable', 'Aucune partie n’attend avec ce code.');
-        const q = rejoindrePartie(p, compte, salle.hasard(), salle.horloge());
+        const q = rejoindrePartie(p, compte, salle.hasard(), salle.horloge(), equipe);
         salle.enregistrer(q);
         return vuePour(q, compte);
       },

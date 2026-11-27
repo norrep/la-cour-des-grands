@@ -4,7 +4,7 @@
  * ou lève un `Refus`. Le stockage (Supabase) et les tests s'en servent de la même façon.
  */
 import { COURS } from '../data/boards/index';
-import { EQUIPES } from '../data/equipes';
+import { EQUIPES, type EquipeId } from '../data/equipes';
 import {
   ActionIllegale,
   adversaire,
@@ -110,7 +110,11 @@ export function rejoindrePartie(
   invite: string,
   graine: number,
   maintenant: number,
+  equipe?: EquipeId,
 ): PartieServeur {
+  if (equipe !== undefined && !(equipe in EQUIPES)) {
+    throw new Refus('reglages_invalides', 'Équipe inconnue.');
+  }
   if (p.joueurs.rouge === invite || p.joueurs.bleu === invite) {
     throw new Refus('deja_dedans', 'Tu es déjà dans cette partie.');
   }
@@ -121,8 +125,13 @@ export function rejoindrePartie(
     // Comme à l'écran : un pouvoir sans vrai choix s'applique tout seul (DF.40).
     pouvoirsAuto: true,
   });
+  // L'invité choisit sa bande en arrivant (l'hôte n'a choisi que la sienne).
+  const reglages = equipe
+    ? { ...p.reglages, equipes: { ...p.reglages.equipes, bleu: equipe } }
+    : p.reglages;
   return {
     ...p,
+    reglages,
     statut: 'en_cours',
     joueurs: { ...p.joueurs, bleu: invite },
     etat: stocker(etat),

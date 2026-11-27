@@ -60,7 +60,26 @@ export class ChoixScene extends Phaser.Scene {
     if (this.textures.exists(DECOR)) decorPlein(this.add.image(LARGEUR / 2, HAUTEUR / 2, DECOR));
     // Les élèves de toutes les bandes, pour les montrer sur les cartes de choix.
     this.eleves = preparerEquipes(this, ['vers', 'aliens']).catch(() => undefined);
-    this.montrerCartes();
+    // L'invité d'une partie en ligne ne choisit que sa bande : l'hôte a choisi la carte.
+    if (this.donnees.enLigne?.etape === 'invite') {
+      void this.eleves.then(() => this.montrerEquipes());
+    } else {
+      this.montrerCartes();
+    }
+  }
+
+  /** Une seule bande à choisir à cet écran : contre l'ordi, ou en ligne (l'ami choisit la sienne). */
+  private get unSeulChoix(): boolean {
+    return this.donnees.ordi !== undefined || this.donnees.enLigne !== undefined;
+  }
+
+  /** Revenir avant le choix de la carte : à l'accueil, ou au menu du jeu en ligne. */
+  private sortir(): void {
+    if (this.donnees.enLigne) {
+      this.scene.start('enLigne', { ...this.donnees, enLigne: { etape: 'menu' } });
+    } else {
+      this.scene.start('accueil');
+    }
   }
 
   private vider(): Phaser.GameObjects.Container {
@@ -188,7 +207,7 @@ export class ChoixScene extends Phaser.Scene {
         void this.eleves.then(() => this.montrerEquipes());
       });
     });
-    this.retour(c, () => this.scene.start('accueil'));
+    this.retour(c, () => this.sortir());
   }
 
   /**
@@ -198,12 +217,15 @@ export class ChoixScene extends Phaser.Scene {
    */
   private montrerEquipes(): void {
     const c = this.vider();
-    const solo = this.donnees.ordi !== undefined;
-    const titre = solo
-      ? TEXTES.choixPartie.titreEquipe
-      : this.bas === null
-        ? TEXTES.choixPartie.titreBas
-        : TEXTES.choixPartie.titreHaut;
+    const solo = this.unSeulChoix;
+    const invite = this.donnees.enLigne?.etape === 'invite';
+    const titre = invite
+      ? TEXTES.enLigne.titreInvite
+      : solo
+        ? TEXTES.choixPartie.titreEquipe
+        : this.bas === null
+          ? TEXTES.choixPartie.titreBas
+          : TEXTES.choixPartie.titreHaut;
     this.titre(c, titre);
     const l = 600;
     const h = 262;
@@ -236,6 +258,8 @@ export class ChoixScene extends Phaser.Scene {
       if (this.bas !== null && !solo) {
         this.bas = null;
         this.montrerEquipes();
+      } else if (invite) {
+        this.sortir();
       } else {
         this.bas = null;
         this.montrerCartes();
@@ -244,7 +268,25 @@ export class ChoixScene extends Phaser.Scene {
   }
 
   private choisir(id: EquipeId): void {
-    const solo = this.donnees.ordi !== undefined;
+    const enLigne = this.donnees.enLigne;
+    if (enLigne?.etape === 'invite') {
+      this.scene.start('enLigne', {
+        ...this.donnees,
+        enLigne: { etape: 'rejoindre', code: enLigne.code, equipe: id },
+      });
+      return;
+    }
+    if (enLigne) {
+      // L'hôte ouvre la partie avec sa bande ; l'ami choisira la sienne en arrivant.
+      this.scene.start('enLigne', {
+        ...this.donnees,
+        carte: this.carte,
+        equipes: { rouge: id, bleu: id },
+        enLigne: { etape: 'ouvrir' },
+      });
+      return;
+    }
+    const solo = this.unSeulChoix;
     if (!solo && this.bas === null) {
       this.bas = id;
       this.montrerEquipes();
