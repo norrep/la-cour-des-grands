@@ -237,3 +237,13 @@ Clément, sur sa capture : « La piscine est trop chargée en haut, la zone de j
 - **DP.2 — Des casiers sur les côtés, seulement quand il y a la place.** Sur un écran plus court que 9:16 (navigateur intégré, tablette), on voit plus large : deux rangées de casiers de chaque côté, collées au bord de l'écran, portes vers le bassin. Sur un téléphone allongé, il n'y a pas la place et on ne voit que le carrelage. Rien n'est posé sur la cour elle-même.
 - **DP.3 — Pioche et Punis au même poids.** Le carton rouge illustré avait un trait trois fois plus fin que la pioche dessinée en code. Il est redessiné comme une carte de la pioche (même taille, même trait, même ombre, penché, reflet brillant), et son compteur est au même endroit et au même format (« ×0 »). Le carton illustré reste pour le panneau plein écran. L'éventail du rang adverse est réduit (×1,35 → ×1,05) pour alléger le haut.
 - **DP.4 — La bouée devient une bouée de sauvetage.** La bouée orange ressemblait trop au beignet rose : elle est recolorée en bouée rouge et blanche à quatre bandes (même dessin, même trait), le beignet ne change pas.
+
+## DF.40 — Un pouvoir sans vrai choix s'applique tout seul (27/11)
+
+Clément : « Lorsqu'un pouvoir ne demande pas de choix à l'utilisateur, applique-le sans demander, comme la Chouchou par exemple. » Lu comme : dès que toutes les options d'un pouvoir ou d'un équipement reviennent au même (une seule option, ou deux élèves du même rôle au même endroit), le moteur l'applique aussitôt, sans faire toucher la pioche, l'adversaire ou l'îlot. Le coup et ses effets arrivent ensemble ; les vidéos et panneaux suivent comme avant.
+
+- Toujours automatiques : Populaire (piocher), Contagieux (éternuer), cabane perchée (piocher 1).
+- Automatiques quand il n'y a qu'une cible : Rapporteuse, buts, toboggan (une seule glissade possible), porte de la vie scolaire (un seul rôle chez les punis), Chouchou (un seul 2e élève de 5 ou plus et un seul îlot possible ; il arrive alors après le premier, avec le panneau des grands frères).
+- **Le Délégué demande toujours** : garder son mot d'excuse reste un vrai choix (« Passer », DF.8). Ambiguïté à confirmer par Clément s'il le veut automatique aussi.
+- Interprétation pour la Chouchou : s'il y a plusieurs élèves ou plusieurs îlots possibles, le choix reste à faire au doigt (c'est un vrai choix).
+- Réglage du moteur `pouvoirsAuto`, activé par le jeu (`Controleur`) ; les tests de règles et l'arène gardent la règle stricte (pouvoir facultatif). L'ordi joue avec le même réglage que l'écran.

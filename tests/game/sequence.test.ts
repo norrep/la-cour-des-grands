@@ -95,4 +95,14 @@ describe('La ronde de la surveillante', () => {
     const seconde = rondeParcourue(4, 3, 1);
     expect(seconde[0]).toBe(premiere[premiere.length - 1]);
   });
+
+  it('un 2e élève posé dans le même coup (DF.40) arrive après le premier', () => {
+    const deux: Evenement[] = [
+      { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'a', role: 'chouchou', cible: 'P' },
+      { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'b', role: 'grand', cible: 'Q' },
+    ];
+    const plan = planAnimations(deux);
+    expect(plan.map((p) => p.debut)).toEqual([0, DUREE_ARRIVEE]);
+    expect(dureeAnimations(deux)).toBe(2 * DUREE_ARRIVEE);
+  });
 });
