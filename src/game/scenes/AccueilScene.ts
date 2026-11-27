@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { TEXTES } from '../../data/textes';
-import { COULEURS, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
+import { COULEURS, HAUT, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
 import { choisirSkin, preparerSkin, skinActif, skinSuivant } from '../skins/index';
 import {
   ecrireConseils,
@@ -21,6 +21,7 @@ import { NIVEAUX_ORDI } from '../ordi';
 import { choisirCarte, type CarteId } from '../../data/cartes';
 import { choisirEquipes, type EquipeId } from '../../data/equipes';
 import type { Bande } from '../../engine/index';
+import { DuoAccueil } from '../ui/duoAccueil';
 
 export interface DonneesPartie {
   equipements: boolean;
@@ -117,7 +118,19 @@ export class AccueilScene extends Phaser.Scene {
     });
     const bandeau = this.add.container(0, 104, [fondSous, sous]).setAngle(4);
 
+    // La pancarte tombe d'en haut et rebondit, puis se balance.
     const bloc = this.add.container(cx, 150, [pancarte, titre, bandeau]).setAngle(-2);
+    const sansAnimations = (window as unknown as { __sansAnimations?: boolean }).__sansAnimations;
+    if (!sansAnimations) {
+      bloc.setY(HAUT - 140);
+      this.tweens.add({
+        targets: bloc,
+        y: 150,
+        duration: 750,
+        delay: 150,
+        ease: 'Bounce.easeOut',
+      });
+    }
     this.tweens.add({
       targets: bloc,
       angle: 1.5,
@@ -128,48 +141,27 @@ export class AccueilScene extends Phaser.Scene {
     });
   }
 
-  /** Le Grand et le Petit côte à côte, une ombre sous les pieds ; le Petit annonce le but. */
+  /** Le Grand et le Petit, mis en scène par `DuoAccueil` ; le Petit annonce le but dans sa bulle. */
   private dessinerDuo(cx: number): void {
-    const sol = 628;
-    const ombres = this.add.graphics();
-    ombres.fillStyle(COULEURS.encre, 0.18);
-    ombres.fillEllipse(cx - 120, sol, 130, 22);
-    ombres.fillEllipse(cx + 120, sol, 110, 20);
-
-    const grand = skinActif().eleve(this, 'rouge', 'grand', 100);
-    grand.setPosition(cx - 120, sol - 104);
-    const petit = skinActif().eleve(this, 'bleu', 'petit', 100);
-    petit.setPosition(cx + 120, sol - 104);
-    // Le Grand se dandine, le Petit sautille : chacun son rythme.
-    this.tweens.add({
-      targets: grand,
-      angle: { from: -4, to: 4 },
-      duration: 900,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-    this.tweens.add({
-      targets: petit,
-      y: petit.y - 10,
-      duration: 360,
-      yoyo: true,
-      repeat: -1,
-      repeatDelay: 500,
-      ease: 'Quad.easeOut',
-    });
-
-    this.bulle(cx + 122, 372, 370, TEXTES.accueil.bulle, { x: cx + 110, y: 450 });
+    const sol = 634;
+    const skin = skinActif();
+    const grand = skin.acteur(this, 'rouge', 'grand', 110);
+    const petit = skin.acteur(this, 'bleu', 'petit', 110);
+    const bulle = this.bulle(cx + 122, 372, 370, TEXTES.accueil.bulle, { x: cx + 108, y: 444 });
+    new DuoAccueil(this, grand, petit, cx - 125, cx + 120, sol, bulle);
   }
 
-  /** Bulle de bande dessinée, papier au trait noir, avec sa pointe vers celui qui parle. */
+  /**
+   * Bulle de bande dessinée, papier au trait noir, avec sa pointe vers celui qui parle. Le
+   * conteneur a son origine à la pointe : en grandissant, la bulle sort de la tête.
+   */
   private bulle(
     x: number,
     y: number,
     largeur: number,
     texte: string,
     pointe: { x: number; y: number },
-  ): void {
+  ): Phaser.GameObjects.Container {
     const t = this.add
       .text(x, y, texte, {
         fontFamily: POLICE,
@@ -180,8 +172,7 @@ export class AccueilScene extends Phaser.Scene {
         wordWrap: { width: largeur - 28 },
         lineSpacing: -2,
       })
-      .setOrigin(0.5)
-      .setDepth(1);
+      .setOrigin(0.5);
     const h = t.height + 28;
     const haut = y - h / 2;
     const rect = contourRect(x - largeur / 2, haut, largeur, h, 22, graineDe(x, y));
@@ -208,6 +199,9 @@ export class AccueilScene extends Phaser.Scene {
     g.lineTo(pointe.x, pointe.y);
     g.lineTo(pied2.x, pied2.y + 4);
     g.strokePath();
+    g.setPosition(-pointe.x, -pointe.y);
+    t.setPosition(x - pointe.x, y - pointe.y);
+    return this.add.container(pointe.x, pointe.y, [g, t]).setDepth(3);
   }
 
   /** Le bouton principal (contre l'ordi), ses pastilles de niveau, et le bouton « à deux ». */

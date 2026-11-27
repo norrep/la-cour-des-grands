@@ -4,6 +4,7 @@ import { preparerSkin, choisirSkin, skinActif } from '../skins/index';
 import { cadrer } from '../ui/ecran';
 import { TEXTES } from '../../data/textes';
 import { avecVersion } from '../../version';
+import { chargerIncrustations } from '../ui/incrust';
 
 /** Clé du décor de la cour (image plein écran derrière le plateau). */
 export const DECOR = 'decor-cour';
@@ -18,8 +19,7 @@ export const PLATEAU = {
   /** Murs seuls, en gris clair : teintés à la couleur de l'équipe par-dessus la cabane. */
   mursRouge: 'plateau-cabane-rouge-murs',
   mursBleue: 'plateau-cabane-bleue-murs',
-  portail: 'plateau-portail',
-  cpe: 'plateau-cpe',
+  carton: 'plateau-carton',
 } as const;
 /** Goûters illustrés (DF.21), dans l'ordre des régions de la cour : chocolat, biscuits, bonbon, sucette. */
 export const GOUTERS = [
@@ -60,8 +60,7 @@ export class ChargementScene extends Phaser.Scene {
       cabaneBleue: 'cabane-bleue',
       mursRouge: 'cabane-rouge-murs',
       mursBleue: 'cabane-bleue-murs',
-      portail: 'portail',
-      cpe: 'cpe',
+      carton: 'carton',
     };
     for (const [piece, cle] of Object.entries(PLATEAU)) {
       this.load.image(cle, avecVersion(`plateau/${fichiers[piece as keyof typeof PLATEAU]}.png`));
@@ -70,6 +69,7 @@ export class ChargementScene extends Phaser.Scene {
     for (const [equipement, cle] of Object.entries(ILLUSTRATIONS)) {
       if (cle) this.load.image(cle, avecVersion(`decor/${equipement}.png`));
     }
+    chargerIncrustations(this);
   }
 
   create(): void {
