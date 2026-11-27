@@ -78,21 +78,40 @@ export const RANG = {
 /** Largeur que le rang peut occuper (centres de la première à la dernière carte). */
 const ETENDUE_RANG = 570;
 
+/** Partie de l'écran où s'étale la main : centre et étendue (centres de la première à la dernière). */
+export interface ZoneMain {
+  centre: number;
+  etendue: number;
+}
+
+const ZONE_MAIN: ZoneMain = { centre: LARGEUR / 2, etendue: ETENDUE_RANG };
+
+/**
+ * Avec la carte « +2 copains » (DL.8) : elle a sa place à gauche, à part, et la main se serre
+ * dans le reste de la largeur.
+ */
+export const ZONE_MAIN_AVEC_APPEL: ZoneMain = { centre: 424, etendue: 440 };
+export const POSE_APPEL = { x: 66, y: RANG.y + 4, rotation: -0.05 } as const;
+
 /** Abscisse de la carte `i` sur `n` dans le rang : au-delà de 6 cartes, elles se chevauchent. */
-export function xCarteRang(i: number, n: number): number {
-  const ecart = n > 1 ? Math.min(RANG.ecart, ETENDUE_RANG / (n - 1)) : RANG.ecart;
-  return LARGEUR / 2 + (i - (n - 1) / 2) * ecart;
+export function xCarteRang(i: number, n: number, zone: ZoneMain = ZONE_MAIN): number {
+  const ecart = n > 1 ? Math.min(RANG.ecart, zone.etendue / (n - 1)) : RANG.ecart;
+  return zone.centre + (i - (n - 1) / 2) * ecart;
 }
 
 /**
  * Place de la carte `i` sur `n` dans le rang, tenu en léger éventail (demande de Clément) : les
  * cartes s'inclinent vers l'extérieur et les bords descendent un peu, comme dans une main.
  */
-export function poseCarteRang(i: number, n: number): { x: number; y: number; rotation: number } {
+export function poseCarteRang(
+  i: number,
+  n: number,
+  zone: ZoneMain = ZONE_MAIN,
+): { x: number; y: number; rotation: number } {
   const t = i - (n - 1) / 2;
   const demi = Math.max(1, (n - 1) / 2);
   return {
-    x: xCarteRang(i, n),
+    x: xCarteRang(i, n, zone),
     y: RANG.y + t * t * Math.min(4, 14 / (demi * demi)),
     rotation: t * Math.min(0.055, 0.15 / demi),
   };

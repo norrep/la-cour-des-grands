@@ -55,6 +55,8 @@ import {
   positionNoeud,
   RANG,
   poseCarteRang,
+  POSE_APPEL,
+  ZONE_MAIN_AVEC_APPEL,
   ZONE_COUR,
   type Point,
   DESCENTE,
@@ -2254,53 +2256,9 @@ export class PartieScene extends Phaser.Scene {
     const ctrl = this.ctrl;
 
     const attente = this.etat.attente;
-    if (!attente) {
-      const boutons: { texte: string; action: () => void; couleur?: number }[] = [];
-      const n = ctrl.nombreAppel;
-      if (n > 0) {
-        boutons.push({
-          texte: TEXTES.boutons.appeler(n),
-          couleur: COULEURS.allume,
-          action: () => {
-            this.agir(() => ctrl.appeler());
-          },
-        });
-      }
-      if (boutons.length === 1 && n > 0) {
-        // Plus de feuille de cahier (demande de Clément) : le bouton est posé seul sur le décor.
-        // Le bouton est posé sur la pioche de la bande (DL.2) : on pioche là où sont les cartes,
-        // et la bande du bas reste à la main.
-        const b = boutons[0] as (typeof boutons)[number];
-        const pioche = positionLieu(this.cour, this.bandeActive, 'portail');
-        const bouton = creerBouton(
-          this,
-          // À droite du paquet, entre la pioche et la cabane : le compteur reste visible.
-          pioche.x + 96,
-          pioche.y + 6,
-          TEXTES.boutons.appelerCourt(n),
-          b.action,
-          {
-            largeur: 100,
-            hauteur: 78,
-            taille: 23,
-            couleur: COULEURS.jaune,
-          },
-        );
-        this.ajouter(bouton);
-        // Il respire doucement pour qu'on le remarque.
-        this.tweens.add({
-          targets: bouton,
-          scale: 1.06,
-          duration: 700,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-        return;
-      }
-      this.rangeeBoutons(Y_ACTIONS, boutons);
-      return;
-    }
+    // Hors choix, plus de bouton ici : appeler des copains se fait par la carte « +2 copains »
+    // au début de la main (DL.8), dessinée avec le rang.
+    if (!attente) return;
 
     // Choix d'un pouvoir ou d'un équipement : il se joue en touchant sa cible sur la cour
     // (voir `ciblesDesPouvoirs`) ; il ne reste ici que « Passer ».
@@ -2341,6 +2299,79 @@ export class PartieScene extends Phaser.Scene {
   // -------------------------------------------------------------------------
 
   /**
+   * La carte « Appeler +2 copains » (DL.8) : un dos de carte de la pioche, au début de la main,
+   * cerclé de jaune et qui respire. La toucher appelle les copains.
+   */
+  private carteAppel(
+    pose: { x: number; y: number; rotation: number },
+    n: number,
+    bande: Bande,
+  ): Phaser.GameObjects.Container {
+    const { largeurCarte: l, hauteurCarte: h } = RANG;
+    const g = this.add.graphics();
+    const graine = graineDe(pose.x, n);
+    // Le halo jaune, puis le dos de carte aux couleurs de la bande.
+    forme(g, contourRect(-l / 2 - 7, -h / 2 - 7, l + 14, h + 14, 16, graine + 2, 1), {
+      remplissage: COULEURS.allume,
+      trait: 0,
+    });
+    forme(g, contourRect(-l / 2, -h / 2, l, h, 12, graine, 1), {
+      remplissage: equipeDe(bande).couleur,
+      ombre: 5,
+      trait: 3,
+    });
+    forme(g, contourRect(-l / 2 + 10, -h / 2 + 10, l - 20, h - 20, 9, graine + 1, 0.6), {
+      remplissage: COULEURS.papier,
+      trait: 3,
+    });
+    const T = TEXTES.boutons;
+    const haut = this.add
+      .text(0, -52, T.appelerHaut, {
+        fontFamily: POLICE,
+        fontSize: '22px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const nombre = this.add
+      .text(0, 2, `+${n}`, {
+        fontFamily: POLICE,
+        fontSize: '58px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const bas = this.add
+      .text(0, 56, T.appelerBas(n), {
+        fontFamily: POLICE,
+        fontSize: '22px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const c = this.add.container(pose.x, pose.y, [g, haut, nombre, bas]);
+    c.setSize(l + 14, h + 14).setRotation(pose.rotation);
+    c.setInteractive({ useHandCursor: true });
+    c.on('pointerdown', () => c.setScale(0.94));
+    c.on('pointerout', () => c.setScale(1));
+    c.on('pointerup', () => {
+      c.setScale(1);
+      jouerSon('bouton');
+      this.agir(() => this.ctrl.appeler());
+    });
+    this.ajouter(c);
+    this.tweens.add({
+      targets: g,
+      alpha: 0.82,
+      duration: 650,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+    return c;
+  }
+
+  /**
    * Le rang d'une bande, en bas. `interactif` : ses cartes se touchent et se glissent ; sinon il
    * reste juste visible (pendant un choix hors du rang, ou le temps de voir la fin de son coup).
    */
@@ -2350,10 +2381,18 @@ export class PartieScene extends Phaser.Scene {
     const j = e.joueurs[bande];
     // Le couloir et la CPE sont dessinés autour de la cour (portail, bureau) : plus de compteurs ici.
     // Plus de « Touche un élève » au-dessus du rang (DF.24) : le tuto l'expliquera.
+    // Appeler des copains (DL.8) : une carte « +2 copains » au début de la main, là où le pouce
+    // cherche ses cartes, plutôt qu'un bouton dans un coin de la cour.
+    const appel =
+      interactif && !e.attente && this.ctrl.phase === 'jeu' && bande === this.bandeActive
+        ? this.ctrl.nombreAppel
+        : 0;
+    const zone = appel > 0 ? ZONE_MAIN_AVEC_APPEL : undefined;
+    if (appel > 0) this.carteAppel(POSE_APPEL, appel, bande);
     if (j.rang.length === 0 && interactif) {
       this.texte(
         LARGEUR / 2,
-        RANG.y,
+        appel > 0 ? RANG.y - RANG.hauteurCarte / 2 - 40 : RANG.y,
         aide(TEXTES.hud.rangVide, FUN.hud.rangVide, this.etat.tour),
         22,
         COULEURS.texteSombre,
@@ -2386,7 +2425,7 @@ export class PartieScene extends Phaser.Scene {
           : malade
             ? []
             : ciblesPossibles(e, el.id);
-      const pose = poseCarteRang(i, j.rang.length);
+      const pose = poseCarteRang(i, j.rang.length, zone);
       const { x } = pose;
       const carte = this.carte(el, x, pose.y, malade, !interactif || cibles.length > 0);
       carte.setRotation(pose.rotation);

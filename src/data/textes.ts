@@ -188,8 +188,9 @@ export const TEXTES = {
   },
   boutons: {
     appeler: (n: number) => (n > 1 ? `Appeler ${n} copains` : 'Appeler 1 copain'),
-    /** Sur la pioche (DL.2) : la place est comptée. */
-    appelerCourt: (n: number) => (n > 1 ? `+${n} copains` : '+1 copain'),
+    /** La carte au début de la main (DL.8) : « Appeler / +2 / copains ». */
+    appelerHaut: 'Appeler',
+    appelerBas: (n: number) => (n > 1 ? 'copains' : 'copain'),
     passer: 'Passer',
     motExcuse: 'Mot d’excuse !',
     piocher: 'Piocher',
@@ -285,7 +286,7 @@ export const TEXTES = {
     glisser:
       'Glisse un élève de ton rang vers la cour. Il ne peut aller que sur un îlot touchant ta cabane ou ton chemin.',
     appeler:
-      'Le bouton « +2 copains », à côté de ta pioche, fait venir 2 élèves. Ton tour s’arrête là.',
+      'La carte « Appeler +2 copains », au début de ta main, fait venir 2 élèves. Ton tour s’arrête là.',
     chemin:
       'Le trait de couleur, c’est ton chemin depuis ta cabane. Tu peux poser sur tout îlot qui touche ce chemin.',
     plaquer:
@@ -389,7 +390,7 @@ export const TEXTES = {
     texteCouloir: (n: number) =>
       n === 0
         ? 'La pioche est vide : on ne peut plus appeler de copains.'
-        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. Le bouton « +2 copains » en fait venir 2 dans le rang.`,
+        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. La carte « Appeler +2 copains », au début de ta main, en fait venir 2.`,
     ficheCpe: (b: Bande) => `Les punis (${BANDES[b]})`,
     texteCpe: (n: number) =>
       n === 0
