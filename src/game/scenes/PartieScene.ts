@@ -76,6 +76,7 @@ import { visuelCarte, type VisuelCarte } from '../cartes';
 import { choisirCarte } from '../../data/cartes';
 import { effacerIncrustations, jouerIncrust } from '../ui/incrust';
 import { prechargerVideos, videoEnMemoire } from '../videos';
+import { couchesPiscinePretes, poserDecorPiscine } from '../ui/decorPiscine';
 
 const RAYON_ILOT = 48;
 /** Haut de la cour, à défaut de cabane en haut (fiche de la cour). */
@@ -231,7 +232,9 @@ export class PartieScene extends Phaser.Scene {
     cadrer(this);
     this.cameras.main.setBackgroundColor(COULEURS.fond);
     const decor = this.textures.exists(this.visuel.decor) ? this.visuel.decor : DECOR;
-    if (this.textures.exists(decor)) {
+    if (this.donnees.carte === 'piscine' && couchesPiscinePretes(this)) {
+      poserDecorPiscine(this);
+    } else if (this.textures.exists(decor)) {
       decorPlein(this.add.image(LARGEUR / 2, HAUTEUR / 2, decor));
     }
     this.dyn = this.add.container(0, 0);
@@ -900,7 +903,7 @@ export class PartieScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     c.add(t);
-    c.setScale(1.35).setSize(64, 80);
+    c.setScale(1.05).setSize(64, 80);
     if (this.ctrl.phase === 'jeu') {
       c.setInteractive({ useHandCursor: true });
       c.on('pointerup', () =>
@@ -996,21 +999,29 @@ export class PartieScene extends Phaser.Scene {
         positionLieu(this.cour, bande, 'cpe'),
       ),
     );
-    // Le carton rouge (DF.36) : illustré, ou à défaut un bonnet d'âne dessiné en code.
-    if (this.textures.exists(PLATEAU.carton)) {
-      c.addAt(this.add.image(0, -6, PLATEAU.carton).setScale(82 / 512), 0);
-    } else {
-      const g = this.add.graphics();
-      this.dessinerBonnetAne(g, -6, 4, 0.82);
-      c.addAt(g, 0);
-    }
+    // Le carton rouge (DF.36), dessiné comme la carte de la pioche (même taille, même trait) pour
+    // que les deux lieux pèsent pareil à l'écran (DP.3).
+    const g = this.add.graphics();
+    const L = 56;
+    const H = 80;
+    forme(g, contourRect(-L / 2, -H / 2, L, H, 9, graineDe(7, bande.length), 0.5), {
+      remplissage: 0xe8463c,
+      trait: 3,
+      ombre: 4,
+    });
+    // Reflet de plastique brillant.
+    g.fillStyle(0xffffff, 0.45);
+    g.fillRoundedRect(-L / 2 + 8, -H / 2 + 8, 8, H - 30, 4);
+    g.fillCircle(-L / 2 + 12, H / 2 - 13, 4);
+    g.setRotation(-0.14);
+    c.addAt(g, 0);
     // Les exclus (les 3 derniers) et leur nombre.
     punis.slice(-3).forEach((el, k) => {
       const b = creerBadge(this, el.bande, el.role, 22);
       b.setPosition(-30 + k * 18, 42);
       c.add(b);
     });
-    c.add(this.compteurLieu(46, 42, punis.length === 0 ? '0' : `×${punis.length}`, bande));
+    c.add(this.compteurLieu(36, 34, `×${punis.length}`, bande));
   }
 
   /** Centre d'une zone, légèrement décalé pour ne pas gêner les allées. */

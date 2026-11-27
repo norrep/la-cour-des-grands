@@ -90,6 +90,14 @@ function fichiers(carte: CarteId): Record<string, string> {
     [cle(carte, 'decor')]: `decor/${carte}.jpg`,
     [cle(carte, 'cabane')]: `cartes/${carte}/cabane.png`,
     [cle(carte, 'cabane-murs')]: `cartes/${carte}/cabane-murs.png`,
+    ...(carte === 'piscine'
+      ? Object.fromEntries(
+          ['sol', 'bassin', 'vague', 'casiers'].map((n) => [
+            cle(carte, n),
+            `cartes/${carte}/${n}.png`,
+          ]),
+        )
+      : {}),
     [cle(carte, 'surveillant')]:
       `skins/dodu/${carte === 'piscine' ? 'maitre-nageur' : 'cheftaine'}.png`,
   };

@@ -13,6 +13,7 @@ import { ROLES, type Bande, type RoleId } from '../../../engine/index';
 import { COULEURS } from '../../config';
 import { creerBadge } from '../../ui/badge';
 import { animerMarionnette, Marionnette, type Rig } from '../../ui/marionnette';
+import { animerVer, Ver } from '../../ui/ver';
 import type { Acteur, P, RenduPantin, Skin, TextureSkin } from '../types';
 import { RIGS } from './rig';
 import { RIGS_EQUIPES } from './rigEquipes';
@@ -37,6 +38,9 @@ const PENCHE = 0.45;
 /** Nom de l'image d'un élève : préfixe de l'équipe qui joue ce camp (DB.1), puis le rôle. */
 const nom = (bande: Bande, role: RoleId) => `${equipeDe(bande).prefixe}-${role}`;
 const cle = (bande: Bande, role: RoleId) => `dodu-${nom(bande, role)}`;
+/** Les vers de terre n'ont pas de membres : un seul dessin, déformé d'un bloc (DB.8). */
+const estVer = (bande: Bande) => equipeDe(bande).sansBras === true;
+const cleCorps = (bande: Bande, role: RoleId) => `${cle(bande, role)}-corps`;
 
 function rig(bande: Bande, role: RoleId): Rig {
   const r = RIGS[nom(bande, role)] ?? RIGS_EQUIPES[nom(bande, role)];
@@ -47,9 +51,11 @@ function rig(bande: Bande, role: RoleId): Rig {
 /** Les images des élèves d'une équipe. */
 export function texturesEquipe(equipe: EquipeId): TextureSkin[] {
   const prefixe = EQUIPES[equipe].prefixe;
+  // Un ver n'a que son corps entier ; les autres, leur planche de pièces.
+  const suffixe = EQUIPES[equipe].sansBras ? '-corps' : '';
   return ROLES.map(({ id }) => ({
-    cle: `dodu-${prefixe}-${id}`,
-    url: `skins/dodu/${prefixe}-${id}.png`,
+    cle: `dodu-${prefixe}-${id}${suffixe}`,
+    url: `skins/dodu/${prefixe}-${id}${suffixe}.png`,
   }));
 }
 
@@ -129,7 +135,8 @@ export const SKIN_CARTOON: Skin = {
     const echelle = (HAUTEUR_REF * taille) / PIXELS_REF;
     // Tous les élèves ont les pieds au même niveau : le Grand dépasse, le Petit est plus bas.
     const pieds = (1 - NUMERO) * PIXELS_REF * echelle - taille * REMONTE;
-    const m = new Marionnette(scene, cle(bande, role), r, echelle);
+    const ver = estVer(bande) ? new Ver(scene, cleCorps(bande, role), echelle) : null;
+    const m = ver ?? new Marionnette(scene, cle(bande, role), r, echelle);
     m.racine.setY(pieds);
     const pastille = creerBadge(scene, bande, role, taille * PASTILLE);
     pastille.setPosition(
@@ -137,10 +144,16 @@ export const SKIN_CARTOON: Skin = {
       pieds + basBuste(r) * echelle * 0.85,
     );
     const eleve = scene.add.container(0, 0, [m.racine, pastille]);
-    animerMarionnette(scene, m, eleve, { caractere: role });
+    if (ver) animerVer(scene, ver, eleve, { caractere: role });
+    else animerMarionnette(scene, m as Marionnette, eleve, { caractere: role });
     return eleve;
   },
   acteur(scene, bande, role, taille): Acteur {
+    if (estVer(bande)) {
+      const v = new Ver(scene, cleCorps(bande, role), (HAUTEUR_REF * taille) / PIXELS_REF);
+      const objet = scene.add.container(0, 0, [v.racine]);
+      return { objet, hauteur: v.hauteur, poser: (p) => v.poser(p) };
+    }
     const m = new Marionnette(
       scene,
       cle(bande, role),
@@ -155,7 +168,8 @@ export const SKIN_CARTOON: Skin = {
     const haut = hautTete(r);
     const bas = basBuste(r);
     const echelle = Math.min(hauteur / (bas - haut), (largeur * 0.95) / r.pieces.tronc.cadre[2]);
-    const m = new Marionnette(scene, cle(bande, role), r, echelle);
+    const ver = estVer(bande) ? new Ver(scene, cleCorps(bande, role), echelle) : null;
+    const m = ver ?? new Marionnette(scene, cle(bande, role), r, echelle);
     // Le bas du débardeur au bas de la carte.
     m.racine.setY(hauteur / 2 - bas * echelle);
     const pastille = creerBadge(scene, bande, role, 24);
@@ -165,7 +179,8 @@ export const SKIN_CARTOON: Skin = {
       g.fillRect(-largeur / 2, -hauteur / 2 - hauteur, largeur, hauteur * 2),
     );
     m.racine.setMask(masque);
-    animerMarionnette(scene, m, buste, { caractere: role, calme: true });
+    if (ver) animerVer(scene, ver, buste, { caractere: role, calme: true });
+    else animerMarionnette(scene, m as Marionnette, buste, { caractere: role, calme: true });
     return buste;
   },
   pastille(scene, bande, role, diametre) {
@@ -189,7 +204,8 @@ export const SKIN_CARTOON: Skin = {
     dessiner(fond, 0, 0, r);
     fond.fillStyle(clair, 1);
     dessiner(fond, 0, 0, r - 5);
-    const m = new Marionnette(scene, cle(bande, role), rg, echelle);
+    const ver = estVer(bande) ? new Ver(scene, cleCorps(bande, role), echelle) : null;
+    const m = ver ?? new Marionnette(scene, cle(bande, role), rg, echelle);
     // Le bas du débardeur au bas de la pastille ; la tête dépasse en haut.
     m.racine.setY(r - 4 - basBuste(rg) * echelle);
     const valeur = creerBadge(scene, bande, role, diametre * 0.36);
@@ -201,13 +217,20 @@ export const SKIN_CARTOON: Skin = {
       dessiner(g, 0, 0, r - 5);
       g.fillRect(-r * 1.8, -r * 4, r * 3.6, r * 4);
     });
-    for (const p of ['jambeG', 'jambeD', 'tronc', 'tete'] as const) m.pieces[p].setMask(masque);
-    animerMarionnette(scene, m, pastille, { caractere: role, calme: true });
+    if (ver) {
+      ver.corps.setMask(masque);
+      animerVer(scene, ver, pastille, { caractere: role, calme: true });
+    } else {
+      const mm = m as Marionnette;
+      for (const p of ['jambeG', 'jambeD', 'tronc', 'tete'] as const) mm.pieces[p].setMask(masque);
+      animerMarionnette(scene, mm, pastille, { caractere: role, calme: true });
+    }
     return pastille;
   },
   pantin(scene, eleve): RenduPantin {
     const r = rig(eleve.bande, eleve.role);
     const echelle = HAUTEUR_PANTIN / PIXELS_REF;
+    if (estVer(eleve.bande)) return pantinVer(scene, cleCorps(eleve.bande, eleve.role), echelle);
     const m = new Marionnette(scene, cle(eleve.bande, eleve.role), r, echelle);
     const prise = scene.add.graphics();
     // Le bras tenu passe devant la tête.
@@ -249,3 +272,25 @@ export const SKIN_CARTOON: Skin = {
     };
   },
 };
+
+/**
+ * Ver tenu par la tête : il pend sous le doigt, dans le prolongement du mouvement, et sa queue
+ * traîne derrière (l'angle des jambes du pantin) en se tortillant.
+ */
+function pantinVer(scene: Phaser.Scene, cleTexture: string, echelle: number): RenduPantin {
+  const v = new Ver(scene, cleTexture, echelle);
+  const prise = scene.add.graphics();
+  return {
+    objets: [v.racine, prise],
+    dessiner(s) {
+      const depuisVerticale = Math.atan2(s.epaule.x - s.main.x, s.epaule.y - s.main.y);
+      const angle = depuisVerticale * 0.7 + s.angle * 0.3;
+      const [j1] = s.jambes;
+      const queue = Math.PI / 2 - Math.atan2(j1[1].y - j1[0].y, j1[1].x - j1[0].x);
+      v.pendre(s.main, angle, (queue - angle) * 1.2, scene.time.now / 1000);
+      prise.clear();
+      prise.lineStyle(3, 0xffe066, 0.9);
+      prise.strokeCircle(s.main.x, s.main.y, 14);
+    },
+  };
+}
