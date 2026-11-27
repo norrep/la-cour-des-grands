@@ -2,6 +2,8 @@
  * Sons du jeu. Chaque son a son emplacement : un fichier pourra être branché plus tard dans
  * `FICHIERS_SONS`. En attendant, un petit bruitage synthétisé (provisoire) le remplace.
  */
+import { avecVersion } from '../version';
+
 export type SonId =
   | 'bouton'
   | 'prise'
@@ -19,8 +21,11 @@ export type SonId =
   | 'pendule'
   | 'passe';
 
-/** Fichiers audio définitifs (vides pour l'instant). */
-export const FICHIERS_SONS: Partial<Record<SonId, string>> = {};
+/** Fichiers audio définitifs, ton « dessin animé » (DF.38). Les autres sons gardent leur bruitage provisoire. */
+export const FICHIERS_SONS: Partial<Record<SonId, string>> = {
+  pose: avecVersion('sons/pose.mp3'),
+  gouter: avecVersion('sons/gouter.mp3'),
+};
 
 /** Bruitages provisoires : suites de notes (fréquence en Hz, durée en s), forme d'onde. */
 const BRUITAGES: Record<
