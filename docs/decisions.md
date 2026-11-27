@@ -403,3 +403,19 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.11 — Rond « +2 copains » redessiné** : jeton jaune au trait épais avec reflet, deux cartes
   de la pioche en éventail qui se dandinent, « +2 » en autocollant blanc cerclé de noir, « copains »
   sur un ruban à la couleur de l'équipe, halo qui respire, et le rond s'enfonce sous le pouce.
+
+## Pastilles de valeur retirées (27/11, demande de Clément)
+
+- **DP.1 — Plus de pastille de valeur à côté des élèves** (skin Cartoon) : ni sur les cartes de la
+  main, ni sur les pastilles de la cour, ni sur l'élève en entier. « Le chasuble porte déjà le
+  numéro. » Remplace DG.3 : depuis la main XXL et les pastilles 112 (DL.1, DL.5), le numéro de la
+  chasuble se lit à taille téléphone, y compris le « J » du joker et le jaune des Vers. Rond ou
+  carré pour distinguer les bandes sans les couleurs : c'est la forme de la pastille de cour qui
+  le garde. Ambiguïté : « sur les cartes » lu comme « partout où l'élève porte sa chasuble » ; les
+  badges seuls (punis au bureau de la CPE, élève plaqué, skin « Jetons ») restent,
+  car il n'y a pas d'élève dessiné à côté.
+- **DP.2 — « J » blanc sur la chasuble du Petit des Vers** (et de sa tenue miroir), comme les
+  autres numéros : le bleu marine du dessin est passé en blanc, trait noir inchangé.
+- **DP.3 — Contour noir autour des numéros des Vers**, comme chez les autres équipes (16 dessins,
+  tenue miroir comprise) : trait de 8 px de texture, la même épaisseur que les chiffres des
+  écoliers. Le « 2 » du Chouchou, crème (ou bleu pâle en miroir), passe en blanc comme les autres.
