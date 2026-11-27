@@ -97,11 +97,14 @@ export const TEXTES = {
     jouerADeux: 'Jouer à deux',
     sousJouerADeux: 'sur ce téléphone',
     contreOrdi: 'Jouer contre l’ordi',
-    sousContreOrdi: (n: Niveau) => `niveau ${NIVEAUX_ORDI[n]}`,
-    niveauOrdi: (n: Niveau) => `Niveau de l’ordi : ${NIVEAUX_ORDI[n]}`,
-    equipements: (actifs: boolean) => `Équipements spéciaux : ${actifs ? 'oui' : 'non'}`,
-    regle:
-      'À ton tour : appelle des copains ou envoie un élève dans la cour. Atteins la cabane adverse ou ramasse les goûters.',
+    /** Les niveaux de l'ordi, en pastilles sous le bouton. */
+    niveau: (n: Niveau) => NIVEAUX_ORDI[n],
+    /** Ce que dit le Petit dans sa bulle : le but du jeu en une phrase. */
+    bulle: 'Entre dans la cabane d’en face\nou ramasse les goûters !',
+    equipements: 'Équipements',
+    conseils: 'Conseils',
+    sons: 'Sons',
+    style: (nom: string) => `Style : ${nom}`,
   },
   hud: {
     tourDe: (b: Bande) => `Au tour de la ${BANDES[b]}`,
@@ -193,13 +196,10 @@ export const TEXTES = {
       `${ROLES_COURTS[role]} plaqué${role === 'populaire' || role === 'rapporteuse' || role === 'fouine' ? 'e' : ''} !`,
     gouter: (n: number) => `+${n} goûter${n > 1 ? 's' : ''} !`,
   },
-  sons: (actifs: boolean) => `Sons : ${actifs ? 'oui' : 'non'}`,
   /** Nom de chaque skin, affiché sur le bouton « Style » de l'accueil. */
   skins: { cartoon: 'Cartoon', classique: 'Jetons' } as Record<SkinId, string>,
-  style: (nom: string) => `Style : ${nom}`,
   chargement: 'Chargement…',
   conseils: {
-    accueil: (actifs: boolean) => `Conseils pour débuter : ${actifs ? 'oui' : 'non'}`,
     titre: 'Conseil',
     compris: 'Compris !',
     couper: 'Plus de conseils',
