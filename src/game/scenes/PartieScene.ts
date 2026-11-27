@@ -1165,6 +1165,7 @@ export class PartieScene extends Phaser.Scene {
       this.finDeTour?.remove();
       this.finDeTour = this.time.delayedCall(Math.max(DUREE_FIN_DE_TOUR, duree + 250), () => {
         this.entreDeuxTours = false;
+        if (!this.ordi) jouerSon('passe');
         this.rafraichir();
       });
     }
@@ -1338,6 +1339,7 @@ export class PartieScene extends Phaser.Scene {
     // Quand le tour change, la grande aiguille avance d'un coup sec, comme une vraie pendule.
     if (this.animations && this.tourHorloge !== 0 && this.tourHorloge !== tour) {
       grande.setRotation(angleMinute - Math.PI / 6);
+      jouerSon('pendule');
       this.tweens.add({
         targets: grande,
         rotation: angleMinute,
@@ -2749,6 +2751,7 @@ export class PartieScene extends Phaser.Scene {
     const arrivee = { x: j.x, y: j.y };
     j.setPosition(a.x, a.y + 30);
     this.onomatopee(a.x, a.y - 40, TEXTES.animations.sifflet, 26, '#e2c8ff');
+    jouerSon('sifflet');
     const duree = 760;
     this.tweens.addCounter({
       from: 0,
