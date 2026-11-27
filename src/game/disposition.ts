@@ -130,8 +130,7 @@ export function avecZonePunis(cour: Cour): boolean {
 }
 
 /**
- * Centre d'un lieu : à gauche de la cabane de la bande, la pioche au bord, les punis à côté. Sans
- * zone des punis, la pioche prend la place la plus proche de la cabane, et les punis y volent.
+ * Centre d'un lieu : à gauche de la cabane de la bande, la pioche au bord, les punis à côté.
  */
 export function positionLieu(cour: Cour, bande: 'rouge' | 'bleu', lieu: Lieu): Point {
   const cabane = cour.cabanes[bande][0];
@@ -139,6 +138,7 @@ export function positionLieu(cour: Cour, bande: 'rouge' | 'bleu', lieu: Lieu): P
   // En bas (bande rouge), on remonte un peu pour laisser la place au journal.
   const dy = bande === 'rouge' ? -22 : 14;
   const ecarts = cour.id === 'piscine' ? ECARTS_LIEUX_PISCINE : ECARTS_LIEUX;
-  const ecart = avecZonePunis(cour) ? ecarts[lieu] : ecarts.cpe;
+  // Sans zone des punis, la pioche reste au bord (loin des îlots) et les punis y volent.
+  const ecart = avecZonePunis(cour) ? ecarts[lieu] : ecarts.portail;
   return { x: c.x - ecart, y: c.y + dy };
 }
