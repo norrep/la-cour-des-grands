@@ -387,3 +387,14 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.7 — Tour d'en face bien visible.** Pendant le tour de l'ordi (ou de l'ami en ligne), la main
   descend et pâlit, un bandeau à la couleur d'en face dit « L'ordi réfléchit… » et un cadre de sa
   couleur borde l'écran. Quand le tour revient : un tampon « À toi ! » et un petit son.
+
+## Pastilles de valeur retirées (27/11, demande de Clément)
+
+- **DP.1 — Plus de pastille de valeur à côté des élèves** (skin Cartoon) : ni sur les cartes de la
+  main, ni sur les pastilles de la cour, ni sur l'élève en entier. « Le chasuble porte déjà le
+  numéro. » Remplace DG.3 : depuis la main XXL et les pastilles 112 (DL.1, DL.5), le numéro de la
+  chasuble se lit à taille téléphone, y compris le « J » du joker et le jaune des Vers. Rond ou
+  carré pour distinguer les bandes sans les couleurs : c'est la forme de la pastille de cour qui
+  le garde. Ambiguïté : « sur les cartes » lu comme « partout où l'élève porte sa chasuble » ; les
+  badges seuls (punis au bureau de la CPE, élève plaqué, skin « Jetons ») restent,
+  car il n'y a pas d'élève dessiné à côté.
