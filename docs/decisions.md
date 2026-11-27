@@ -207,6 +207,14 @@ Proposition validée par Clément le 27/11 : doc « La Cour des Grands : cartes 
 - Il est maintenant dans le calque du plateau (effacé à chaque redessin), et le coup compte sa durée (1 s) avant de passer à la suite.
 - Score de fin : le nom de l'équipe sans « Les » (« Goûters : Rouges 4, Vers de terre 1 ») au lieu de l'adjectif court (« ver 1, rouge 4 »).
 
+### DB.7 — Les vers de terre d'un seul morceau (27/11)
+
+- Clément : « L'anim des vers est pauvre et on sent la découpe. » Un ver n'a ni bras ni jambes : découpé en trois pièces rigides (tête, chasuble, queue), il ne faisait que pivoter aux jointures, qui se voyaient.
+- Le ver n'est plus découpé : son dessin entier (`public/skins/dodu/vers-<rôle>-corps.png`, trait égalisé comme les autres, `scripts/ver-entier.py`) est plaqué sur une colonne souple de 32 points (`ui/ver.ts`, une `Rope` de Phaser). Il se plie, ondule, s'étire et s'écrase (son volume est gardé : étiré, il s'amincit) ; la queue enroulée reste posée au sol.
+- Gestes propres aux vers, selon le caractère : le Petit rebondit comme un ressort (« boing »), le Grand s'étire en bâillant, la Populaire danse en vagues, le Chouchou se dresse (« moi ! »), la Rapporteuse se penche pour cafarder, le Contagieux gonfle (une bosse remonte jusqu'à la tête) puis éternue, le Délégué bombe la chasuble, la Fouine se faufile en S.
+- Tenu par la tête, le ver pend sous le doigt et sa queue traîne en se tortillant. En rendu Canvas (`?rendu=canvas`), pas de déformation possible : le ver penche et s'étire d'un bloc.
+- Les attaches de `rigEquipes.ts` servent encore aux mesures (haut de la tête, bas de la chasuble) ; les anciennes planches de pièces des vers sont supprimées.
+
 ## DF.39 — Incrustations en 2D, animées en code (27/11)
 
 Clément : « Les pictos animés qui arrivent dans le jeu doivent être en 2D. Réserver le réalisme aux actions plein écran. » Les trois incrustations de DF.38 (mégaphone, réveil, nuage de bagarre) sont redessinées dans le style du plateau (trait noir épais, aplats pastel ; Higgsfield nano_banana_2, référence plateau e0f020f3 : jobs 3eabd17f mégaphone, 4a92c4ea réveil, 532837d7 nuage), détourées, en PNG 512 px dans `public/incrust/`. Tout le mouvement est fait en code dans `src/game/ui/incrust.ts` : le mégaphone gonfle, recule et lance trois ondes ; le réveil sautille et se tortille avec des traits de vibration ; le nuage roule, crache cinq étoiles puis éclate. Les planches de sprites réalistes sont retirées.
