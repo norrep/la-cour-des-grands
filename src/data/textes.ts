@@ -295,6 +295,11 @@ export const TEXTES = {
       n === 0
         ? 'Personne n’est puni pour l’instant. La Rapporteuse et les buts y envoient les adversaires.'
         : `${n} élève${n > 1 ? 's sont punis' : ' est puni'} ici. La porte de la vie scolaire permet d’en récupérer un.`,
+    ficheRang: (b: Bande) => `Rang de la ${BANDES[b]}`,
+    texteRang: (n: number) =>
+      n === 0
+        ? 'Plus personne dans son rang : il devra appeler des copains.'
+        : `${n} élève${n > 1 ? 's' : ''} dans son rang, prêt${n > 1 ? 's' : ''} à entrer dans la cour. On ne sait pas lesquels.`,
     texteInfirmerie: (n: number) =>
       `${n} élève${n > 1 ? 's sont enrhumés' : ' est enrhumé'} : ${n > 1 ? 'ils ratent' : 'il rate'} le prochain tour.`,
   },

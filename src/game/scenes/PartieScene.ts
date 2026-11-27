@@ -153,6 +153,8 @@ export class PartieScene extends Phaser.Scene {
   private gouterEnVol: Record<Bande, number> = { rouge: 0, bleu: 0 };
   /** Partie en solo : l'ordinateur qui joue la bande bleue (`null` : partie à deux). */
   private ordi: Ordi | null = null;
+  /** La bande dont le rang est affiché en bas de l'écran (pendant ce dessin). */
+  private rangVisible: Bande | null = null;
   /** Prochain coup de l'ordi, programmé pour laisser voir le précédent. */
   private coupOrdi: Phaser.Time.TimerEvent | null = null;
   /** Durée des animations du dernier coup joué (ms). */
@@ -223,6 +225,7 @@ export class PartieScene extends Phaser.Scene {
     this.dyn.removeAll(true);
     this.badges.clear();
     this.surbrillances = [];
+    this.rangVisible = null;
 
     this.dessinerCour();
     // Le contenu du bandeau du haut remonte vers le bord sur un écran allongé (pas son papier, qui
@@ -256,6 +259,8 @@ export class PartieScene extends Phaser.Scene {
       else if (this.entreDeuxTours) this.dessinerFinDeTour();
       else this.dessinerPasse();
     }
+    // Le rang d'en face : combien d'élèves l'adversaire a en main (demande de Clément).
+    if (this.rangVisible) this.dessinerRangAdverse(this.rangVisible === 'rouge' ? 'bleu' : 'rouge');
     if (this.ctrl.phase === 'fin' && !this.finEnAttente) this.dessinerFin();
     if (this.fiche) this.dessinerFiche(this.fiche.titre, this.fiche.texte, this.fiche.ancre);
     if (this.aideOuverte) this.dessinerAide();
@@ -663,6 +668,56 @@ export class PartieScene extends Phaser.Scene {
     this.ajouter(c);
     this.panneauxLieux.set(`${bande}:${lieu}`, c);
     return c;
+  }
+
+  /**
+   * Le rang de l'adversaire, à côté de sa cabane : des cartes vues de dos en éventail et leur
+   * nombre. On voit combien d'élèves il a en main, pas lesquels.
+   */
+  private dessinerRangAdverse(bande: Bande): void {
+    const cabane = this.cour.cabanes[bande][0];
+    if (!cabane) return;
+    const p = this.pos(cabane);
+    const n = this.etat.joueurs[bande].rang.length;
+    const c = this.add.container(p.x + 106, p.y + (bande === 'rouge' ? -20 : 0));
+    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
+    const clair = bande === 'rouge' ? 0xffd2c8 : 0xd5dcff;
+    const visibles = Math.min(3, n);
+    for (let k = 0; k < visibles; k++) {
+      const angle = (k - (visibles - 1) / 2) * 0.28;
+      const g = this.add.graphics();
+      forme(g, contourRect(-13, -36, 26, 36, 5, graineDe(k, 31), 0.5), {
+        remplissage: couleur,
+        trait: 3,
+        ombre: 2,
+      });
+      g.fillStyle(clair, 1);
+      g.fillRoundedRect(-8, -31, 16, 26, 3);
+      g.setPosition(0, 14).setRotation(angle);
+      c.add(g);
+    }
+    const t = this.add
+      .text(0, 30, `×${n}`, {
+        fontFamily: POLICE,
+        fontSize: '28px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+        stroke: '#fff6e4',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5);
+    c.add(t);
+    c.setScale(1.35).setSize(64, 80);
+    if (this.ctrl.phase === 'jeu') {
+      c.setInteractive({ useHandCursor: true });
+      c.on('pointerup', () =>
+        this.montrerFiche(TEXTES.lieux.ficheRang(bande), TEXTES.lieux.texteRang(n), {
+          x: c.x,
+          y: c.y,
+        }),
+      );
+    }
+    this.ajouter(c);
   }
 
   /** Le portail : les copains du couloir y attendent qu'on les appelle. */
@@ -1618,6 +1673,7 @@ export class PartieScene extends Phaser.Scene {
    * reste juste visible (pendant un choix hors du rang, ou le temps de voir la fin de son coup).
    */
   private dessinerRang(bande: Bande, interactif: boolean): void {
+    this.rangVisible = bande;
     const e = this.etat;
     const j = e.joueurs[bande];
     // Le couloir et la CPE sont dessinés autour de la cour (portail, bureau) : plus de compteurs ici.
