@@ -123,7 +123,7 @@ export const TEXTES = {
     titreEquipe: 'Choisis ta bande',
     titreBas: 'Joueur 1 (en bas) : ta bande ?',
     titreHaut: 'Joueur 2 (en haut) : ta bande ?',
-    pris: 'Déjà prise',
+    pris: 'Aussi celle du joueur 1',
     retour: 'Retour',
     chargement: 'On prépare la cour…',
     /** La variante de chaque carte en quelques mots, sous sa vignette. */
@@ -323,7 +323,7 @@ export const TEXTES = {
     gagnantSolo: (ordi: boolean) => (ordi ? 'L’ordi' : 'Ta bande'),
     raison: (r: RaisonFin) => RAISONS[r],
     score: (rouge: number, bleu: number) =>
-      // Le nom de l'équipe sans « Les » : « Rouges 4, Vers de terre 1 » (pas « ver 1 »).
+      // Le nom de l'équipe sans « Les » : « Écoliers 4, Vers de terre 1 » (pas « ver 1 »).
       `Goûters : ${equipeDe('rouge').nom.replace(/^Les /, '')} ${rouge}, ${equipeDe('bleu').nom.replace(/^Les /, '')} ${bleu}`,
     tours: (n: number) => `Partie en ${n} tours`,
   },
