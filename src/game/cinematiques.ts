@@ -14,7 +14,8 @@ export type CinematiqueId =
   | 'toboggan'
   | 'delegue'
   | 'fouine'
-  | 'petit';
+  | 'petit'
+  | 'populaire';
 
 /** Le rôle dont le pouvoir fait ce moment (sa vidéo montre cet élève), s'il y en a un. */
 export function roleDuPouvoir(cin: Cinematique): RoleId | undefined {
@@ -26,6 +27,7 @@ export function roleDuPouvoir(cin: Cinematique): RoleId | undefined {
     case 'delegue':
     case 'fouine':
     case 'petit':
+    case 'populaire':
       return cin.id;
     case 'cpe':
       return cin.pouvoir;
@@ -54,7 +56,7 @@ export function cinematiqueDuPouvoir(role: RoleId, bande: Bande): Cinematique | 
 }
 
 /** Moments qui n'existent qu'en vidéo : sans vidéo dans le skin, on n'affiche rien. */
-export const CINEMATIQUES_VIDEO_SEULE: readonly CinematiqueId[] = ['fouine', 'petit'];
+export const CINEMATIQUES_VIDEO_SEULE: readonly CinematiqueId[] = ['fouine', 'petit', 'populaire'];
 
 export interface Cinematique {
   id: CinematiqueId;
@@ -105,6 +107,8 @@ export function cinematiquesPour(
       liste.push({ id: 'petit', bande: ev.bande });
     else if (ev.type === 'pose' && ev.role === 'fouine' && fouineLoin)
       liste.push({ id: 'fouine', bande: ev.bande });
+    else if (ev.type === 'pioche' && ev.source === 'populaire')
+      liste.push({ id: 'populaire', bande: ev.bande });
     else if (ev.type === 'cpe')
       liste.push(parRapporteuse ? { id: 'cpe', pouvoir: 'rapporteuse', ...auteur } : { id: 'cpe' });
     else if (ev.type === 'infirmerie')

@@ -17,7 +17,9 @@ export type SonId =
   | 'victoire'
   | 'sifflet'
   | 'pendule'
-  | 'passe';
+  | 'passe'
+  /** Le tour revient au joueur (DL.7). */
+  | 'aToi';
 
 /** Fichiers audio définitifs (vides pour l'instant). */
 export const FICHIERS_SONS: Partial<Record<SonId, string>> = {};
@@ -141,6 +143,15 @@ const BRUITAGES: Record<
     notes: [
       [523, 0.08],
       [784, 0.14],
+    ],
+    onde: 'triangle',
+    volume: 0.12,
+  },
+  aToi: {
+    notes: [
+      [659, 0.07],
+      [880, 0.07],
+      [1047, 0.16],
     ],
     onde: 'triangle',
     volume: 0.12,

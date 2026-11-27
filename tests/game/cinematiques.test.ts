@@ -18,6 +18,20 @@ describe('Cinématiques', () => {
     ).toEqual([]);
   });
 
+  it('la Populaire qui fait venir ses copains a son moment, pas la pioche ordinaire', () => {
+    const evs: Evenement[] = [
+      { type: 'pose', tour: 1, bande: 'bleu', eleveId: 'a', role: 'populaire', cible: 'P' },
+      { type: 'pioche', tour: 1, bande: 'bleu', nombre: 2, source: 'populaire' },
+    ];
+    expect(brut(evs)).toEqual([{ id: 'populaire', bande: 'bleu' }]);
+    expect(roleDuPouvoir({ id: 'populaire', bande: 'bleu' })).toBe('populaire');
+    expect(
+      cinematiquesPour([
+        { type: 'pioche', tour: 1, bande: 'rouge', nombre: 1, source: 'porteVieScolaire' },
+      ]),
+    ).toEqual([]);
+  });
+
   it('CPE, infirmerie et sonnerie suivent le journal, dans l’ordre', () => {
     expect(
       cinematiquesPour([

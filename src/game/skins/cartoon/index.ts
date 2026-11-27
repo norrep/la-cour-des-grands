@@ -103,18 +103,26 @@ function masqueQuiSuit(
 }
 
 /**
- * Vidéos de pouvoir (`public/videos/cartoon/<rôle>-<rouge|bleu>.mp4`), sur fond manga « éclairs »
- * à la couleur de l'équipe (DV.4, DV.5). Les Bleus sont les mêmes vidéos, maillot recoloré.
- * Le Contagieux n'a qu'une version (ancien style), pour les Rouges.
+ * Vidéos de pouvoir en 2D, dans le style du plateau (DV.8) : `public/videos/cartoon/<tenue>-<rôle>.mp4`.
+ * Une vidéo par espèce (Écoliers, Aliens, Vers) et par rôle, tournée avec une chasuble bleu roi
+ * puis recolorée à la couleur de chaque tenue, la tenue miroir comprise.
  */
-const ROLES_VIDEO: readonly RoleId[] = ['chouchou', 'rapporteuse', 'fouine', 'delegue', 'petit'];
-const VIDEOS: Partial<Record<TenueId, Partial<Record<RoleId, string>>>> = {
-  rouges: {
-    contagieux: 'videos/cartoon/contagieux.mp4',
-    ...Object.fromEntries(ROLES_VIDEO.map((r) => [r, `videos/cartoon/${r}-rouge.mp4`])),
-  },
-  bleus: Object.fromEntries(ROLES_VIDEO.map((r) => [r, `videos/cartoon/${r}-bleu.mp4`])),
-};
+const ROLES_VIDEO: readonly RoleId[] = [
+  'chouchou',
+  'rapporteuse',
+  'fouine',
+  'contagieux',
+  'delegue',
+  'petit',
+  'populaire',
+];
+const TENUES_VIDEO: readonly TenueId[] = ['rouges', 'bleus', 'vers', 'vers2', 'aliens', 'aliens2'];
+const VIDEOS: Partial<Record<TenueId, Partial<Record<RoleId, string>>>> = Object.fromEntries(
+  TENUES_VIDEO.map((t) => [
+    t,
+    Object.fromEntries(ROLES_VIDEO.map((r) => [r, `videos/cartoon/${t}-${r}.mp4`])),
+  ]),
+);
 /** Goûters, dans l'ordre des régions de la cour (comme GOUTERS du chargement), avec la couleur
  * mesurée du fond crème en haut et en bas de chaque vidéo. */
 const VIDEOS_GOUTERS = (
@@ -130,7 +138,6 @@ export const SKIN_CARTOON: Skin = {
   id: 'cartoon',
   textures,
   texturesEquipe,
-  // Vidéos tournées avec les élèves en débardeur rouge : seulement pour l'équipe des Rouges.
   videoPouvoir: (bande, role) => VIDEOS[equipeDe(bande).id]?.[role],
   videoGouter: (index) => (index >= 0 ? VIDEOS_GOUTERS[index % VIDEOS_GOUTERS.length] : undefined),
   eleve(scene, bande, role, taille) {

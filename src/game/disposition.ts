@@ -64,11 +64,38 @@ export function noeudSous(
   return meilleur;
 }
 
-export const RANG = { y: 1185 + DESCENTE, largeurCarte: 80, hauteurCarte: 140, ecart: 86 } as const;
+/**
+ * Le rang en bas de l'écran. Cartes grandes (DL.1) : sur un téléphone de 360 dp, une carte fait
+ * 61 × 95 dp, assez pour reconnaître l'élève et le viser du doigt.
+ */
+export const RANG = {
+  y: 1166 + DESCENTE,
+  largeurCarte: 122,
+  hauteurCarte: 190,
+  ecart: 120,
+} as const;
 
-/** Abscisse de la carte `i` sur `n` dans le rang. */
+/** Largeur que le rang peut occuper (centres de la première à la dernière carte). */
+const ETENDUE_RANG = 570;
+
+/** Abscisse de la carte `i` sur `n` dans le rang : au-delà de 6 cartes, elles se chevauchent. */
 export function xCarteRang(i: number, n: number): number {
-  return LARGEUR / 2 + (i - (n - 1) / 2) * RANG.ecart;
+  const ecart = n > 1 ? Math.min(RANG.ecart, ETENDUE_RANG / (n - 1)) : RANG.ecart;
+  return LARGEUR / 2 + (i - (n - 1) / 2) * ecart;
+}
+
+/**
+ * Place de la carte `i` sur `n` dans le rang, tenu en léger éventail (demande de Clément) : les
+ * cartes s'inclinent vers l'extérieur et les bords descendent un peu, comme dans une main.
+ */
+export function poseCarteRang(i: number, n: number): { x: number; y: number; rotation: number } {
+  const t = i - (n - 1) / 2;
+  const demi = Math.max(1, (n - 1) / 2);
+  return {
+    x: xCarteRang(i, n),
+    y: RANG.y + t * t * Math.min(4, 14 / (demi * demi)),
+    rotation: t * Math.min(0.055, 0.15 / demi),
+  };
 }
 
 /** Les lieux d'une bande autour de sa cabane : son portail (le couloir) et son bureau de CPE. */

@@ -238,6 +238,7 @@ Clément : « Les pictos animés qui arrivent dans le jeu doivent être en 2D. R
 - **DV.5 — Les Bleus ont leurs vidéos de pouvoir, sans rien générer (Clément : « Ne peut-on pas juste retoucher la couleur de leur chasuble sur les vidéos existantes ? », 27/11).** Chouchou, Rapporteuse, Fouine, Délégué et Petit sont recolorés image par image : les rouges très saturés du maillot passent au bleu pervenche, en gardant les ombres. Seules les grandes taches très saturées sont prises, pour que les joues, le nez et les mains restent intacts. Ils sont posés sur un fond éclairs bleu, avec un autre tirage et un autre angle que les Rouges. Fichiers `<rôle>-bleu.mp4`. `videoPouvoir` choisit la vidéo selon l'équipe : les Vers, les Aliens et le Contagieux bleu gardent le panneau. Les 9 cr d'images clés prévus pour les Bleus n'ont pas été dépensés.
 - **DV.6 — Les vidéos de pouvoir passent aussi sur le réseau mobile (Clément : « Les anim des pouvoirs des persos ne sont toujours pas intégrées », 27/11, sur Android).** Les vidéos étaient bien en ligne, mais le téléphone les retéléchargeait au moment de les jouer : sur le réseau mobile, la vidéo ne démarrait pas dans les 2,5 s et le panneau prenait sa place. Chaque vidéo est maintenant téléchargée une fois en entier, deux à la fois, et jouée depuis la mémoire du téléphone (`game/videos.ts`). Ordre : Rouges et goûters dès le chargement, puis les deux équipes de la partie passent devant. Une vidéo pas encore téléchargée est prise sur le réseau avec 5 s de délai. Les vidéos suivent aussi la bande qui joue (avant : toujours la version des Rouges, même pour l'adversaire) ; les Vers et les Aliens gardent leur panneau.
 - **DV.7 — La vidéo du pouvoir passe dès que l'élève est posé, le pouvoir se résout après (Clément : « Met les videos d'action joueur dès qu'ils sont posés, l'action se résout après », 27/11).** L'élève atterrit (0,65 s), puis sa vidéo part. Pendant la vidéo, la partie est figée derrière elle : les conséquences du coup (adversaire qui file chez la CPE, infirmerie, surveillante qui marche, 2e élève du Chouchou), le tour de l'ordi et le « Passe le téléphone » attendent la fin de la vidéo, puis se jouent. Quand le pouvoir demande un choix (cible de la Rapporteuse, élève du Chouchou), la vidéo passe à la pose et le joueur choisit après ; la résolution ne remontre pas la vidéo. Vaut pour les deux camps (joueur et ordi), quand le skin a la vidéo de cette équipe (Rouges, Bleus) ; sinon, le panneau reste après le coup, comme avant. Interprétation : la vidéo part dès qu'un pouvoir va vraiment servir (Petit qui plaque, Fouine qui se faufile, pouvoir qui a une cible) ; un élève posé dont le pouvoir ne fait rien n'a pas de vidéo.
+- **DV.8 — Toutes les vidéos passent au style du jeu, en 2D (Clément : « Ok c'est bien mieux, on part là-dessus pour tous les persos et bonus du jeu ! Garde la possibilité de changer la couleur des chasubles », 27/11).** Les vidéos de pouvoir et de goûter ne sont plus en rendu 3D : elles sont dessinées comme le plateau (trait noir épais un peu tremblé, aplats pastel, squash and stretch), sur fond rose à diagonales manga. Une vidéo par espèce (Écoliers, Aliens, Vers) et par rôle à pouvoir, tournée avec une chasuble bleu roi, puis recolorée image par image à la couleur de chaque tenue, tenue miroir comprise : `public/videos/cartoon/<tenue>-<rôle>.mp4` (6 tenues × 7 rôles, 720p). Les Vers et les Aliens ont donc enfin leurs vidéos. Nouveau : la Populaire a son moment vidéo quand elle fait venir ses copains (pioche de la Populaire), vidéo seulement, comme la Fouine et le Petit. Les goûters gardent leur case manga (DV.3) avec les nouvelles vidéos. Les vidéos réalistes 1080p (chasuble bleue) ne sont pas branchées. Méthode et prompts : section « Version 3 » du guide de prompt ; sources dans le dossier du projet `videos-pouvoirs/style-jeu/`.
 
 ## Piscine rééquilibrée (27/11)
 
@@ -320,3 +321,69 @@ Demande de Clément : « Joue aux 3 cartes des centaines de fois et fais un audi
 - **DA.1 — Simulateur d'audit.** `scripts/audit.ts` fait jouer deux IA avec les règles de l'écran (`pouvoirsAuto`) et écrit chaque partie tour par tour (JSONL) ; `scripts/audit-analyse.py` en tire équité, durée, finales serrées, retournements, temps morts, moments marquants. Les variantes (`sansSurveillante`, `sansCourant`, `sansSensUnique`, `sansEquipements`, `rondeCourte`, `deuxChemins`, `mainPlus2`) ne changent qu'une copie de la cour le temps de la simulation. `scripts/audit-roles.ts` mesure la valeur d'un rôle : une IA s'interdit de le poser.
 - **DA.2 — Interprétation : les équipes ne sont pas simulées à part.** Elles ont les mêmes règles (DB.1) ; seul le côté (haut ou bas) est mesuré.
 - **DA.3 — Résultats principaux** (doc « Audit d'équilibrage et de fun — 3 cartes ») : premier joueur 49,7 % sur 3 600 parties ; piscine décidée par le seul grand bain et 27 % de sonneries entre IA difficiles ; Chouchou, Rapporteuse et Populaire décisifs, Petit, Fouine, Contagieux et Délégué presque sans effet ; surveillants peu influents ; début de partie lent (4 pioches sur 6 premiers tours).
+
+## Jeu en ligne (27/11)
+
+Clément : « Développer le multijoueur pour inviter un ami à jouer avec moi » puis « rentrer dans
+le dur directement, le but est de mettre l'appli sur le Play Store et l'App Store ». Pas de
+prototype jetable : l'architecture est celle de la sortie. Le détail est dans
+`docs/multijoueur.md`.
+
+- **DR.1 — Le serveur est l'arbitre.** Il garde l'état complet, applique les coups avec le même
+  moteur que le jeu (`src/reseau/arbitre.ts`) et refuse tout coup hors tour, illégal ou envoyé sur
+  une version périmée de la partie (un double toucher ne joue qu'une fois). La graine du mélange
+  vient du serveur, jamais d'un téléphone.
+- **DR.2 — Chaque téléphone ne reçoit que ce que son joueur a le droit de savoir**
+  (`src/reseau/vue.ts`). Cachés : le rang adverse (sauf les élèves revenus de la CPE ou d'un
+  îlot, ou mis à l'infirmerie, qui ont été vus), l'ordre des deux couloirs (y compris le sien :
+  on ne connaît pas l'ordre de sa pioche), les absents de l'appel, le hasard du moteur, et les
+  options du choix en attente de l'adversaire. À la fin de la partie, tout est montré.
+- **DR.3 — Temps par tour : 2 minutes par défaut** (réglable de 30 s à une semaine, pour une
+  partie par correspondance plus tard). Le temps repart à chaque nouveau tour, pas à chaque choix
+  d'un même coup. Temps écoulé = partie perdue : l'adversaire peut réclamer la victoire, et une
+  tâche du serveur clôt aussi ces parties. Proposition, à ajuster après les premières parties.
+- **DR.4 — L'hôte joue le camp rouge, l'invité le bleu.** Le premier joueur reste tiré au sort par
+  le moteur. Chacun verra sa bande en bas de l'écran (à faire dans la partie « écran »).
+- **DR.5 — Abandonner** donne la victoire à l'autre ; avant l'arrivée de l'ami, cela ferme
+  simplement la partie, sans gagnant.
+- **DR.6 — Codes d'invitation de 6 lettres** sans lettres ambiguës (ni I, L, O, Q, U, W, ni
+  chiffres), insensibles à la casse, aux espaces et aux tirets.
+- **DR.7 — Le serveur du jeu a son propre projet Supabase** (`la-cour-des-grands`, Paris, offre
+  gratuite). Choix de Clément : mettre en pause son ancien projet « norrep's Project » pour
+  libérer la place gratuite. Pro (environ 25 $/mois) seulement à la sortie sur les stores.
+- **DR.8 — L'écran du jeu en ligne.** À l'accueil, « Avec un ami en ligne » est à côté de « Jouer
+  à deux ». L'hôte choisit la carte et SA bande, puis reçoit un code de 6 lettres et un bouton
+  « Envoyer le lien » (partage du téléphone, ou copie). L'ami tape le code, ou ouvre le lien qui
+  l'amène droit au choix de SA bande. Pendant la partie : « À toi de jouer ! » ou « Au tour de ton
+  ami », le temps restant sous la pastille (en rouge sous 15 s), et « Ton ami réfléchit… ». Un coup
+  qui ne pioche rien et ne dépend d'aucun hasard est montré tout de suite ; un appel de copains ou
+  un pouvoir au hasard attend la réponse du serveur (« C'est envoyé… », une fraction de seconde).
+  Après une coupure, « Reprendre ma partie » apparaît dans le menu en ligne.
+- **DR.9 — Pour l'instant, l'invité joue en haut de la cour** (le camp bleu), comme le joueur 2 à
+  deux sur un téléphone. Retourner la cour pour que chacun ait sa cabane en bas demande de revoir
+  les décors : à faire dans une prochaine étape si Clément le souhaite.
+
+## Lisibilité sur téléphone (27/11)
+
+Audit du 27/11 : sur un Android de 360 dp, le jeu est réduit de moitié ; les cartes en main
+faisaient 40 × 70 dp et les petits textes 7 à 8 dp. Clément a choisi le lot 1 à 6, avec la main en
+léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer.
+
+- **DL.1 — Main XXL en léger éventail.** Cartes de 122 × 190 (61 × 95 dp), sans le nom écrit : le
+  visage et le chiffre suffisent, la loupe montre le reste. Au-delà de 6 cartes elles se
+  chevauchent ; elles s'inclinent un peu vers l'extérieur et les bords descendent.
+- **DL.2 — « +2 copains » à côté de la pioche** de la bande qui joue, au lieu du grand bouton sous
+  la cour. Il respire doucement pour qu'on le voie.
+- **DL.3 — Loupe.** Doigt posé sur une carte (220 ms) : la carte en grand avec son nom et son
+  pouvoir, tant qu'on la tient ; glisser la referme et joue. Un toucher la laisse ouverte jusqu'au
+  toucher suivant. Toucher un élève seul sur la cour ouvre la même loupe.
+- **DL.4 — Textes de 22 à 24 px de jeu au moins** sur la cour (×N, étiquettes, Pioche/Punis,
+  valeurs des goûters, verbes des pouvoirs) et dans les bulles (22 au lieu de 18).
+- **DL.5 — Piles dépliables.** Plus de colonne de mini-badges à côté d'une pile ; la pastille
+  « ×N » est plus grosse, et toucher la pile la déplie dans une bulle, du dessus au dessous.
+  Pastilles de la cour 92 → 112.
+- **DL.6 — Glisser.** L'îlot visé est marqué par un grand disque jaune qui respire ; sans
+  animations, la carte passe au-dessus du doigt.
+- **DL.7 — Tour d'en face bien visible.** Pendant le tour de l'ordi (ou de l'ami en ligne), la main
+  descend et pâlit, un bandeau à la couleur d'en face dit « L'ordi réfléchit… » et un cadre de sa
+  couleur borde l'écran. Quand le tour revient : un tampon « À toi ! » et un petit son.

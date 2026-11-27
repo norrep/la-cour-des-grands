@@ -117,6 +117,44 @@ export const TEXTES = {
     sons: 'Sons',
     style: (nom: string) => `Style : ${nom}`,
   },
+  /** Jouer en ligne avec un ami (DR.1–DR.8). */
+  enLigne: {
+    bouton: 'Avec un ami\nen ligne',
+    titre: 'Jouer avec un ami',
+    inviter: 'Inviter un ami',
+    jaiUnCode: 'J’ai un code',
+    reprendre: 'Reprendre ma partie',
+    retour: 'Retour',
+    connexion: 'On se connecte…',
+    ouverture: 'On ouvre la partie…',
+    arrivee: 'On rejoint ton ami…',
+    tonCode: 'Ton code',
+    consigneCode: 'Donne ce code à ton ami,\nou envoie-lui le lien.',
+    partager: 'Envoyer le lien',
+    copie: 'Lien copié !',
+    attente: 'On attend ton ami…',
+    annuler: 'Annuler',
+    saisie: 'Tape le code de ton ami',
+    rejoindre: 'Rejoindre',
+    codeFaux: 'Ce code a 6 lettres. Vérifie-le !',
+    messagePartage: (code: string) =>
+      `Viens jouer à La Cour des Grands avec moi ! Mon code : ${code}`,
+    titreInvite: 'Ton ami t’attend ! Ta bande ?',
+    tourAdverse: 'Ton ami réfléchit…',
+    aToi: 'À toi de jouer !',
+    auTourAmi: 'Au tour de ton ami',
+    envoi: 'C’est envoyé…',
+    temps: (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`,
+    gagnant: (moi: boolean) => (moi ? 'Ta bande' : 'Ton ami'),
+    raison: { abandon: 'gagne par abandon.', temps: 'gagne : le temps était écoulé.' },
+    erreurs: {
+      partie_introuvable: 'Aucune partie n’attend avec ce code.',
+      partie_pleine: 'Cette partie a déjà commencé.',
+      deja_dedans: 'C’est ta propre partie !',
+      reseau: 'Pas de réseau. On réessaie dès que ça revient.',
+      autre: 'Oups, le serveur n’a pas répondu. Réessaie.',
+    } as Record<string, string>,
+  },
   /** Écran de choix avant la partie : la carte, puis l'équipe de chaque camp (DB.5). */
   choixPartie: {
     titreCarte: 'Où on joue ?',
@@ -142,6 +180,7 @@ export const TEXTES = {
     infirmerie: 'Infirmerie',
     rangVide: 'Ton rang est vide : appelle des copains !',
     ordiReflechit: 'L’ordi réfléchit…',
+    aToi: 'À toi !',
     toucherCarte: 'Touche un élève : son pouvoir',
     consigneTour: 'Glisse un élève vers la cour, ou :',
     consigneSansPose: 'Aucune pose possible : appelle des copains.',
@@ -149,6 +188,8 @@ export const TEXTES = {
   },
   boutons: {
     appeler: (n: number) => (n > 1 ? `Appeler ${n} copains` : 'Appeler 1 copain'),
+    /** Sur la pioche (DL.2) : la place est comptée. */
+    appelerCourt: (n: number) => (n > 1 ? `+${n} copains` : '+1 copain'),
     passer: 'Passer',
     motExcuse: 'Mot d’excuse !',
     piocher: 'Piocher',
@@ -183,6 +224,7 @@ export const TEXTES = {
     ilotVide: 'Îlot vide.',
     titreIlot: 'Un îlot',
     pile: (lignes: string[]) => `Pile, du dessus au dessous : ${lignes.join(', ')}.`,
+    pileTitre: (n: number) => `Pile de ${n} : seul le dessus joue`,
     elevePile: (role: RoleId, b: Bande, valeur: number | null) =>
       `${ROLES_COURTS[role]} ${equipeDe(b).court} (${valeur === null ? 'J' : valeur})`,
     get garde(): string {
@@ -215,6 +257,7 @@ export const TEXTES = {
     },
     fouine: { titre: 'Par les buissons !', sous: 'La Fouine se faufile où elle veut.' },
     petit: { titre: 'Prise de catch !', sous: 'Le Petit de maternelle plaque tout le monde.' },
+    populaire: { titre: 'Les copains arrivent !', sous: 'La Populaire fait venir 2 élèves.' },
     gouter: (b: Bande, nom: string, n: number) => ({
       titre: 'Miam !',
       sous: `La ${BANDES[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} (+${n}).`,
@@ -241,7 +284,8 @@ export const TEXTES = {
     but: 'Deux façons de gagner : entrer dans la cabane adverse, ou ramasser 3 goûters en entourant les friandises de la cour.',
     glisser:
       'Glisse un élève de ton rang vers la cour. Il ne peut aller que sur un îlot touchant ta cabane ou ton chemin.',
-    appeler: '« Appeler des copains » pioche 2 élèves. Ton tour s’arrête là.',
+    appeler:
+      'Le bouton « +2 copains », à côté de ta pioche, fait venir 2 élèves. Ton tour s’arrête là.',
     chemin:
       'Le trait de couleur, c’est ton chemin depuis ta cabane. Tu peux poser sur tout îlot qui touche ce chemin.',
     plaquer:
@@ -345,7 +389,7 @@ export const TEXTES = {
     texteCouloir: (n: number) =>
       n === 0
         ? 'La pioche est vide : on ne peut plus appeler de copains.'
-        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. « Appeler des copains » en fait venir 2 dans le rang.`,
+        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. Le bouton « +2 copains » en fait venir 2 dans le rang.`,
     ficheCpe: (b: Bande) => `Les punis (${BANDES[b]})`,
     texteCpe: (n: number) =>
       n === 0
