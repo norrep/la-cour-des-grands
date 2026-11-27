@@ -207,6 +207,12 @@ Proposition validée par Clément le 27/11 : doc « La Cour des Grands : cartes 
 - Il est maintenant dans le calque du plateau (effacé à chaque redessin), et le coup compte sa durée (1 s) avant de passer à la suite.
 - Score de fin : le nom de l'équipe sans « Les » (« Goûters : Rouges 4, Vers de terre 1 ») au lieu de l'adjectif court (« ver 1, rouge 4 »).
 
+### DB.7 — Le nuage du plaquage ne reste plus figé
+
+- Bug (capture Android de Clément, 27/11, écran « DRIIIING ! ») : le nuage de bagarre du plaquage restait figé sur sa dernière image, par-dessus un élève et le texte de fin. Même cause que DB.6 : les incrustations (DF.39) sont posées hors du calque du plateau ; quand l'écran se redessinait avant la fin de leur animation (fin de tour à 0,9 s, victoire), leurs tweens étaient arrêtés et elles n'étaient jamais détruites. Le mégaphone des copains avait le même défaut.
+- Redessiner l'écran efface maintenant les incrustations en cours, et chacune est détruite d'office 1,6 s après son départ.
+- Un coup avec plaquage compte 1,8 s (chute + nuage), et l'appel des copains 1,45 s, avant de passer à la suite : on voit le nuage finir au lieu de le couper.
+
 ## DF.39 — Incrustations en 2D, animées en code (27/11)
 
 Clément : « Les pictos animés qui arrivent dans le jeu doivent être en 2D. Réserver le réalisme aux actions plein écran. » Les trois incrustations de DF.38 (mégaphone, réveil, nuage de bagarre) sont redessinées dans le style du plateau (trait noir épais, aplats pastel ; Higgsfield nano_banana_2, référence plateau e0f020f3 : jobs 3eabd17f mégaphone, 4a92c4ea réveil, 532837d7 nuage), détourées, en PNG 512 px dans `public/incrust/`. Tout le mouvement est fait en code dans `src/game/ui/incrust.ts` : le mégaphone gonfle, recule et lance trois ondes ; le réveil sautille et se tortille avec des traits de vibration ; le nuage roule, crache cinq étoiles puis éclate. Les planches de sprites réalistes sont retirées.
