@@ -71,7 +71,7 @@ const TAILLE_BADGE = 70;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
 const DIAMETRE_PASTILLE = 92;
 const RAYON_DEPOT = 75;
-const Y_ACTIONS = 1052 + DESCENTE;
+const Y_ACTIONS = 1064 + DESCENTE;
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
 const DUREE_FIN_DE_TOUR = 900;
 /** Annonce d'une arrivée : l'élève se ramasse en l'air avant de tomber (ms). */
@@ -511,8 +511,8 @@ export class PartieScene extends Phaser.Scene {
     const p = this.pos(id);
     const piece = bande === 'rouge' ? PLATEAU.cabaneRouge : PLATEAU.cabaneBleue;
     if (this.textures.exists(piece)) {
-      const im = this.add.image(p.x, p.y - 12, piece);
-      im.setScale(150 / 512);
+      const im = this.add.image(p.x, p.y - 8, piece);
+      im.setScale(136 / 512);
       this.ajouter(im);
       // Badge de forme de la bande (rond ou carré), lisible sans les couleurs.
       const g = this.ajouter(this.add.graphics());
@@ -520,8 +520,8 @@ export class PartieScene extends Phaser.Scene {
       forme(
         g,
         bande === 'rouge'
-          ? contourRond(p.x + 44, p.y + 26, 12, graine + 2)
-          : contourRect(p.x + 32, p.y + 14, 24, 24, 3, graine + 2, 0.5),
+          ? contourRond(p.x + 40, p.y + 26, 12, graine + 2)
+          : contourRect(p.x + 28, p.y + 14, 24, 24, 3, graine + 2, 0.5),
         { remplissage: bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu, trait: 3 },
       );
       return;
