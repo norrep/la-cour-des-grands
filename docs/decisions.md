@@ -332,3 +332,6 @@ prototype jetable : l'architecture est celle de la sortie. Le détail est dans
   simplement la partie, sans gagnant.
 - **DR.6 — Codes d'invitation de 6 lettres** sans lettres ambiguës (ni I, L, O, Q, U, W, ni
   chiffres), insensibles à la casse, aux espaces et aux tirets.
+- **DR.7 — Le serveur du jeu a son propre projet Supabase** (`la-cour-des-grands`, Paris, offre
+  gratuite). Choix de Clément : mettre en pause son ancien projet « norrep's Project » pour
+  libérer la place gratuite. Pro (environ 25 $/mois) seulement à la sortie sur les stores.

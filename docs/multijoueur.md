@@ -36,7 +36,7 @@ Store. Les choix ci-dessous visent la sortie, pas un prototype.
   perdre ses parties ni ses amis. Sign in with Apple sera obligatoire sur l'App Store dès qu'une
   autre connexion sociale existe.
 
-## Tables (prévu, partie 2)
+## Tables
 
 | Table     | Contenu                                                    | Lisible par             |
 | --------- | ---------------------------------------------------------- | ----------------------- |
@@ -65,6 +65,22 @@ Store. Les choix ci-dessous visent la sortie, pas un prototype.
 ## Étapes
 
 1. Arbitre, vues masquées, serveur en mémoire, tests. ← fait
-2. Projet Supabase : tables, sécurité, comptes anonymes, fonction arbitre.
+2. Projet Supabase : tables, sécurité, comptes anonymes, fonction arbitre. ← fait
 3. Écran : jouer en ligne, inviter par lien ou code, partie en direct, reprise.
 4. Amis, abandon et temps à l'écran, notifications.
+
+## Projet Supabase et mise en ligne du serveur
+
+- Projet `la-cour-des-grands` (réf. `cewqffjgtwilsjyjsgtl`, Paris `eu-west-3`, offre gratuite),
+  créé le 27/11. Adresse et clé publique : `src/game/enLigne/config.ts`.
+- Base : `supabase/migrations/` (appliquée telle quelle). La table `parties` n'a volontairement
+  aucune règle d'accès : seul le serveur la lit (l'alerte « RLS sans règle » est attendue).
+- Fonction `arbitre` : `supabase/functions/arbitre/index.ts`. Le paquet `arbitre.js` est généré
+  par `npm run serveur:construire` (un test vérifie qu'il est à jour). À la mise en ligne, le
+  `arbitre.js` envoyé à Supabase est une ligne qui importe ce paquet depuis le dépôt public,
+  **épinglé sur un commit** : la version jouée par le serveur est donc toujours une version
+  relue du dépôt. Après un changement de règles : reconstruire, pousser, redéployer en épinglant
+  le nouveau commit.
+- Réglage à faire une fois dans le tableau de bord : Authentication → Sign In / Providers →
+  « Allow anonymous sign-ins ». Avant la sortie : ajouter un captcha (Turnstile) à la connexion
+  anonyme pour éviter les comptes créés en masse, et passer en offre Pro (pas de mise en veille).
