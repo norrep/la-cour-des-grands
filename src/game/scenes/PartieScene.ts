@@ -1329,57 +1329,41 @@ export class PartieScene extends Phaser.Scene {
     }
   }
 
-  /** Cases du cartable d'une bande, en coordonnées d'écran (pour y faire voler les goûters). */
+  /** Où atterrissent les goûters ramassés : le biscuit de la boîte, en coordonnées d'écran. */
   private casesCartable(bande: Bande, cx: number, cy: number): Point[] {
     const n = Math.max(1, this.cour.seuilBonsPoints);
-    const ecart = 34;
-    // La bande rouge remplit de gauche à droite, la bleue de droite à gauche (vers le centre).
-    return Array.from({ length: n }, (_, i) => {
-      const k = bande === 'rouge' ? i : n - 1 - i;
-      return { x: cx + (k - (n - 1) / 2) * ecart, y: cy + 6 };
-    });
+    return Array.from({ length: n }, () => ({ x: cx - 40, y: cy + 4 }));
   }
 
+  /**
+   * Boîte à goûter (DF.30) : un biscuit illustré et le score écrit en gros, « 2 / 3 ».
+   * Plus de cases : le nombre de goûters à ramasser se lit d'un coup d'œil.
+   */
   private dessinerCartable(bande: Bande, cx: number, cy: number, points: number): void {
     const g = this.ajouter(this.add.graphics());
     const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
     const n = Math.max(1, this.cour.seuilBonsPoints);
-    const l = n * 34 + 34;
-    const graine = graineDe(cx, cy);
-    // Boîte à goûter (DF.30) : une simple boîte à la couleur de la bande, un biscuit par case.
-    // Case vide = biscuit pâle en pointillé (« à ramasser »), case pleine = vrai biscuit.
-    forme(g, contourRect(cx - l / 2, cy - 22, l, 56, 16, graine), {
+    const l = 150;
+    forme(g, contourRect(cx - l / 2, cy - 22, l, 54, 27, graineDe(cx, cy)), {
       remplissage: couleur,
       ombre: 4,
       trait: 4,
     });
-    // Un goûter illustré collé sur le côté extérieur : on comprend tout de suite ce qu'on y range.
-    const icone = cleGouter(1);
-    if (this.textures.exists(icone)) {
-      const sens = bande === 'rouge' ? -1 : 1;
-      this.ajouter(this.add.image(cx + sens * (l / 2 + 2), cy + 4, icone).setScale(52 / 512));
-    }
-    const cases = this.casesCartable(bande, cx, cy);
-    cases.forEach((c, i) => {
-      const plein = i < points;
-      const f = this.ajouter(this.add.graphics());
-      const contour =
-        bande === 'rouge'
-          ? contourRond(c.x, c.y, 14, graine + 2 + i)
-          : contourRect(c.x - 14, c.y - 14, 28, 28, 6, graine + 2 + i, 0.5);
-      forme(f, contour, { remplissage: plein ? COULEURS.jaune : 0xfff4dc, trait: 3 });
-      if (plein) {
-        this.dessinerBiscuit(f, c.x, c.y, 10);
+    const [cible] = this.casesCartable(bande, cx, cy);
+    if (cible) {
+      const icone = cleGouter(1);
+      if (this.textures.exists(icone)) {
+        this.ajouter(this.add.image(cible.x, cible.y, icone).setScale(60 / 512));
       } else {
-        f.lineStyle(2, 0xc9b7a0, 1);
-        for (let a = 0; a < 12; a += 2) {
-          f.beginPath();
-          f.arc(c.x, c.y, 8, (a / 12) * Math.PI * 2, ((a + 1) / 12) * Math.PI * 2);
-          f.strokePath();
-        }
+        this.dessinerBiscuit(g, cible.x, cible.y, 16);
       }
-    });
-    this.cartables[bande] = cases;
+    }
+    this.texte(cx + 22, cy + 5, `${Math.min(points, n)} / ${n}`, 30, '#ffffff', {
+      fontStyle: '700',
+      stroke: '#2b2228',
+      strokeThickness: 6,
+    }).setOrigin(0.5);
+    this.cartables[bande] = this.casesCartable(bande, cx, cy);
   }
 
   /** Un petit biscuit rond : la case pleine d'un cartable, ou le goûter qui vole vers lui. */
@@ -2887,24 +2871,6 @@ export class PartieScene extends Phaser.Scene {
       this.time.delayedCall(k * 140, () => {
         biscuit.setVisible(true);
         this.volerEnCloche(biscuit, c, { x: cible.x, y: cible.y + MONTEE }, 700, () => {
-          if (index >= cases.length) return;
-          const plein = this.ajouter(this.add.graphics());
-          forme(
-            plein,
-            bande === 'rouge'
-              ? contourRond(cible.x, cible.y + MONTEE, 13, graineDe(index, 1))
-              : contourRect(
-                  cible.x - 13,
-                  cible.y + MONTEE - 13,
-                  26,
-                  26,
-                  5,
-                  graineDe(index, 1),
-                  0.5,
-                ),
-            { remplissage: COULEURS.jaune, trait: 3 },
-          );
-          this.dessinerBiscuit(plein, cible.x, cible.y + MONTEE, 8);
           this.secousse(0.003, 80);
         });
       });

@@ -170,3 +170,5 @@ Mise à jour (Clément : « Garde le texte punis non ? ») : l'image reste le ca
 ## DF.30 — Boîte à goûter simplifiée (27/11)
 
 Clément : « Tu peux simplifier le picto de la boîte à goûter ou le rendre plus explicite ». Le cartable (poignée + rabat blanc + cases vides) devient une simple boîte à la couleur de la bande. Case vide = biscuit pâle en pointillé (« à ramasser »), case pleine = vrai biscuit sur fond jaune. Les biscuits illustrés (DF.21) sont collés sur le côté extérieur de la boîte pour dire tout de suite ce qu'on y range. Formes rondes (rouge) / carrées (bleu) gardées pour les daltoniens.
+
+Mise à jour : Clément trouve la boîte à cases « pas clair ». Remplacée par une pastille à la couleur de la bande avec les biscuits illustrés et le score écrit en gros (« 2 / 3 »). Les goûters ramassés volent jusqu'au biscuit.
