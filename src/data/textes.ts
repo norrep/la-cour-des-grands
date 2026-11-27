@@ -213,6 +213,8 @@ export const TEXTES = {
     get delegue(): { titre: string; sous: string } {
       return { titre: 'Mot d’excuse !', sous: `Le Délégué déplace ${surv.role}.` };
     },
+    fouine: { titre: 'Par les buissons !', sous: 'La Fouine se faufile où elle veut.' },
+    petit: { titre: 'Prise de catch !', sous: 'Le Petit de maternelle plaque tout le monde.' },
     gouter: (b: Bande, nom: string, n: number) => ({
       titre: 'Miam !',
       sous: `La ${BANDES[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} (+${n}).`,
