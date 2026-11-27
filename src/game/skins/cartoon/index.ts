@@ -94,16 +94,17 @@ function masqueQuiSuit(
 }
 
 /**
- * Vidéos de pouvoir (`public/videos/cartoon/`). Une seule version par rôle pour l'instant :
- * elle sert aux deux bandes en attendant une version bleue.
+ * Vidéos de pouvoir (`public/videos/cartoon/<rôle>-<rouge|bleu>.mp4`), sur fond manga « éclairs »
+ * à la couleur de l'équipe (DV.4, DV.5). Les Bleus sont les mêmes vidéos, maillot recoloré.
+ * Le Contagieux n'a qu'une version (ancien style), pour les Rouges.
  */
-const VIDEOS: Partial<Record<RoleId, string>> = {
-  contagieux: 'videos/cartoon/contagieux.mp4',
-  chouchou: 'videos/cartoon/chouchou-rouge.mp4',
-  rapporteuse: 'videos/cartoon/rapporteuse-rouge.mp4',
-  fouine: 'videos/cartoon/fouine-rouge.mp4',
-  delegue: 'videos/cartoon/delegue-rouge.mp4',
-  petit: 'videos/cartoon/petit-rouge.mp4',
+const ROLES_VIDEO: readonly RoleId[] = ['chouchou', 'rapporteuse', 'fouine', 'delegue', 'petit'];
+const VIDEOS: Partial<Record<EquipeId, Partial<Record<RoleId, string>>>> = {
+  rouges: {
+    contagieux: 'videos/cartoon/contagieux.mp4',
+    ...Object.fromEntries(ROLES_VIDEO.map((r) => [r, `videos/cartoon/${r}-rouge.mp4`])),
+  },
+  bleus: Object.fromEntries(ROLES_VIDEO.map((r) => [r, `videos/cartoon/${r}-bleu.mp4`])),
 };
 /** Goûters, dans l'ordre des régions de la cour (comme GOUTERS du chargement), avec la couleur
  * mesurée du fond crème en haut et en bas de chaque vidéo. */
@@ -121,7 +122,7 @@ export const SKIN_CARTOON: Skin = {
   textures,
   texturesEquipe,
   // Vidéos tournées avec les élèves en débardeur rouge : seulement pour l'équipe des Rouges.
-  videoPouvoir: (bande, role) => (equipeDe(bande).id === 'rouges' ? VIDEOS[role] : undefined),
+  videoPouvoir: (bande, role) => VIDEOS[equipeDe(bande).id]?.[role],
   videoGouter: (index) => (index >= 0 ? VIDEOS_GOUTERS[index % VIDEOS_GOUTERS.length] : undefined),
   eleve(scene, bande, role, taille) {
     const r = rig(bande, role);
