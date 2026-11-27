@@ -44,7 +44,7 @@ const POUVOIRS: Record<RoleId, string> = {
     'Joker : plaque n’importe qui, mais tout le monde le plaque. Jamais dans la cabane adverse.',
   populaire: 'Arrive avec des copains : pioche 2 élèves.',
   chouchou: 'Appelle son grand frère : pose aussitôt un 2e élève de 5 ou plus.',
-  rapporteuse: '« Madame, c’est lui ! » : un adversaire voisin part chez la CPE.',
+  rapporteuse: '« Madame, c’est lui ! » : un adversaire voisin est puni.',
   fouine: 'Passe par les buissons : se pose même loin de ton chemin.',
   contagieux: 'Atchoum ! Un élève adverse au hasard rate son prochain tour.',
   delegue: 'Mot d’excuse : la surveillante file 1 ou 2 goûters plus loin (au hasard).',
@@ -53,11 +53,10 @@ const POUVOIRS: Record<RoleId, string> = {
 
 /** Effet de chaque équipement spécial. */
 const EFFETS_EQUIPEMENTS: Record<EquipementId, string> = {
-  banc: 'Une planque : l’élève assis ici ne peut plus être plaqué, ni envoyé chez la CPE, ni déplacé.',
+  banc: 'Une planque : l’élève assis ici ne peut plus être plaqué, ni puni, ni déplacé.',
   cabanePerchee: 'Quand tu poses un élève ici, tu peux piocher 1 élève.',
-  porteVieScolaire:
-    'Quand tu poses un élève ici, tu peux reprendre un de tes élèves de chez la CPE.',
-  buts: 'Quand tu poses un élève ici, tu peux envoyer chez la CPE un adversaire de valeur 1 ou 2 situé à 2 allées.',
+  porteVieScolaire: 'Quand tu poses un élève ici, tu peux faire revenir un de tes élèves punis.',
+  buts: 'Quand tu poses un élève ici, tu peux punir un adversaire de valeur 1 ou 2 situé à 2 allées.',
   toboggan:
     'Quand tu poses un élève ici, tu peux faire glisser un adversaire voisin vers un autre îlot.',
   marelle: 'Seules certaines valeurs peuvent se poser sur cette case.',
@@ -110,8 +109,8 @@ export const TEXTES = {
     tourDe: (b: Bande) => `Au tour de la ${BANDES[b]}`,
     seuil: (n: number) => `Objectif : ${n} goûters`,
     points: (n: number) => `${n}`,
-    couloir: (n: number) => `Couloir : ${n}`,
-    cpe: (n: number) => `CPE : ${n}`,
+    couloir: (n: number) => `Pioche : ${n}`,
+    cpe: (n: number) => `Punis : ${n}`,
     infirmerie: 'Infirmerie',
     rangVide: 'Ton rang est vide : appelle des copains !',
     ordiReflechit: 'L’ordi réfléchit…',
@@ -131,16 +130,16 @@ export const TEXTES = {
     pret: (b: Bande) => `Je suis la ${BANDES[b]}`,
   },
   choix: {
-    populaire: 'Populaire : touche ton portail pour faire venir 2 copains.',
+    populaire: 'Populaire : touche ta pioche pour faire venir 2 copains.',
     chouchou: 'Chouchou : glisse un 2e élève de 5 ou plus (cartes claires).',
-    rapporteuse: 'Rapporteuse : touche l’adversaire qui tremble pour l’envoyer chez la CPE.',
+    rapporteuse: 'Rapporteuse : touche l’adversaire qui tremble pour le faire punir.',
     contagieux:
-      'Contagieux : touche le portail d’en face, un adversaire au hasard rate son prochain tour.',
+      'Contagieux : touche la pioche d’en face, un adversaire au hasard rate son prochain tour.',
     delegue: 'Délégué : touche Mme Josiane pour qu’elle file 1 ou 2 goûters plus loin, ou passe.',
     banc: '★ Banc : ton élève est planqué, personne ne peut plus le toucher.',
-    cabanePerchee: '★ Cabane perchée : touche ton portail pour piocher 1 élève.',
-    porteVieScolaire: '★ Vie scolaire : touche l’élève à faire sortir de chez la CPE.',
-    buts: '★ Buts : touche l’adversaire (1 ou 2) à envoyer chez la CPE.',
+    cabanePerchee: '★ Cabane perchée : touche ta pioche pour piocher 1 élève.',
+    porteVieScolaire: '★ Vie scolaire : touche l’élève puni à faire revenir.',
+    buts: '★ Buts : touche l’adversaire (1 ou 2) à punir.',
     tobogganDepart: '★ Toboggan : touche l’adversaire à faire glisser.',
     tobogganArrivee: '★ Toboggan : touche l’îlot d’arrivée.',
     bulle: 'Pouvoir !',
@@ -171,7 +170,7 @@ export const TEXTES = {
   regionPrise: (b: Bande, points: number) =>
     `Déjà ramassé par la ${BANDES[b]} (+${points}). Il n’y a plus rien à prendre ici.`,
   cinematiques: {
-    cpe: { titre: 'Direction la CPE !', sous: 'Dénoncé par la Rapporteuse…' },
+    cpe: { titre: 'Puni !', sous: 'Dénoncé par la Rapporteuse…' },
     infirmerie: { titre: 'Atchoum !', sous: 'Un élève file à l’infirmerie.' },
     grandsFreres: {
       titre: 'Le grand frère arrive !',
@@ -253,7 +252,7 @@ export const TEXTES = {
         contexte:
           'Premier jour de récré ! Les rouges et les bleus se disputent la cour et ses goûters avant la sonnerie.',
         regle:
-          'Deux bancs planques : l’élève assis dessus ne peut être ni plaqué, ni envoyé chez la CPE, ni déplacé.',
+          'Deux bancs planques : l’élève assis dessus ne peut être ni plaqué, ni puni, ni déplacé.',
       },
     } as Partial<Record<string, { contexte: string; regle: string }>>,
   },
@@ -281,20 +280,20 @@ export const TEXTES = {
     motExcuse: 'Mot d’excuse !',
     recuperer: 'Récupérer qui ?',
   },
-  /** Les lieux autour de la cour : chaque bande a son portail (le couloir) et son bureau de CPE. */
+  /** Les lieux autour de la cour : chaque bande a sa pioche (les copains pas encore appelés) et ses punis. */
   lieux: {
-    portail: 'Portail',
-    cpe: 'CPE',
-    fichePortail: (b: Bande) => `Portail de la ${BANDES[b]}`,
+    portail: 'Pioche',
+    cpe: 'Punis',
+    fichePortail: (b: Bande) => `Pioche de la ${BANDES[b]}`,
     texteCouloir: (n: number) =>
       n === 0
-        ? 'Plus personne n’attend au portail : on ne peut plus appeler de copains.'
-        : `${n} copain${n > 1 ? 's attendent' : ' attend'} au portail. « Appeler des copains » en fait venir 2 dans le rang.`,
-    ficheCpe: (b: Bande) => `Bureau de la CPE (${BANDES[b]})`,
+        ? 'La pioche est vide : on ne peut plus appeler de copains.'
+        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. « Appeler des copains » en fait venir 2 dans le rang.`,
+    ficheCpe: (b: Bande) => `Les punis (${BANDES[b]})`,
     texteCpe: (n: number) =>
       n === 0
-        ? 'Personne n’est puni pour l’instant. La Rapporteuse et les buts y envoient les adversaires.'
-        : `${n} élève${n > 1 ? 's sont punis' : ' est puni'} ici. La porte de la vie scolaire permet d’en récupérer un.`,
+        ? 'Personne n’est puni pour l’instant. La Rapporteuse et les buts font punir les adversaires.'
+        : `${n} élève${n > 1 ? 's sont punis' : ' est puni'}, hors du jeu. La porte de la vie scolaire permet d’en faire revenir un.`,
     ficheRang: (b: Bande) => `Rang de la ${BANDES[b]}`,
     texteRang: (n: number) =>
       n === 0
@@ -311,13 +310,13 @@ export const TEXTES = {
       `${BANDES_TITRE[b]} : ${ROLES[role]} → ${lieu}.`,
     plaque: (role: RoleId) => `${ROLES[role]} est plaqué au sol !`,
     pioche: (b: Bande, n: number) => `${BANDES_TITRE[b]} pioche ${n} élève${n > 1 ? 's' : ''}.`,
-    cpe: (role: RoleId, b: Bande) => `${ROLES[role]} (${BANDES[b]}) part chez la CPE !`,
+    cpe: (role: RoleId, b: Bande) => `${ROLES[role]} (${BANDES[b]}) est puni !`,
     infirmerie: (b: Bande) => `Atchoum ! Un élève de la ${BANDES[b]} part à l’infirmerie.`,
     surveillanteDelegue:
       'Le Délégué brandit son mot d’excuse : la surveillante va garder un autre goûter.',
     surveillante: 'La surveillante poursuit sa ronde.',
     rappel: (b: Bande) => `${BANDES_TITRE[b]} rappelle un élève dans son rang.`,
-    repechage: (b: Bande) => `${BANDES_TITRE[b]} récupère un élève chez la CPE.`,
+    repechage: (b: Bande) => `${BANDES_TITRE[b]} fait revenir un élève puni.`,
     glissade: (role: RoleId) => `${ROLES[role]} glisse sur le toboggan !`,
     passe: (b: Bande) => `${BANDES_TITRE[b]} renonce à son pouvoir.`,
     region: (b: Bande, nom: string, n: number) =>

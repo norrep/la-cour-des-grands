@@ -640,13 +640,18 @@ export class PartieScene extends Phaser.Scene {
     const c = this.add.container(p.x, p.y);
     const g = this.add.graphics();
     const graine = graineDe(p.x, p.y);
-    forme(g, contourRect(-62, -34, 124, 76, 14, graine), {
-      remplissage: COULEURS.papier,
-      ombre: 5,
-      trait: 4,
-    });
+    const illustre = true;
+    // Lieu illustré (DF.32) : l'image seule, en grand, sans carte de papier autour.
+    if (!illustre) {
+      forme(g, contourRect(-62, -34, 124, 76, 14, graine), {
+        remplissage: COULEURS.papier,
+        ombre: 5,
+        trait: 4,
+      });
+    }
+    const yTitre = illustre ? -58 : -36;
     const t = this.add
-      .text(0, -36, titre, {
+      .text(0, yTitre, titre, {
         fontFamily: POLICE,
         fontSize: '16px',
         color: COULEURS.texteSombre,
@@ -654,13 +659,15 @@ export class PartieScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     const e = this.add.graphics();
-    forme(e, contourRect(-t.width / 2 - 9, -48, t.width + 18, 24, 10, graine + 1, 0.6), {
+    forme(e, contourRect(-t.width / 2 - 9, yTitre - 12, t.width + 18, 24, 10, graine + 1, 0.6), {
       remplissage: bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu,
       trait: 3,
     });
     c.add([g, e, t]);
-    c.setRotation((bande === 'rouge' ? 1 : -1) * (lieu === 'portail' ? -0.04 : 0.04));
-    c.setSize(124, 90);
+    c.setRotation(
+      illustre ? 0 : (bande === 'rouge' ? 1 : -1) * (lieu === 'portail' ? -0.04 : 0.04),
+    );
+    c.setSize(124, illustre ? 120 : 90);
     if (this.ctrl.phase === 'jeu') {
       c.setInteractive({ useHandCursor: true });
       c.on('pointerup', fiche);
@@ -668,6 +675,95 @@ export class PartieScene extends Phaser.Scene {
     this.ajouter(c);
     this.panneauxLieux.set(`${bande}:${lieu}`, c);
     return c;
+  }
+
+  /** Pastille de nombre d'un lieu illustré (copains au portail, punis à la CPE). */
+  private compteurLieu(
+    x: number,
+    y: number,
+    texte: string,
+    bande: Bande,
+  ): Phaser.GameObjects.Container {
+    const t = this.add
+      .text(0, 0, texte, {
+        fontFamily: POLICE,
+        fontSize: '22px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const g = this.add.graphics();
+    const l = Math.max(40, t.width + 18);
+    forme(g, contourRect(-l / 2, -17, l, 34, 17, graineDe(x, l), 0.5), {
+      remplissage: COULEURS.papier,
+      trait: 3,
+    });
+    g.lineStyle(3, bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu, 1);
+    return this.add.container(x, y, [g, t]);
+  }
+
+  /** Les enrhumés du rang : un mouchoir avec leur nombre, au coin du portail. */
+  private dessinerMalades(c: Phaser.GameObjects.Container, malades: number): void {
+    if (malades === 0) return;
+    const m = this.add.graphics();
+    forme(m, contourRond(-46, 30, 17, graineDe(malades, 9)), { remplissage: 0xffffff, trait: 3 });
+    m.fillStyle(0xe0503f, 1);
+    m.fillRect(-50, 19, 8, 22);
+    m.fillRect(-57, 26, 22, 8);
+    const tm = this.add
+      .text(-30, 44, `${malades}`, {
+        fontFamily: POLICE,
+        fontSize: '16px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+        backgroundColor: '#ffffff',
+        padding: { x: 3, y: 0 },
+      })
+      .setOrigin(0.5);
+    c.add([m, tm]);
+  }
+
+  /** Un bonnet d'âne : cône de papier, oreilles grises, pompon et bandeau bleu. */
+  private dessinerBonnetAne(g: Phaser.GameObjects.Graphics, x: number, y: number, k: number): void {
+    const P = (px: number, py: number): { x: number; y: number } => ({
+      x: x + px * k,
+      y: y + py * k,
+    });
+    // Oreilles d'âne, longues et dressées, derrière le cône.
+    for (const sens of [-1, 1]) {
+      forme(
+        g,
+        [
+          P(sens * 6, 6),
+          P(sens * 16, -16),
+          P(sens * 30, -36),
+          P(sens * 38, -34),
+          P(sens * 32, -12),
+          P(sens * 16, 12),
+        ],
+        { remplissage: 0xb9b3c2, trait: 3 },
+      );
+      forme(g, [P(sens * 14, 2), P(sens * 30, -28), P(sens * 26, -8)], {
+        remplissage: 0xf2b8c6,
+        trait: 0,
+      });
+    }
+    // Le cône, légèrement penché.
+    forme(g, [P(4, -46), P(-24, 34), P(-14, 40), P(14, 42), P(26, 34)], {
+      remplissage: 0xfffaf0,
+      trait: 3.5,
+      ombre: 4,
+    });
+    // Bandeau du bas.
+    forme(g, [P(-21, 26), P(23, 26), P(26, 34), P(14, 42), P(-14, 40), P(-24, 34)], {
+      remplissage: 0xa9bdf0,
+      trait: 3,
+    });
+    // Pompon au sommet.
+    g.fillStyle(COULEURS.jaune, 1);
+    g.fillCircle(x + 4 * k, y - 47 * k, 6 * k);
+    g.lineStyle(3, COULEURS.encre, 1);
+    g.strokeCircle(x + 4 * k, y - 47 * k, 6 * k);
   }
 
   /**
@@ -720,7 +816,10 @@ export class PartieScene extends Phaser.Scene {
     this.ajouter(c);
   }
 
-  /** Le portail : les copains du couloir y attendent qu'on les appelle. */
+  /**
+   * La pioche (DF.34) : les copains pas encore appelés, en paquet de cartes face cachée, comme
+   * les cartes du rang. Le nombre est dans une pastille ; le paquet maigrit quand il se vide.
+   */
   private dessinerPortail(bande: Bande): void {
     const j = this.etat.joueurs[bande];
     const n = j.couloir.length;
@@ -731,64 +830,66 @@ export class PartieScene extends Phaser.Scene {
         positionLieu(this.cour, bande, 'portail'),
       ),
     );
+    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
     const g = this.add.graphics();
-    if (this.textures.exists(PLATEAU.portail)) {
-      c.add(this.add.image(-28, 6, PLATEAU.portail).setScale(78 / 512));
-      g.setVisible(false);
+    const epaisseur = n === 0 ? 0 : Math.min(4, Math.ceil(n / 4));
+    const L = 56;
+    const H = 80;
+    if (n === 0) {
+      // Pioche vide : juste l'emplacement en pointillés.
+      g.lineStyle(3, COULEURS.encre, 0.5);
+      for (let k = 0; k < 12; k += 2) {
+        const t0 = k / 12;
+        const t1 = (k + 1) / 12;
+        const per = (t: number): [number, number] => {
+          const d = t * 2 * (L + H);
+          if (d < L) return [-L / 2 + d, -H / 2];
+          if (d < L + H) return [L / 2, -H / 2 + d - L];
+          if (d < 2 * L + H) return [L / 2 - (d - L - H), H / 2];
+          return [-L / 2, H / 2 - (d - 2 * L - H)];
+        };
+        const [x0, y0] = per(t0);
+        const [x1, y1] = per(t1);
+        g.lineBetween(x0, y0, x1, y1);
+      }
     }
-    // Grille du portail : deux piliers et des barreaux.
-    g.fillStyle(0xbfb3a0, 1);
-    g.lineStyle(3, COULEURS.encre, 1);
-    g.fillRect(-52, -16, 10, 50);
-    g.strokeRect(-52, -16, 10, 50);
-    g.fillRect(-10, -16, 10, 50);
-    g.strokeRect(-10, -16, 10, 50);
-    g.lineStyle(3, COULEURS.encre, 1);
-    for (let x = -38; x <= -14; x += 8) g.lineBetween(x, -10, x, 32);
-    g.lineBetween(-42, -6, -10, -6);
-    g.lineBetween(-42, 24, -10, 24);
-    c.add(g);
-    // Les têtes des copains qui attendent derrière la grille (jusqu'à 3).
-    for (let k = 0; k < Math.min(3, n); k++) {
-      const t = this.add.graphics();
-      forme(t, contourRond(-36 + k * 11, 6 - (k % 2) * 4, 9, graineDe(k, n)), {
-        remplissage: bande === 'rouge' ? 0xffc2b6 : 0xc3ccff,
-        trait: 2,
+    for (let k = epaisseur - 1; k >= 0; k--) {
+      const dx = -k * 4;
+      const dy = k * 4;
+      const graine = graineDe(k, bande.length);
+      forme(g, contourRect(dx - L / 2, dy - H / 2, L, H, 9, graine, 0.5), {
+        remplissage: couleur,
+        trait: 3,
+        ombre: k === epaisseur - 1 ? 4 : 0,
       });
-      c.addAt(t, 3);
+      if (k === 0) {
+        // Dos de carte : un cadre clair et le goûter de la cour au centre.
+        forme(g, contourRect(dx - L / 2 + 7, dy - H / 2 + 7, L - 14, H - 14, 6, graine + 1, 0.4), {
+          remplissage: bande === 'rouge' ? 0xf4a29b : 0xa9bdf0,
+          trait: 2,
+        });
+        g.fillStyle(0xffffff, 0.9);
+        g.fillCircle(dx, dy - 4, 12);
+        g.lineStyle(2.5, COULEURS.encre, 1);
+        g.strokeCircle(dx, dy - 4, 12);
+        g.fillStyle(COULEURS.encre, 1);
+        g.fillCircle(dx - 4, dy - 6, 2);
+        g.fillCircle(dx + 4, dy - 6, 2);
+        g.lineStyle(2, COULEURS.encre, 1);
+        g.beginPath();
+        g.arc(dx, dy - 3, 5, 0.2, Math.PI - 0.2);
+        g.strokePath();
+      }
     }
-    const nombre = this.add
-      .text(30, 10, `×${n}`, {
-        fontFamily: POLICE,
-        fontSize: '26px',
-        color: COULEURS.texteSombre,
-        fontStyle: '700',
-      })
-      .setOrigin(0.5);
-    c.add(nombre);
-    // Les enrhumés du rang : un mouchoir avec leur nombre, au coin du portail.
-    const malades = j.infirmerie.length;
-    if (malades > 0) {
-      const m = this.add.graphics();
-      forme(m, contourRond(52, -28, 17, graineDe(malades, 9)), { remplissage: 0xffffff, trait: 3 });
-      m.fillStyle(0xe0503f, 1);
-      m.fillRect(48, -39, 8, 22);
-      m.fillRect(41, -32, 22, 8);
-      const tm = this.add
-        .text(68, -12, `${malades}`, {
-          fontFamily: POLICE,
-          fontSize: '16px',
-          color: COULEURS.texteSombre,
-          fontStyle: '700',
-          backgroundColor: '#ffffff',
-          padding: { x: 3, y: 0 },
-        })
-        .setOrigin(0.5);
-      c.add([m, tm]);
-    }
+    c.addAt(g, 0);
+    c.add(this.compteurLieu(36, 34, `×${n}`, bande));
+    this.dessinerMalades(c, j.infirmerie.length);
   }
 
-  /** Le bureau de la CPE : les élèves punis y sont assis, bras croisés. */
+  /**
+   * Les cartons rouges (DF.36) : les exclus, sous un carton rouge brandi. Les 3 derniers arrivés sont
+   * en badges ; leur nombre est dans une pastille.
+   */
   private dessinerBureauCpe(bande: Bande): void {
     const punis = this.etat.joueurs[bande].cpe;
     const c = this.panneauLieu(bande, 'cpe', TEXTES.lieux.cpe, () =>
@@ -798,41 +899,21 @@ export class PartieScene extends Phaser.Scene {
         positionLieu(this.cour, bande, 'cpe'),
       ),
     );
-    const g = this.add.graphics();
-    if (this.textures.exists(PLATEAU.cpe)) {
-      c.add(this.add.image(-36, 4, PLATEAU.cpe).setScale(74 / 512));
-      g.setVisible(false);
+    // Le carton rouge (DF.36) : illustré, ou à défaut un bonnet d'âne dessiné en code.
+    if (this.textures.exists(PLATEAU.carton)) {
+      c.addAt(this.add.image(0, -6, PLATEAU.carton).setScale(82 / 512), 0);
+    } else {
+      const g = this.add.graphics();
+      this.dessinerBonnetAne(g, -6, 4, 0.82);
+      c.addAt(g, 0);
     }
-    // Porte vitrée du bureau.
-    forme(g, contourRect(-54, -18, 34, 52, 4, graineDe(bande.length, 3), 0.5), {
-      remplissage: 0x8a5a3b,
-      trait: 3,
-    });
-    forme(g, contourRect(-48, -12, 22, 16, 3, graineDe(bande.length, 4), 0.5), {
-      remplissage: 0xbfe4ff,
-      trait: 2,
-    });
-    g.fillStyle(COULEURS.jaune, 1);
-    g.fillCircle(-26, 12, 3);
-    c.add(g);
-    // Les punis, en petits badges (les 4 derniers arrivés), et leur nombre s'ils sont plus.
-    punis.slice(-4).forEach((el, k) => {
-      const b = creerBadge(this, el.bande, el.role, 24);
-      b.setPosition(-2 + (k % 2) * 26, -4 + Math.floor(k / 2) * 26);
+    // Les exclus (les 3 derniers) et leur nombre.
+    punis.slice(-3).forEach((el, k) => {
+      const b = creerBadge(this, el.bande, el.role, 22);
+      b.setPosition(-30 + k * 18, 42);
       c.add(b);
     });
-    if (punis.length > 4 || punis.length === 0) {
-      c.add(
-        this.add
-          .text(40, 10, punis.length === 0 ? '0' : `×${punis.length}`, {
-            fontFamily: POLICE,
-            fontSize: '22px',
-            color: COULEURS.texteSombre,
-            fontStyle: '700',
-          })
-          .setOrigin(0.5),
-      );
-    }
+    c.add(this.compteurLieu(46, 42, punis.length === 0 ? '0' : `×${punis.length}`, bande));
   }
 
   /** Centre d'une zone, légèrement décalé pour ne pas gêner les allées. */
@@ -1243,6 +1324,7 @@ export class PartieScene extends Phaser.Scene {
       this.finDeTour?.remove();
       this.finDeTour = this.time.delayedCall(Math.max(DUREE_FIN_DE_TOUR, duree + 250), () => {
         this.entreDeuxTours = false;
+        if (!this.ordi) jouerSon('passe');
         this.rafraichir();
       });
     }
@@ -1331,49 +1413,41 @@ export class PartieScene extends Phaser.Scene {
     }
   }
 
-  /** Cases du cartable d'une bande, en coordonnées d'écran (pour y faire voler les goûters). */
+  /** Où atterrissent les goûters ramassés : le biscuit de la boîte, en coordonnées d'écran. */
   private casesCartable(bande: Bande, cx: number, cy: number): Point[] {
     const n = Math.max(1, this.cour.seuilBonsPoints);
-    const ecart = 34;
-    // La bande rouge remplit de gauche à droite, la bleue de droite à gauche (vers le centre).
-    return Array.from({ length: n }, (_, i) => {
-      const k = bande === 'rouge' ? i : n - 1 - i;
-      return { x: cx + (k - (n - 1) / 2) * ecart, y: cy + 6 };
-    });
+    return Array.from({ length: n }, () => ({ x: cx - 40, y: cy + 4 }));
   }
 
+  /**
+   * Boîte à goûter (DF.37) : un biscuit illustré et le score écrit en gros, « 2 / 3 ».
+   * Plus de cases : le nombre de goûters à ramasser se lit d'un coup d'œil.
+   */
   private dessinerCartable(bande: Bande, cx: number, cy: number, points: number): void {
     const g = this.ajouter(this.add.graphics());
     const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
     const n = Math.max(1, this.cour.seuilBonsPoints);
-    const l = n * 34 + 34;
-    const graine = graineDe(cx, cy);
-    // Poignée, sac, rabat : un cartable d'écolier au trait noir.
-    g.lineStyle(5, COULEURS.encre, 1);
-    g.beginPath();
-    g.arc(cx, cy - 22, 15, Math.PI, 0);
-    g.strokePath();
-    forme(g, contourRect(cx - l / 2, cy - 24, l, 56, 14, graine), {
+    const l = 150;
+    forme(g, contourRect(cx - l / 2, cy - 22, l, 54, 27, graineDe(cx, cy)), {
       remplissage: couleur,
       ombre: 4,
       trait: 4,
     });
-    forme(g, contourRect(cx - l / 2 + 6, cy - 24, l - 12, 14, 6, graine + 1, 0.6), {
-      remplissage: 0xffffff,
-      trait: 3,
-    });
-    const cases = this.casesCartable(bande, cx, cy);
-    cases.forEach((c, i) => {
-      const plein = i < points;
-      const f = this.ajouter(this.add.graphics());
-      const contour =
-        bande === 'rouge'
-          ? contourRond(c.x, c.y, 13, graine + 2 + i)
-          : contourRect(c.x - 13, c.y - 13, 26, 26, 5, graine + 2 + i, 0.5);
-      forme(f, contour, { remplissage: plein ? COULEURS.jaune : 0xfff4dc, trait: 3 });
-      if (plein) this.dessinerBiscuit(f, c.x, c.y, 8);
-    });
-    this.cartables[bande] = cases;
+    const [cible] = this.casesCartable(bande, cx, cy);
+    if (cible) {
+      const icone = cleGouter(1);
+      if (this.textures.exists(icone)) {
+        this.ajouter(this.add.image(cible.x, cible.y, icone).setScale(60 / 512));
+      } else {
+        this.dessinerBiscuit(g, cible.x, cible.y, 16);
+      }
+    }
+    this.texte(cx + 22, cy + 5, `${Math.min(points, n)} / ${n}`, 30, '#ffffff', {
+      fontStyle: '700',
+      stroke: '#2b2228',
+      strokeThickness: 6,
+    }).setOrigin(0.5);
+    this.cartables[bande] = this.casesCartable(bande, cx, cy);
   }
 
   /** Un petit biscuit rond : la case pleine d'un cartable, ou le goûter qui vole vers lui. */
@@ -1422,6 +1496,7 @@ export class PartieScene extends Phaser.Scene {
     // Quand le tour change, la grande aiguille avance d'un coup sec, comme une vraie pendule.
     if (this.animations && this.tourHorloge !== 0 && this.tourHorloge !== tour) {
       grande.setRotation(angleMinute - Math.PI / 6);
+      jouerSon('pendule');
       this.tweens.add({
         targets: grande,
         rotation: angleMinute,
@@ -2857,6 +2932,7 @@ export class PartieScene extends Phaser.Scene {
     };
     deplacer(depart);
     this.onomatopee(depart.x, depart.y - 40, TEXTES.animations.sifflet, 26, '#e2c8ff');
+    jouerSon('sifflet');
     const segments = points.length - 1;
     const arrivee = points[segments] as Point;
     this.tweens.addCounter({
@@ -2911,24 +2987,6 @@ export class PartieScene extends Phaser.Scene {
       this.time.delayedCall(k * 140, () => {
         biscuit.setVisible(true);
         this.volerEnCloche(biscuit, c, { x: cible.x, y: cible.y + MONTEE }, 700, () => {
-          if (index >= cases.length) return;
-          const plein = this.ajouter(this.add.graphics());
-          forme(
-            plein,
-            bande === 'rouge'
-              ? contourRond(cible.x, cible.y + MONTEE, 13, graineDe(index, 1))
-              : contourRect(
-                  cible.x - 13,
-                  cible.y + MONTEE - 13,
-                  26,
-                  26,
-                  5,
-                  graineDe(index, 1),
-                  0.5,
-                ),
-            { remplissage: COULEURS.jaune, trait: 3 },
-          );
-          this.dessinerBiscuit(plein, cible.x, cible.y + MONTEE, 8);
           this.secousse(0.003, 80);
         });
       });
@@ -3051,6 +3109,8 @@ export class PartieScene extends Phaser.Scene {
     if (gouter !== undefined) {
       scene.add(this.add.image(picto.x, picto.y, cleGouter(gouter)).setScale(170 / 512));
     }
+    const imagePicto = picto.getData('image') as string | undefined;
+    if (imagePicto) scene.add(this.add.image(picto.x, picto.y, imagePicto).setScale(190 / 512));
     const tout = this.add.container(0, 0, [fond, scene, passer]).setDepth(1000);
     this.cinematiqueEnCours = tout;
 
@@ -3094,7 +3154,10 @@ export class PartieScene extends Phaser.Scene {
     g.setPosition(x, y);
     g.lineStyle(5, COULEURS.encre, 1);
     switch (id) {
-      case 'cpe': // Porte du bureau
+      case 'cpe': // Le carton rouge (DF.36), ou à défaut le bonnet d'âne
+        if (this.textures.exists(PLATEAU.carton)) g.setData('image', PLATEAU.carton);
+        else this.dessinerBonnetAne(g, 0, -10, 1.9);
+        break;
         g.fillStyle(0x8a5a2b, 1);
         g.fillRoundedRect(-55, -90, 110, 180, 8);
         g.strokeRoundedRect(-55, -90, 110, 180, 8);
