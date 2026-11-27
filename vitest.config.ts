@@ -4,6 +4,6 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     environment: 'node',
-    coverage: { include: ['src/engine/**'] },
+    coverage: { include: ['src/engine/**', 'src/ia/**'] },
   },
 });
