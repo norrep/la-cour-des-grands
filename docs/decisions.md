@@ -354,3 +354,28 @@ prototype jetable : l'architecture est celle de la sortie. Le détail est dans
 - **DR.9 — Pour l'instant, l'invité joue en haut de la cour** (le camp bleu), comme le joueur 2 à
   deux sur un téléphone. Retourner la cour pour que chacun ait sa cabane en bas demande de revoir
   les décors : à faire dans une prochaine étape si Clément le souhaite.
+
+## Lisibilité sur téléphone (27/11)
+
+Audit du 27/11 : sur un Android de 360 dp, le jeu est réduit de moitié ; les cartes en main
+faisaient 40 × 70 dp et les petits textes 7 à 8 dp. Clément a choisi le lot 1 à 6, avec la main en
+léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer.
+
+- **DL.1 — Main XXL en léger éventail.** Cartes de 122 × 190 (61 × 95 dp), sans le nom écrit : le
+  visage et le chiffre suffisent, la loupe montre le reste. Au-delà de 6 cartes elles se
+  chevauchent ; elles s'inclinent un peu vers l'extérieur et les bords descendent.
+- **DL.2 — « +2 copains » à côté de la pioche** de la bande qui joue, au lieu du grand bouton sous
+  la cour. Il respire doucement pour qu'on le voie.
+- **DL.3 — Loupe.** Doigt posé sur une carte (220 ms) : la carte en grand avec son nom et son
+  pouvoir, tant qu'on la tient ; glisser la referme et joue. Un toucher la laisse ouverte jusqu'au
+  toucher suivant. Toucher un élève seul sur la cour ouvre la même loupe.
+- **DL.4 — Textes de 22 à 24 px de jeu au moins** sur la cour (×N, étiquettes, Pioche/Punis,
+  valeurs des goûters, verbes des pouvoirs) et dans les bulles (22 au lieu de 18).
+- **DL.5 — Piles dépliables.** Plus de colonne de mini-badges à côté d'une pile ; la pastille
+  « ×N » est plus grosse, et toucher la pile la déplie dans une bulle, du dessus au dessous.
+  Pastilles de la cour 92 → 112.
+- **DL.6 — Glisser.** L'îlot visé est marqué par un grand disque jaune qui respire ; sans
+  animations, la carte passe au-dessus du doigt.
+- **DL.7 — Tour d'en face bien visible.** Pendant le tour de l'ordi (ou de l'ami en ligne), la main
+  descend et pâlit, un bandeau à la couleur d'en face dit « L'ordi réfléchit… » et un cadre de sa
+  couleur borde l'écran. Quand le tour revient : un tampon « À toi ! » et un petit son.
