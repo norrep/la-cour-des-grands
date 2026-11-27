@@ -312,3 +312,44 @@ Clément, sur l'écran « Choisis ta bande » : « Chaque équipe devrait avoir 
 
 - **DP.9 — Retour au rectangle, avec un escalier rond à chaque bout (Clément : « C1 est très bien »).** Parmi les formes étudiées (rectangle, gélule, haricot, puis quatre variantes de marches), Clément retient un bassin rectangulaire avec, au milieu de chaque petit côté, un escalier en demi-cercle qui descend dans l'eau (quatre marches, du crème au sec au bleu pâle immergé). Le casier de la bande est posé sur la marche du haut, au sec. Sur la piscine seulement, la pioche et les punis s'écartent davantage de la cabane (252 px au lieu de 205) pour ne plus toucher les îlots des bords. La forme arrondie de DP.5 est retirée.
 - **DP.10 — Les îlots prennent toute la largeur du bassin (Clément : « Profite plus de la largeur de la piscine »).** Îlots des bords à 0,2 et 0,8 de la largeur de la cour (avant 0,25 et 0,75), îlots du grand bain à 0,27 et 0,73 (avant 0,32 et 0,68). Les règles ne changent pas, seulement l'affichage. La pioche et les punis passent dans les coins du bassin (290 px de la cabane), et les accessoires des coins vont sur le carrelage des côtés, seulement sur les écrans assez larges.
+
+## Jeu en ligne (27/11)
+
+Clément : « Développer le multijoueur pour inviter un ami à jouer avec moi » puis « rentrer dans
+le dur directement, le but est de mettre l'appli sur le Play Store et l'App Store ». Pas de
+prototype jetable : l'architecture est celle de la sortie. Le détail est dans
+`docs/multijoueur.md`.
+
+- **DR.1 — Le serveur est l'arbitre.** Il garde l'état complet, applique les coups avec le même
+  moteur que le jeu (`src/reseau/arbitre.ts`) et refuse tout coup hors tour, illégal ou envoyé sur
+  une version périmée de la partie (un double toucher ne joue qu'une fois). La graine du mélange
+  vient du serveur, jamais d'un téléphone.
+- **DR.2 — Chaque téléphone ne reçoit que ce que son joueur a le droit de savoir**
+  (`src/reseau/vue.ts`). Cachés : le rang adverse (sauf les élèves revenus de la CPE ou d'un
+  îlot, ou mis à l'infirmerie, qui ont été vus), l'ordre des deux couloirs (y compris le sien :
+  on ne connaît pas l'ordre de sa pioche), les absents de l'appel, le hasard du moteur, et les
+  options du choix en attente de l'adversaire. À la fin de la partie, tout est montré.
+- **DR.3 — Temps par tour : 2 minutes par défaut** (réglable de 30 s à une semaine, pour une
+  partie par correspondance plus tard). Le temps repart à chaque nouveau tour, pas à chaque choix
+  d'un même coup. Temps écoulé = partie perdue : l'adversaire peut réclamer la victoire, et une
+  tâche du serveur clôt aussi ces parties. Proposition, à ajuster après les premières parties.
+- **DR.4 — L'hôte joue le camp rouge, l'invité le bleu.** Le premier joueur reste tiré au sort par
+  le moteur. Chacun verra sa bande en bas de l'écran (à faire dans la partie « écran »).
+- **DR.5 — Abandonner** donne la victoire à l'autre ; avant l'arrivée de l'ami, cela ferme
+  simplement la partie, sans gagnant.
+- **DR.6 — Codes d'invitation de 6 lettres** sans lettres ambiguës (ni I, L, O, Q, U, W, ni
+  chiffres), insensibles à la casse, aux espaces et aux tirets.
+- **DR.7 — Le serveur du jeu a son propre projet Supabase** (`la-cour-des-grands`, Paris, offre
+  gratuite). Choix de Clément : mettre en pause son ancien projet « norrep's Project » pour
+  libérer la place gratuite. Pro (environ 25 $/mois) seulement à la sortie sur les stores.
+- **DR.8 — L'écran du jeu en ligne.** À l'accueil, « Avec un ami en ligne » est à côté de « Jouer
+  à deux ». L'hôte choisit la carte et SA bande, puis reçoit un code de 6 lettres et un bouton
+  « Envoyer le lien » (partage du téléphone, ou copie). L'ami tape le code, ou ouvre le lien qui
+  l'amène droit au choix de SA bande. Pendant la partie : « À toi de jouer ! » ou « Au tour de ton
+  ami », le temps restant sous la pastille (en rouge sous 15 s), et « Ton ami réfléchit… ». Un coup
+  qui ne pioche rien et ne dépend d'aucun hasard est montré tout de suite ; un appel de copains ou
+  un pouvoir au hasard attend la réponse du serveur (« C'est envoyé… », une fraction de seconde).
+  Après une coupure, « Reprendre ma partie » apparaît dans le menu en ligne.
+- **DR.9 — Pour l'instant, l'invité joue en haut de la cour** (le camp bleu), comme le joueur 2 à
+  deux sur un téléphone. Retourner la cour pour que chacun ait sa cabane en bas demande de revoir
+  les décors : à faire dans une prochaine étape si Clément le souhaite.

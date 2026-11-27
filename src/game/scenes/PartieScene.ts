@@ -47,6 +47,8 @@ import {
 import { NB_CONSEILS, prochainConseil, type ConseilId } from '../conseils';
 import { Controleur } from '../controleur';
 import { Ordi } from '../ordi';
+import { ControleurEnLigne } from '../enLigne/controleurEnLigne';
+import { ecrirePartieEnCours, serveurPret } from '../enLigne/session';
 import {
   centreRegion,
   noeudSous,
@@ -192,6 +194,12 @@ export class PartieScene extends Phaser.Scene {
   private rangVisible: Bande | null = null;
   /** Prochain coup de l'ordi, programmé pour laisser voir le précédent. */
   private coupOrdi: Phaser.Time.TimerEvent | null = null;
+  /** Partie en ligne : le contrôleur qui parle au serveur (`null` : partie sur ce téléphone). */
+  private enLigne: ControleurEnLigne | null = null;
+  /** Temps restant du tour, affiché dans le bandeau (partie en ligne). */
+  private texteTemps: Texte | null = null;
+  /** Dernière réclamation de victoire au temps (ms), pour ne pas en envoyer une par seconde. */
+  private reclameLe = 0;
   /** Durée des animations du dernier coup joué (ms). */
   private dureeDernierCoup = 0;
 
@@ -214,10 +222,18 @@ export class PartieScene extends Phaser.Scene {
     );
     this.visuel = visuelCarte(carte);
     this.cour = chargerCour(COURS[carte] as CourData);
-    this.ctrl = new Controleur(this.cour, {
-      graine: donnees.graine,
-      equipements: donnees.equipements,
-    });
+    const enLigne = donnees.enLigne?.etape === 'partie' ? donnees.enLigne : null;
+    const serveur = serveurPret();
+    this.enLigne =
+      enLigne && serveur ? new ControleurEnLigne(this.cour, serveur, enLigne.vue) : null;
+    this.ctrl =
+      this.enLigne ??
+      new Controleur(this.cour, {
+        graine: donnees.graine,
+        equipements: donnees.equipements,
+      });
+    this.texteTemps = null;
+    this.reclameLe = 0;
     this.departToboggan = null;
     this.fiche = null;
     this.aideOuverte = false;
@@ -264,14 +280,79 @@ export class PartieScene extends Phaser.Scene {
     this.dyn = this.add.container(0, 0);
     // Un toucher bref ouvre la fiche ; il faut bouger un peu le doigt pour glisser.
     this.input.dragDistanceThreshold = 12;
+    if (this.enLigne) this.brancherEnLigne(this.enLigne);
     this.rafraichir();
+  }
+
+  /** Partie en ligne : les coups de l'ami arrivent du serveur, le temps du tour s'écoule. */
+  private brancherEnLigne(ctrl: ControleurEnLigne): void {
+    ctrl.surChangement = (appliquer, animer) => {
+      if (animer) {
+        this.departToboggan = null;
+        if (!this.agir(appliquer)) this.rafraichir();
+      } else {
+        appliquer();
+        this.rafraichir(true);
+      }
+      if (ctrl.phase === 'fin') ecrirePartieEnCours(null);
+    };
+    ctrl.surErreur = (code) => this.bulleErreur(code);
+    const arreter = ctrl.serveur.suivre(ctrl.vue.id, (v) => ctrl.recevoir(v));
+    const horloge = this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callback: () => this.horlogeEnLigne(ctrl),
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      arreter();
+      horloge.remove();
+    });
+  }
+
+  private horlogeEnLigne(ctrl: ControleurEnLigne): void {
+    const echeance = ctrl.vue.echeance;
+    if (ctrl.phase !== 'jeu' || echeance === null) return;
+    const restant = Math.max(0, Math.ceil((echeance - Date.now()) / 1000));
+    if (this.texteTemps?.active) {
+      this.texteTemps.setText(TEXTES.enLigne.temps(restant));
+      this.texteTemps.setColor(restant <= 15 ? COULEURS.texteRouge : COULEURS.texteSombre);
+    }
+    // L'ami a laissé filer son temps : on réclame la victoire (le serveur vérifie l'heure).
+    if (restant === 0 && ctrl.tourAdverse && Date.now() - this.reclameLe > 5000) {
+      this.reclameLe = Date.now();
+      ctrl.reclamer().catch(() => undefined);
+    }
+  }
+
+  /** Un message bref en haut de l'écran (coup refusé, réseau coupé). */
+  private bulleErreur(code: string): void {
+    const message = TEXTES.enLigne.erreurs[code] ?? TEXTES.enLigne.erreurs.autre ?? '';
+    const t = this.add
+      .text(LARGEUR / 2, 170, message, {
+        fontFamily: POLICE,
+        fontSize: '24px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+        backgroundColor: '#fff4dc',
+        padding: { x: 16, y: 10 },
+        align: 'center',
+        wordWrap: { width: 560 },
+      })
+      .setOrigin(0.5)
+      .setDepth(50);
+    this.time.delayedCall(2600, () => t.destroy());
   }
 
   /** Redessine tout l'écran à partir de l'état. La fiche ouverte est fermée, sauf demande. */
   rafraichir(garderFiche = false): void {
     if (!garderFiche) this.fiche = null;
     // En solo, pas de « Passe le téléphone » : le téléphone reste dans les mêmes mains.
-    if (this.ordi && this.ctrl.phase === 'passe' && !this.presentation && !this.entreDeuxTours) {
+    if (
+      (this.ordi || this.enLigne) &&
+      this.ctrl.phase === 'passe' &&
+      !this.presentation &&
+      !this.entreDeuxTours
+    ) {
       this.ctrl.reprendre();
     }
     // Les animations du plateau s'arrêtent ; celles d'une cinématique continuent.
@@ -298,12 +379,21 @@ export class PartieScene extends Phaser.Scene {
     if (this.ctrl.phase === 'jeu' && this.tourOrdi) {
       // L'ordi joue : on garde son propre rang sous les yeux, sans pouvoir y toucher.
       this.dessinerRang(this.bandeVue, false);
-      this.texte(LARGEUR / 2, Y_ACTIONS, TEXTES.hud.ordiReflechit, 24, COULEURS.texteSombre, {
+      const attente = this.enLigne ? TEXTES.enLigne.tourAdverse : TEXTES.hud.ordiReflechit;
+      this.texte(LARGEUR / 2, Y_ACTIONS, attente, 24, COULEURS.texteSombre, {
         fontStyle: '700',
         stroke: '#fff6e4',
         strokeThickness: 6,
       }).setOrigin(0.5);
       this.planifierOrdi();
+    } else if (this.ctrl.phase === 'jeu' && this.enLigne?.envoi) {
+      // Le coup est parti au serveur : on attend son résultat pour le montrer.
+      this.dessinerRang(this.bandeVue, false);
+      this.texte(LARGEUR / 2, Y_ACTIONS, TEXTES.enLigne.envoi, 24, COULEURS.texteSombre, {
+        fontStyle: '700',
+        stroke: '#fff6e4',
+        strokeThickness: 6,
+      }).setOrigin(0.5);
     } else if (this.ctrl.phase === 'jeu') {
       this.dessinerActions();
       // Pendant un choix hors du rang, le rang reste visible mais ne se glisse pas.
@@ -368,13 +458,15 @@ export class PartieScene extends Phaser.Scene {
     return this.etat.courant;
   }
 
-  /** En solo, c'est au tour de l'ordi. */
+  /** En solo, c'est au tour de l'ordi ; en ligne, à celui de l'ami. */
   private get tourOrdi(): boolean {
+    if (this.enLigne) return this.enLigne.tourAdverse;
     return this.ordi !== null && this.ordi.doitJouer(this.etat);
   }
 
   /** La bande dont on montre le rang quand personne ne le touche (en solo : celle du joueur). */
   private get bandeVue(): Bande {
+    if (this.enLigne) return this.enLigne.bande;
     return this.ordi ? this.ordi.humain : this.etat.courant === 'rouge' ? 'bleu' : 'rouge';
   }
 
@@ -1591,7 +1683,12 @@ export class PartieScene extends Phaser.Scene {
     }
     if (this.ctrl.phase !== 'fin') {
       const b = this.bandeActive;
-      const t = this.texte(LARGEUR / 2, 76, TEXTES.hud.tourDe(b), 21, COULEURS.texteSombre, {
+      const qui = this.enLigne
+        ? b === this.enLigne.bande
+          ? TEXTES.enLigne.aToi
+          : TEXTES.enLigne.auTourAmi
+        : TEXTES.hud.tourDe(b);
+      const t = this.texte(LARGEUR / 2, 76, qui, 21, COULEURS.texteSombre, {
         fontStyle: '700',
       }).setOrigin(0.5);
       const l = t.width + 28;
@@ -1602,6 +1699,13 @@ export class PartieScene extends Phaser.Scene {
         ombre: 3,
       });
       this.dyn.addAt(fond, this.dyn.getIndex(t));
+      // En ligne : le temps qu'il reste pour jouer ce tour, sous la pastille.
+      if (this.enLigne && this.enLigne.vue.echeance !== null) {
+        this.texteTemps = this.texte(LARGEUR / 2, 110, '', 20, COULEURS.texteSombre, {
+          fontStyle: '700',
+        }).setOrigin(0.5);
+        this.horlogeEnLigne(this.enLigne);
+      }
     }
   }
 
@@ -3811,7 +3915,8 @@ export class PartieScene extends Phaser.Scene {
   }
 
   private dessinerFin(): void {
-    const fin = this.etat.fin;
+    const issue = this.enLigne?.issue ?? null;
+    const fin = issue ?? this.etat.fin;
     if (!fin) return;
     this.voile(0.85);
     const cx = LARGEUR / 2;
@@ -3846,9 +3951,11 @@ export class PartieScene extends Phaser.Scene {
     this.texte(
       cx,
       650,
-      this.ordi
-        ? TEXTES.fin.gagnantSolo(fin.gagnant === this.ordi.bande)
-        : TEXTES.fin.gagnant(fin.gagnant),
+      this.enLigne
+        ? TEXTES.enLigne.gagnant(fin.gagnant === this.enLigne.bande)
+        : this.ordi
+          ? TEXTES.fin.gagnantSolo(fin.gagnant === this.ordi.bande)
+          : TEXTES.fin.gagnant(fin.gagnant),
       46,
       fin.gagnant === 'rouge' ? COULEURS.texteRouge : COULEURS.texteBleu,
       {
@@ -3858,7 +3965,11 @@ export class PartieScene extends Phaser.Scene {
     this.texte(
       cx,
       708,
-      tonFun() ? FUN.fin.raison[fin.raison] : TEXTES.fin.raison(fin.raison),
+      fin.raison === 'abandon' || fin.raison === 'temps'
+        ? TEXTES.enLigne.raison[fin.raison]
+        : tonFun()
+          ? FUN.fin.raison[fin.raison]
+          : TEXTES.fin.raison(fin.raison),
       28,
       COULEURS.texteSombre,
       { fontStyle: '600' },
@@ -3881,7 +3992,10 @@ export class PartieScene extends Phaser.Scene {
         cx,
         900,
         TEXTES.boutons.rejouer,
-        () => this.scene.restart({ ...this.donnees, graine: Date.now() }),
+        () =>
+          this.enLigne
+            ? this.scene.start('enLigne', { ...this.donnees, enLigne: { etape: 'menu' } })
+            : this.scene.restart({ ...this.donnees, graine: Date.now() }),
         { largeur: 360, hauteur: 84, taille: 32, couleur: COULEURS.jaune },
       ),
     );
