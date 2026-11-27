@@ -835,8 +835,8 @@ export class PartieScene extends Phaser.Scene {
     c.addAt(g, 0);
     // Les punis de dos, face au mur (les 3 derniers), et leur nombre.
     punis.slice(-3).forEach((el, k, liste) => {
-      const b = creerBadge(this, el.bande, el.role, 26);
-      b.setPosition((k - (liste.length - 1) / 2) * 24 - 6, 26);
+      const b = creerBadge(this, el.bande, el.role, 22);
+      b.setPosition((k - (liste.length - 1) / 2) * 19 - 14, 22 - k * 2);
       c.add(b);
     });
     c.add(this.compteurLieu(40, 34, punis.length === 0 ? '0' : `×${punis.length}`, bande));
@@ -3013,6 +3013,8 @@ export class PartieScene extends Phaser.Scene {
     if (gouter !== undefined) {
       scene.add(this.add.image(picto.x, picto.y, cleGouter(gouter)).setScale(170 / 512));
     }
+    const imagePicto = picto.getData('image') as string | undefined;
+    if (imagePicto) scene.add(this.add.image(picto.x, picto.y, imagePicto).setScale(190 / 512));
     const tout = this.add.container(0, 0, [fond, scene, passer]).setDepth(1000);
     this.cinematiqueEnCours = tout;
 
@@ -3056,7 +3058,11 @@ export class PartieScene extends Phaser.Scene {
     g.setPosition(x, y);
     g.lineStyle(5, COULEURS.encre, 1);
     switch (id) {
-      case 'cpe': // Porte du bureau
+      case 'cpe': // Le coin (DF.27), ou à défaut la porte du bureau
+        if (this.textures.exists(PLATEAU.coin)) {
+          g.setData('image', PLATEAU.coin);
+          break;
+        }
         g.fillStyle(0x8a5a2b, 1);
         g.fillRoundedRect(-55, -90, 110, 180, 8);
         g.strokeRoundedRect(-55, -90, 110, 180, 8);
