@@ -4,6 +4,7 @@ import { preparerSkin, choisirSkin, skinActif } from '../skins/index';
 import { cadrer } from '../ui/ecran';
 import { TEXTES } from '../../data/textes';
 import { avecVersion } from '../../version';
+import { chargerIncrustations } from '../ui/incrust';
 
 /** Clé du décor de la cour (image plein écran derrière le plateau). */
 export const DECOR = 'decor-cour';
@@ -63,6 +64,7 @@ export class ChargementScene extends Phaser.Scene {
     for (const [equipement, cle] of Object.entries(ILLUSTRATIONS)) {
       if (cle) this.load.image(cle, avecVersion(`decor/${equipement}.png`));
     }
+    chargerIncrustations(this);
   }
 
   create(): void {
