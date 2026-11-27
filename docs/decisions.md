@@ -314,6 +314,14 @@ Clément, sur l'écran « Choisis ta bande » : « Chaque équipe devrait avoir 
 - **DP.9 — Retour au rectangle, avec un escalier rond à chaque bout (Clément : « C1 est très bien »).** Parmi les formes étudiées (rectangle, gélule, haricot, puis quatre variantes de marches), Clément retient un bassin rectangulaire avec, au milieu de chaque petit côté, un escalier en demi-cercle qui descend dans l'eau (quatre marches, du crème au sec au bleu pâle immergé). Le casier de la bande est posé sur la marche du haut, au sec. Sur la piscine seulement, la pioche et les punis s'écartent davantage de la cabane (252 px au lieu de 205) pour ne plus toucher les îlots des bords. La forme arrondie de DP.5 est retirée.
 - **DP.10 — Les îlots prennent toute la largeur du bassin (Clément : « Profite plus de la largeur de la piscine »).** Îlots des bords à 0,2 et 0,8 de la largeur de la cour (avant 0,25 et 0,75), îlots du grand bain à 0,27 et 0,73 (avant 0,32 et 0,68). Les règles ne changent pas, seulement l'affichage. La pioche et les punis passent dans les coins du bassin (290 px de la cabane), et les accessoires des coins vont sur le carrelage des côtés, seulement sur les écrans assez larges.
 
+## Audit d'équilibrage des trois cartes (27/11)
+
+Demande de Clément : « Joue aux 3 cartes des centaines de fois et fais un audit sur l'équilibrage et le fun des parties. » Aucune règle n'est modifiée.
+
+- **DA.1 — Simulateur d'audit.** `scripts/audit.ts` fait jouer deux IA avec les règles de l'écran (`pouvoirsAuto`) et écrit chaque partie tour par tour (JSONL) ; `scripts/audit-analyse.py` en tire équité, durée, finales serrées, retournements, temps morts, moments marquants. Les variantes (`sansSurveillante`, `sansCourant`, `sansSensUnique`, `sansEquipements`, `rondeCourte`, `deuxChemins`, `mainPlus2`) ne changent qu'une copie de la cour le temps de la simulation. `scripts/audit-roles.ts` mesure la valeur d'un rôle : une IA s'interdit de le poser.
+- **DA.2 — Interprétation : les équipes ne sont pas simulées à part.** Elles ont les mêmes règles (DB.1) ; seul le côté (haut ou bas) est mesuré.
+- **DA.3 — Résultats principaux** (doc « Audit d'équilibrage et de fun — 3 cartes ») : premier joueur 49,7 % sur 3 600 parties ; piscine décidée par le seul grand bain et 27 % de sonneries entre IA difficiles ; Chouchou, Rapporteuse et Populaire décisifs, Petit, Fouine, Contagieux et Délégué presque sans effet ; surveillants peu influents ; début de partie lent (4 pioches sur 6 premiers tours).
+
 ## Jeu en ligne (27/11)
 
 Clément : « Développer le multijoueur pour inviter un ami à jouer avec moi » puis « rentrer dans
