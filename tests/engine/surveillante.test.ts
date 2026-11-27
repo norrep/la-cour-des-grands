@@ -74,6 +74,22 @@ describe('La surveillante garde un goûter (D2.18)', () => {
     expect(e.joueurs.rouge.bonsPoints).toBe(2);
   });
 
+  it('la victoire par ce goûter n’arrive qu’après sa marche', () => {
+    let e = situation({
+      cour: courTest({ regions, ronde: ['bas', 'milieu'], seuil: 2 }),
+      rang: { rouge: ['grand'] },
+      piles: { P: [['rouge', 'grand']] },
+    });
+    e = jouer(e, { type: 'envoyer', eleveId: idRang(e, 'rouge', 'grand'), cible: 'L' });
+    expect(e.fin).toBeNull();
+    const avant = e.journal.length;
+    e = jouer(e, { type: 'appeler' });
+    expect(e.fin).toEqual({ gagnant: 'rouge', raison: 'bonsPoints' });
+    const types = e.journal.slice(avant).map((ev) => ev.type);
+    expect(types.indexOf('surveillante')).toBeLessThan(types.indexOf('region'));
+    expect(types.indexOf('region')).toBeLessThan(types.indexOf('fin'));
+  });
+
   it('elle ne bloque plus aucune allée ni aucun îlot : on plaque à côté d’elle', () => {
     const e = situation({
       cour: courTest({ regions, ronde: ['bas', 'milieu'] }),

@@ -24,13 +24,48 @@ describe('Cinématiques', () => {
     ).toEqual(['infirmerie', 'cpe', 'sonnerie']);
   });
 
+  it('le Petit qui plaque et la Fouine qui se faufile ont leur moment', () => {
+    expect(
+      cinematiquesPour([
+        {
+          type: 'pose',
+          tour: 1,
+          bande: 'rouge',
+          eleveId: 'a',
+          role: 'petit',
+          cible: 'P',
+          plaque: 'grand',
+        },
+      ]),
+    ).toEqual(['petit']);
+    const fouine: Evenement = {
+      type: 'pose',
+      tour: 1,
+      bande: 'rouge',
+      eleveId: 'a',
+      role: 'fouine',
+      cible: 'P',
+    };
+    expect(brut([fouine]).map((c) => c.id)).toEqual([]);
+    expect(brut([fouine], false, true).map((c) => c.id)).toEqual(['fouine']);
+  });
+
+  it('une mise à la CPE par la Rapporteuse retient le pouvoir', () => {
+    expect(
+      brut([
+        { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'a', role: 'rapporteuse', cible: 'P' },
+        { type: 'cpe', tour: 1, bande: 'bleu', eleveId: 'c', role: 'grand', ilot: 'P' },
+      ]),
+    ).toEqual([{ id: 'cpe', pouvoir: 'rapporteuse' }]);
+  });
+
   it('pas de sonnerie pour une victoire par la cabane', () => {
     expect(
       cinematiquesPour([{ type: 'fin', tour: 1, gagnant: 'rouge', raison: 'cabane' }]),
     ).toEqual([]);
   });
 
-  it('les grands frères du Chouchou passent en premier', () => {
+  it('le grand frère du Chouchou passe en premier', () => {
     expect(
       cinematiquesPour([{ type: 'infirmerie', tour: 1, bande: 'bleu', eleveId: 'b' }], true),
     ).toEqual(['grandsFreres', 'infirmerie']);

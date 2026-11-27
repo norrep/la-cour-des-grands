@@ -14,7 +14,10 @@ export type SonId =
   | 'infirmerie'
   | 'grandsFreres'
   | 'sonnerie'
-  | 'victoire';
+  | 'victoire'
+  | 'sifflet'
+  | 'pendule'
+  | 'passe';
 
 /** Fichiers audio définitifs (vides pour l'instant). */
 export const FICHIERS_SONS: Partial<Record<SonId, string>> = {};
@@ -123,6 +126,24 @@ const BRUITAGES: Record<
     ],
     onde: 'triangle',
     volume: 0.2,
+  },
+  sifflet: {
+    notes: [
+      [1500, 0.12],
+      [0, 0.06],
+      [1500, 0.2],
+    ],
+    onde: 'square',
+    volume: 0.06,
+  },
+  pendule: { notes: [[1800, 0.03]], onde: 'square', volume: 0.06 },
+  passe: {
+    notes: [
+      [523, 0.08],
+      [784, 0.14],
+    ],
+    onde: 'triangle',
+    volume: 0.12,
   },
 };
 

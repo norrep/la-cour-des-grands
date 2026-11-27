@@ -6,6 +6,7 @@
  */
 import type Phaser from 'phaser';
 import type { Bande, Eleve, RoleId } from '../../engine/index';
+import type { PoseMarionnette } from '../ui/marionnette';
 
 export type SkinId = 'cartoon' | 'classique';
 
@@ -48,6 +49,18 @@ export interface RenduPantin {
   dessiner(s: Squelette): void;
 }
 
+/**
+ * Un élève entier qu'une mise en scène fait bouger elle-même (l'accueil) : pas d'animation
+ * d'attente automatique, c'est l'appelant qui donne la pose à chaque image.
+ */
+export interface Acteur {
+  /** Origine au milieu des pieds. */
+  readonly objet: Phaser.GameObjects.Container;
+  /** Hauteur de l'élève à l'écran, des pieds au haut de la tête. */
+  readonly hauteur: number;
+  poser(p: PoseMarionnette): void;
+}
+
 export interface Skin {
   id: SkinId;
   /** Images à préparer avant d'afficher quoi que ce soit. */
@@ -83,6 +96,8 @@ export interface Skin {
     role: RoleId,
     diametre: number,
   ): Phaser.GameObjects.Container;
+  /** L'élève entier, sans badge, animé par l'appelant. `taille` comme pour `eleve`. */
+  acteur(scene: Phaser.Scene, bande: Bande, role: RoleId, taille: number): Acteur;
   /** Le dessin de l'élève qu'on tient pendant qu'on le glisse (le seul où il est entier). */
   pantin(scene: Phaser.Scene, eleve: Eleve): RenduPantin;
   /**
@@ -91,4 +106,11 @@ export interface Skin {
    * toujours seul, pour qu'une vidéo serve contre n'importe quel adversaire et n'importe quel skin.
    */
   videoPouvoir?(bande: Bande, role: RoleId): string | undefined;
+  /**
+   * Courte vidéo carrée du goûter n° `index` (ordre des régions de la cour : chocolat, biscuits,
+   * bonbon, sucette), filmée sur fond crème. Facultatif : sans vidéo, le panneau habituel.
+   * `haut` et `bas` : la couleur du fond de la vidéo en haut et en bas, pour la prolonger
+   * jusqu'aux bords de l'écran sans cassure.
+   */
+  videoGouter?(index: number): { url: string; haut: number; bas: number } | undefined;
 }

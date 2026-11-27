@@ -6,13 +6,13 @@ import { cour1 } from '../engine/aide';
 const cour = cour1();
 
 describe('Disposition à l’écran (720×1280)', () => {
-  it('place toute la cour dans l’écran, au-dessus du journal', () => {
+  it('place toute la cour dans l’écran, au-dessus du bouton d’appel', () => {
     for (const id of Object.keys(cour.noeuds)) {
       const p = positionNoeud(cour, id);
       expect(p.x).toBeGreaterThan(50);
       expect(p.x).toBeLessThan(LARGEUR - 50);
       expect(p.y).toBeGreaterThan(140);
-      expect(p.y).toBeLessThan(910);
+      expect(p.y).toBeLessThan(1000);
     }
   });
 

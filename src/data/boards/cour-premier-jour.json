@@ -2,17 +2,17 @@
   "id": "cour-premier-jour",
   "nom": "La cour du premier jour",
   "cabanes": [
-    { "id": "CabBleue", "bande": "bleu", "x": 0.5, "y": 0.06 },
-    { "id": "CabRouge", "bande": "rouge", "x": 0.5, "y": 0.82 }
+    { "id": "CabBleue", "bande": "bleu", "x": 0.5, "y": 0.05 },
+    { "id": "CabRouge", "bande": "rouge", "x": 0.5, "y": 0.88 }
   ],
   "ilots": [
-    { "id": "A1", "nom": "Le toboggan", "x": 0.28, "y": 0.22, "decor": "toboggan" },
-    { "id": "A2", "nom": "Les jeux à ressort", "x": 0.72, "y": 0.22, "decor": "jeuxRessort" },
-    { "id": "M1", "nom": "Le bac à sable", "x": 0.1, "y": 0.44, "decor": "bacASable" },
-    { "id": "M2", "nom": "Le banc", "x": 0.5, "y": 0.44, "equipement": "banc" },
-    { "id": "M3", "nom": "La marelle", "x": 0.9, "y": 0.44, "decor": "marelle" },
-    { "id": "B1", "nom": "L’arbre", "x": 0.28, "y": 0.66, "decor": "arbre" },
-    { "id": "B2", "nom": "Les buts", "x": 0.72, "y": 0.66, "decor": "buts" }
+    { "id": "A1", "nom": "Le toboggan", "x": 0.28, "y": 0.25, "decor": "toboggan" },
+    { "id": "A2", "nom": "Les jeux à ressort", "x": 0.72, "y": 0.25, "decor": "jeuxRessort" },
+    { "id": "M1", "nom": "Le banc", "x": 0.1, "y": 0.475, "equipement": "banc" },
+    { "id": "M2", "nom": "Le bac à sable", "x": 0.5, "y": 0.475, "decor": "bacASable" },
+    { "id": "M3", "nom": "Le banc", "x": 0.9, "y": 0.475, "equipement": "banc" },
+    { "id": "B1", "nom": "L’arbre", "x": 0.28, "y": 0.69, "decor": "arbre" },
+    { "id": "B2", "nom": "Les buts", "x": 0.72, "y": 0.69, "decor": "buts" }
   ],
   "allees": [
     ["CabBleue", "A1"],

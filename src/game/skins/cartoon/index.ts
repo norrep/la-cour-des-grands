@@ -1,118 +1,164 @@
 /**
- * Skin « Cartoon » : les élèves dessinés d'après les références validées par Clément (trait noir
- * fin, membres en nouilles, débardeur numéroté). Ce sont des images détourées
- * (`public/skins/dessin/`), une par rôle et par bande.
+ * Skin « Cartoon » : les élèves « dodus » validés par Clément (trait épais et uniforme, T-pose),
+ * découpés en marionnettes articulées (voir `ui/marionnette.ts` et le guide de création des
+ * personnages). Une texture par élève (`public/skins/dodu/<bande>-<rôle>.png`) contient ses six
+ * pièces ; leurs attaches sont dans `rig.ts`.
  *
- * Les élèves sont des « gelées » (voir `ui/gelee.ts`) : l'image découpée en tranches respire, se
- * dandine et fait des gestes selon son caractère. Le pantin est tenu par la main : son bras gauche
- * est remplacé par un bras-nouille dessiné qui monte jusqu'au doigt, et le corps ballotte en dessous.
+ * Sur la cour et dans le rang, l'élève est en buste ; on ne le voit en entier que quand on le
+ * tient par la main pour le transporter, et sur les grands écrans (accueil, passage du téléphone).
  */
 import Phaser from 'phaser';
 import { ROLES, type Bande, type RoleId } from '../../../engine/index';
 import { COULEURS } from '../../config';
 import { creerBadge } from '../../ui/badge';
-import { Gelee, rendreVivant } from '../../ui/gelee';
-import type { P, RenduPantin, Skin, TextureSkin } from '../types';
-import { MESURES, type MesureDessin } from './mesures';
+import { animerMarionnette, Marionnette, type Rig } from '../../ui/marionnette';
+import type { Acteur, P, RenduPantin, Skin, TextureSkin } from '../types';
+import { RIGS } from './rig';
 
 /** Hauteur de l'élève le plus grand, en multiples de `taille`. */
 const HAUTEUR_REF = 2.5;
-/** Hauteur de l'image la plus grande, en pixels : les autres élèves sont plus petits d'autant. */
+/** Hauteur du Grand dans sa texture, en pixels : les autres élèves sont plus petits d'autant. */
 const PIXELS_REF = 880;
-/** Hauteur du numéro sur le débardeur, en fraction de l'image (l'élève est centré dessus). */
+/** Hauteur du numéro sur le débardeur, en fraction de la hauteur du Grand (l'élève est centré dessus). */
 const NUMERO = 0.4;
 /** L'élève est remonté d'une fraction de sa taille : ses pieds ne cachent pas le nom de l'îlot. */
 const REMONTE = 0.4;
 /** Pastille de valeur à côté de l'élève, en fraction de `taille`. */
 const PASTILLE = 0.42;
-/** Hauteur du pantin à l'écran, en pixels de jeu. */
+/** Hauteur du Grand tenu par la main, en pixels de jeu. */
 const HAUTEUR_PANTIN = 170;
+/** Rayon du buste dans la pastille, en pixels de texture (le même pour tous : le Petit y a sa grosse tête). */
+const RAYON_BUSTE = 150;
+/** Tenu par la main gauche, le corps penche vers la droite : la grosse tête ne cache pas le bras. */
+const PENCHE = 0.45;
 const BANDES: Bande[] = ['rouge', 'bleu'];
 
 const nom = (bande: Bande, role: RoleId) => `${bande}-${role}`;
-const cle = (bande: Bande, role: RoleId) => `cartoon-${nom(bande, role)}`;
+const cle = (bande: Bande, role: RoleId) => `dodu-${nom(bande, role)}`;
 
-function mesure(bande: Bande, role: RoleId): MesureDessin {
-  const m = MESURES[nom(bande, role)];
-  if (!m) throw new Error(`Élève sans mesures : ${nom(bande, role)}`);
-  return m;
+function rig(bande: Bande, role: RoleId): Rig {
+  const r = RIGS[nom(bande, role)];
+  if (!r) throw new Error(`Élève sans marionnette : ${nom(bande, role)}`);
+  return r;
 }
-
-/**
- * Pour chaque élève : l'image entière, le corps sans bras gauche (pantin) et son buste
- * pour la pastille du plateau.
- */
-const PIECES = ['', '-corps', '-pastille'] as const;
 
 function textures(): TextureSkin[] {
   return ROLES.flatMap(({ id }) =>
-    BANDES.flatMap((b) =>
-      PIECES.map((piece) => ({
-        cle: cle(b, id) + piece,
-        url: `skins/dessin/${nom(b, id)}${piece}.png`,
-      })),
-    ),
+    BANDES.map((b) => ({ cle: cle(b, id), url: `skins/dodu/${nom(b, id)}.png` })),
   );
 }
 
-/** Angle d'un segment depuis la verticale (même convention que le squelette). */
-const angleDe = (a: P, b: P): number => Math.atan2(b.x - a.x, b.y - a.y);
+/** Haut de la tête, en pixels de texture depuis les pieds (négatif). */
+const hautTete = (r: Rig) => r.pieces.tete.pos[1] - r.pieces.tete.pivot[1];
+/** Bas du débardeur (un peu au-dessus des hanches), en pixels de texture depuis les pieds. */
+const basBuste = (r: Rig) => r.pieces.tronc.pos[1] - r.hauteur * 0.03;
+
+/**
+ * Masque qui suit `porteur` à l'écran : la forme est dessinée une fois dans le repère du porteur,
+ * puis replacée à chaque image (un masque Phaser vit dans le repère du monde).
+ * Le recalage se fait juste avant le rendu, une fois toutes les positions de l'image connues : un
+ * élève créé pendant l'image (à chaque redessin de l'écran) n'a sa place qu'après sa création, et
+ * un masque recalé trop tôt restait une image à l'origine, ce qui faisait clignoter le corps.
+ */
+function masqueQuiSuit(
+  scene: Phaser.Scene,
+  porteur: Phaser.GameObjects.Container,
+  forme: (g: Phaser.GameObjects.Graphics) => void,
+): Phaser.Display.Masks.GeometryMask {
+  const g = scene.make.graphics({}, false);
+  g.fillStyle(0xffffff, 1);
+  forme(g);
+  const masque = g.createGeometryMask();
+  const suivre = (): void => {
+    const m = porteur.getWorldTransformMatrix();
+    g.setPosition(m.tx, m.ty).setRotation(m.rotation).setScale(m.scaleX, m.scaleY);
+  };
+  scene.events.on(Phaser.Scenes.Events.PRE_RENDER, suivre);
+  porteur.once(Phaser.GameObjects.Events.DESTROY, () => {
+    scene.events.off(Phaser.Scenes.Events.PRE_RENDER, suivre);
+    masque.destroy();
+    g.destroy();
+  });
+  suivre();
+  return masque;
+}
 
 /**
  * Vidéos de pouvoir (`public/videos/cartoon/`). Une seule version par rôle pour l'instant :
  * elle sert aux deux bandes en attendant une version bleue.
  */
-const VIDEOS: Partial<Record<RoleId, string>> = { contagieux: 'videos/cartoon/contagieux.mp4' };
+const VIDEOS: Partial<Record<RoleId, string>> = {
+  contagieux: 'videos/cartoon/contagieux.mp4',
+  chouchou: 'videos/cartoon/chouchou.mp4',
+  rapporteuse: 'videos/cartoon/rapporteuse.mp4',
+  fouine: 'videos/cartoon/fouine.mp4',
+  delegue: 'videos/cartoon/delegue.mp4',
+  petit: 'videos/cartoon/petit.mp4',
+};
+/** Goûters, dans l'ordre des régions de la cour (comme GOUTERS du chargement), avec la couleur
+ * mesurée du fond crème en haut et en bas de chaque vidéo. */
+const VIDEOS_GOUTERS = (
+  [
+    ['chocolat', 0xdfccb6, 0xe3d6c0],
+    ['biscuits', 0xeadecd, 0xe9dcc9],
+    ['bonbon', 0xdaccb5, 0xdfd3c0],
+    ['sucette', 0xe6d7c0, 0xeadcc9],
+  ] as const
+).map(([nom, haut, bas]) => ({ url: `videos/cartoon/gouter-${nom}.mp4`, haut, bas }));
 
 export const SKIN_CARTOON: Skin = {
   id: 'cartoon',
   textures,
   videoPouvoir: (_bande, role) => VIDEOS[role],
+  videoGouter: (index) => (index >= 0 ? VIDEOS_GOUTERS[index % VIDEOS_GOUTERS.length] : undefined),
   eleve(scene, bande, role, taille) {
-    const m = mesure(bande, role);
+    const r = rig(bande, role);
     const echelle = (HAUTEUR_REF * taille) / PIXELS_REF;
     // Tous les élèves ont les pieds au même niveau : le Grand dépasse, le Petit est plus bas.
     const pieds = (1 - NUMERO) * PIXELS_REF * echelle - taille * REMONTE;
-    const corps = new Gelee(scene, {
-      cle: cle(bande, role),
-      echelle,
-      pivot: m.hauteur,
-      centreX: m.largeur / 2,
-    });
-    const boite = scene.add.container(0, pieds, corps.objets);
-    // Pastille de valeur au niveau de la taille : le numéro du débardeur est trop petit sur l'îlot.
+    const m = new Marionnette(scene, cle(bande, role), r, echelle);
+    m.racine.setY(pieds);
     const pastille = creerBadge(scene, bande, role, taille * PASTILLE);
     pastille.setPosition(
-      (m.largeur / 2) * echelle + taille * 0.08,
-      pieds - m.hauteur * echelle * 0.4,
+      (r.pieces.tronc.cadre[2] / 2) * echelle + taille * 0.12,
+      pieds + basBuste(r) * echelle * 0.85,
     );
-    const eleve = scene.add.container(0, 0, [boite, pastille]);
-    rendreVivant(scene, corps, eleve, { hauteur: m.hauteur * echelle, caractere: role });
+    const eleve = scene.add.container(0, 0, [m.racine, pastille]);
+    animerMarionnette(scene, m, eleve, { caractere: role });
     return eleve;
   },
+  acteur(scene, bande, role, taille): Acteur {
+    const m = new Marionnette(
+      scene,
+      cle(bande, role),
+      rig(bande, role),
+      (HAUTEUR_REF * taille) / PIXELS_REF,
+    );
+    const objet = scene.add.container(0, 0, [m.racine]);
+    return { objet, hauteur: m.hauteur, poser: (p) => m.poser(p) };
+  },
   buste(scene, bande, role, largeur, hauteur) {
-    const m = mesure(bande, role);
-    const bas = Math.min(m.hauteur, m.basMaillot + 12);
-    const echelle = Math.min(hauteur / bas, largeur / m.largeur);
-    const corps = new Gelee(scene, {
-      cle: cle(bande, role),
-      echelle,
-      a: bas,
-      pivot: bas,
-      centreX: m.largeur / 2,
-      tranches: 16,
-    });
-    const boite = scene.add.container(0, hauteur / 2, corps.objets);
+    const r = rig(bande, role);
+    const haut = hautTete(r);
+    const bas = basBuste(r);
+    const echelle = Math.min(hauteur / (bas - haut), (largeur * 0.95) / r.pieces.tronc.cadre[2]);
+    const m = new Marionnette(scene, cle(bande, role), r, echelle);
+    // Le bas du débardeur au bas de la carte.
+    m.racine.setY(hauteur / 2 - bas * echelle);
     const pastille = creerBadge(scene, bande, role, 24);
     pastille.setPosition(largeur / 2 - 10, hauteur / 2 - 14);
-    const buste = scene.add.container(0, 0, [boite, pastille]);
-    rendreVivant(scene, corps, buste, { hauteur: bas * echelle, caractere: role, calme: true });
+    const buste = scene.add.container(0, 0, [m.racine, pastille]);
+    const masque = masqueQuiSuit(scene, buste, (g) =>
+      g.fillRect(-largeur / 2, -hauteur / 2 - hauteur, largeur, hauteur * 2),
+    );
+    m.racine.setMask(masque);
+    animerMarionnette(scene, m, buste, { caractere: role, calme: true });
     return buste;
   },
   pastille(scene, bande, role, diametre) {
     const r = diametre / 2;
-    // Le buste est dessiné pour un cercle de 160 pixels de rayon, centré à 160 pixels du bas.
-    const echelle = r / 160;
+    const rg = rig(bande, role);
+    const echelle = r / RAYON_BUSTE;
     const fond = scene.add.graphics();
     const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
     const clair = bande === 'rouge' ? 0xffd2c8 : 0xd5dcff;
@@ -130,100 +176,58 @@ export const SKIN_CARTOON: Skin = {
     dessiner(fond, 0, 0, r);
     fond.fillStyle(clair, 1);
     dessiner(fond, 0, 0, r - 5);
-    const corps = new Gelee(scene, {
-      cle: `${cle(bande, role)}-pastille`,
-      echelle,
-      pivot: 512,
-      centreX: 256,
-      tranches: 16,
-    });
-    const boite = scene.add.container(0, r - 2, corps.objets);
-    // Le bas du buste est rentré dans la pastille : un liseré repasse dessus.
-    const bord = scene.add.graphics();
-    bord.lineStyle(5, couleur, 1);
-    bord.beginPath();
-    bord.arc(0, 0, r - 2.5, 0.15, Math.PI - 0.15);
-    bord.strokePath();
-    bord.lineStyle(3, COULEURS.encre, 1);
-    bord.beginPath();
-    bord.arc(0, 0, r + 1.5, 0.1, Math.PI - 0.1);
-    bord.strokePath();
+    const m = new Marionnette(scene, cle(bande, role), rg, echelle);
+    // Le bas du débardeur au bas de la pastille ; la tête dépasse en haut.
+    m.racine.setY(r - 4 - basBuste(rg) * echelle);
     const valeur = creerBadge(scene, bande, role, diametre * 0.36);
     valeur.setPosition(r * 0.78, r * 0.72);
-    const pastille = scene.add.container(0, 0, [fond, boite, bord, valeur]);
-    rendreVivant(scene, corps, pastille, { hauteur: r * 2, caractere: role, calme: true });
+    const pastille = scene.add.container(0, 0, [fond, m.racine, valeur]);
+    // Le corps est coupé au bord intérieur du liseré (rond ou carré selon la bande), libre au-dessus :
+    // la tête sort de la pastille. Les bras ne sont pas coupés : ils passent par-dessus la pastille.
+    const masque = masqueQuiSuit(scene, pastille, (g) => {
+      dessiner(g, 0, 0, r - 5);
+      g.fillRect(-r * 1.8, -r * 4, r * 3.6, r * 4);
+    });
+    for (const p of ['jambeG', 'jambeD', 'tronc', 'tete'] as const) m.pieces[p].setMask(masque);
+    animerMarionnette(scene, m, pastille, { caractere: role, calme: true });
     return pastille;
   },
   pantin(scene, eleve): RenduPantin {
-    const m = mesure(eleve.bande, eleve.role);
+    const r = rig(eleve.bande, eleve.role);
     const echelle = HAUTEUR_PANTIN / PIXELS_REF;
-    const base = cle(eleve.bande, eleve.role);
-    // Le corps sans son bras gauche pend sous l'épaule ; le bras découpé se lève jusqu'au doigt.
-    const corps = new Gelee(scene, {
-      cle: `${base}-corps`,
-      echelle,
-      pivot: m.aisselle.y,
-      centreX: m.aisselle.x,
-      tranches: 28,
-    });
-    const boite = scene.add.container(0, 0, corps.objets);
-    /** Longueur du bras au repos, en pixels de jeu ; il s'étire un peu quand on tire dessus. */
-    const longueurBras = (m.basBras - m.aisselle.y) * echelle;
-    // Il s'étire comme un spaghetti pour que la main passe au-dessus de la tête.
-    const etire = Math.max(1.12, (m.aisselle.y * echelle + 14) / longueurBras);
-    const hanches = (m.basMaillot - m.aisselle.y) * echelle;
-    const peau = Phaser.Display.Color.HexStringToColor(m.peau).color;
-    /** Épaisseur du bras, et du trait d'encre autour (le même que sur le dessin). */
-    const largeur = Math.max(5, m.largeurBras * echelle);
-    const trait = 2.6;
-    // Le bras tenu est une nouille dessinée, devant le corps : elle part de l'épaule (et cache la
-    // découpe du dessin) et finit par une main ronde au bout du doigt du joueur.
-    const bras = scene.add.graphics();
+    const m = new Marionnette(scene, cle(eleve.bande, eleve.role), r, echelle);
     const prise = scene.add.graphics();
+    // Le bras tenu passe devant la tête.
+    m.corps.bringToTop(m.pieces.brasG);
+    const angle = (a: P, b: P) => Math.atan2(b.y - a.y, b.x - a.x);
     return {
-      objets: [boite, bras, prise],
+      objets: [m.racine, prise],
       dessiner(s) {
-        // L'épaule est sous la main, dans la direction du balancier « bras tenu ».
-        const aBras = angleDe(s.main, s.epaule);
+        // Le bras tenu va de l'épaule à la main ; le corps pend dessous, dans son prolongement,
+        // avec un peu de retard du tronc.
+        const versMain = angle(s.epaule, s.main);
+        const depuisVerticale = Math.atan2(s.epaule.x - s.main.x, s.epaule.y - s.main.y);
+        const rot = PENCHE - (depuisVerticale * 0.7 + s.angle * 0.3);
+        m.corps.setRotation(rot);
+        const l = m.longueurBras;
         const epaule = {
-          x: s.main.x + Math.sin(aBras) * longueurBras * etire,
-          y: s.main.y + Math.cos(aBras) * longueurBras * etire,
+          x: s.main.x - Math.cos(versMain) * l,
+          y: s.main.y - Math.sin(versMain) * l,
         };
-        // Le corps pend dans le prolongement du bras (il ne reste plus droit pendant que le bras
-        // balance), avec un peu de retard du tronc ; les jambes, plus lentes, traînent derrière.
-        const aCorps = aBras * 0.7 + s.angle * 0.3;
+        const [ex, ey] = m.epauleG;
+        const c = Math.cos(rot);
+        const sn = Math.sin(rot);
+        const hanches = { x: epaule.x - (ex * c - ey * sn), y: epaule.y - (ex * sn + ey * c) };
+        m.racine.setPosition(0, 0);
+        m.corps.setPosition(hanches.x / echelle, hanches.y / echelle);
+        m.pieces.brasG.setRotation(m.angleBrasVers('brasG', versMain));
+        const [b0, b1] = s.brasLibre;
+        m.pieces.brasD.setRotation(m.angleBrasVers('brasD', angle(b0, b1)));
+        // Les jambes ballottent : leur angle du monde, ramené au corps (au repos, elles pendent).
         const [j1, j2] = s.jambes;
-        const aJambes = (angleDe(j1[0], j1[1]) + angleDe(j2[0], j2[1])) / 2;
-        const pliJambes = Math.sin(Phaser.Math.Clamp(aJambes - aCorps, -0.6, 0.6)) * 0.8;
-        boite.setPosition(epaule.x, epaule.y).setRotation(-aCorps);
-        corps.plier((d) => (d <= hanches ? 0 : pliJambes * (d - hanches)));
-        // Haut de l'épaule, un peu au-dessus de l'aisselle, dans le repère du corps qui penche.
-        const h = largeur * 0.7;
-        const depart = {
-          x: epaule.x - Math.sin(aCorps) * h,
-          y: epaule.y - Math.cos(aCorps) * h,
-        };
-        const dx = s.main.x - depart.x;
-        const dy = s.main.y - depart.y;
-        const courbe = new Phaser.Curves.QuadraticBezier(
-          new Phaser.Math.Vector2(depart.x, depart.y),
-          // Le bras s'arrondit vers l'extérieur, pour ne pas passer devant la tête.
-          new Phaser.Math.Vector2(depart.x + dx / 2 + dy * 0.18, depart.y + dy / 2 - dx * 0.18),
-          new Phaser.Math.Vector2(s.main.x, s.main.y),
-        );
-        const points = courbe.getPoints(14);
-        bras.clear();
-        for (const [ep, couleur] of [
-          [largeur + trait * 2, COULEURS.encre],
-          [largeur, peau],
-        ] as const) {
-          bras.lineStyle(ep, couleur, 1);
-          bras.strokePoints(points, false, false);
-          bras.fillStyle(couleur, 1);
-          bras.fillCircle(depart.x, depart.y, ep / 2);
-          // La main : une moufle ronde.
-          bras.fillCircle(s.main.x, s.main.y, ep / 2 + largeur * 0.35);
-        }
+        m.pieces.jambeG.setRotation(angle(j1[0], j1[1]) - Math.PI / 2 - rot);
+        m.pieces.jambeD.setRotation(angle(j2[0], j2[1]) - Math.PI / 2 - rot);
+        m.pieces.tete.setRotation(-s.angle * 0.3);
         // Le doigt du joueur qui tient la main.
         prise.clear();
         prise.lineStyle(3, 0xffe066, 0.9);

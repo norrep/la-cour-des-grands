@@ -4,11 +4,31 @@ import { preparerSkin, choisirSkin, skinActif } from '../skins/index';
 import { cadrer } from '../ui/ecran';
 import { TEXTES } from '../../data/textes';
 import { ROLES } from '../../engine/index';
+import { avecVersion } from '../../version';
 
 /** Clé du décor de la cour (image plein écran derrière le plateau). */
 export const DECOR = 'decor-cour';
 /** Mme Josiane, la surveillante, et les illustrations des îlots spéciaux (par équipement). */
 export const JOSIANE = 'decor-josiane';
+/** Pièces illustrées du plateau (phase 2) : sans elles, le plateau est dessiné en code. */
+export const PLATEAU = {
+  ilot: 'plateau-ilot',
+  ilotSpecial: 'plateau-ilot-special',
+  cabaneRouge: 'plateau-cabane-rouge',
+  cabaneBleue: 'plateau-cabane-bleue',
+  carton: 'plateau-carton',
+} as const;
+/** Goûters illustrés (DF.21), dans l'ordre des régions de la cour : chocolat, biscuits, bonbon, sucette. */
+export const GOUTERS = [
+  'gouter-chocolat',
+  'gouter-biscuits',
+  'gouter-bonbon',
+  'gouter-sucette',
+] as const;
+/** Clé de l'image du goûter de la région n° `i`. */
+export function cleGouter(i: number): string {
+  return GOUTERS[i % GOUTERS.length] ?? GOUTERS[0];
+}
 export const ILLUSTRATIONS: Partial<Record<string, string>> = { banc: 'decor-banc' };
 
 /** La police ronde du jeu doit être prête avant d'écrire quoi que ce soit (2 s au plus). */
@@ -21,13 +41,14 @@ function chargerPolice(): Promise<unknown> {
   return Promise.race([attente, new Promise((ok) => setTimeout(ok, 2000))]);
 }
 
-/** Les vidéos de pouvoir du skin se téléchargent en fond : elles seront prêtes en partie. */
+/** Les vidéos de pouvoir et de goûter du skin se téléchargent en fond : elles seront prêtes en partie. */
 function prechargerVideos(): void {
   const skin = skinActif();
-  if (!skin.videoPouvoir || typeof fetch !== 'function') return;
+  if ((!skin.videoPouvoir && !skin.videoGouter) || typeof fetch !== 'function') return;
   const urls = new Set(
     ROLES.flatMap(({ id }) => (['rouge', 'bleu'] as const).map((b) => skin.videoPouvoir?.(b, id))),
   );
+  if (skin.videoGouter) for (let i = 0; i < GOUTERS.length; i++) urls.add(skin.videoGouter(i)?.url);
   for (const url of urls) if (url) void fetch(url).catch(() => undefined);
 }
 
@@ -38,10 +59,21 @@ export class ChargementScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image(DECOR, 'decor/cour.jpg');
-    this.load.image(JOSIANE, 'decor/josiane.png');
+    this.load.image(DECOR, avecVersion('decor/cour.jpg'));
+    this.load.image(JOSIANE, avecVersion('skins/dodu/josiane.png'));
+    const fichiers: Record<keyof typeof PLATEAU, string> = {
+      ilot: 'ilot',
+      ilotSpecial: 'ilot-special',
+      cabaneRouge: 'cabane-rouge',
+      cabaneBleue: 'cabane-bleue',
+      carton: 'carton',
+    };
+    for (const [piece, cle] of Object.entries(PLATEAU)) {
+      this.load.image(cle, avecVersion(`plateau/${fichiers[piece as keyof typeof PLATEAU]}.png`));
+    }
+    for (const cle of GOUTERS) this.load.image(cle, avecVersion(`gouters/${cle.slice(7)}.png`));
     for (const [equipement, cle] of Object.entries(ILLUSTRATIONS)) {
-      if (cle) this.load.image(cle, `decor/${equipement}.png`);
+      if (cle) this.load.image(cle, avecVersion(`decor/${equipement}.png`));
     }
   }
 

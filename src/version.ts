@@ -4,6 +4,13 @@ declare const __VERSION__: string | undefined;
 export const VERSION = typeof __VERSION__ === 'string' ? __VERSION__ : 'dev';
 
 /**
+ * Adresse d'une image du jeu marquée de la version : le téléphone ne garde pas une ancienne image
+ * en cache quand elle change (ses pièces ne correspondraient plus aux attaches).
+ */
+export const avecVersion = (url: string): string =>
+  url.startsWith('data:') ? url : `${url}?v=${encodeURIComponent(VERSION)}`;
+
+/**
  * Si une version plus récente est en ligne, recharge la page en contournant le cache. Ne recharge
  * qu'une fois par version (on retient la dernière tentative), pour ne jamais boucler.
  */

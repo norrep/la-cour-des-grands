@@ -195,6 +195,14 @@ function valeurAutorisee(e: EtatPartie, noeud: string, role: RoleId): boolean {
   return n.valeursAutorisees.includes(v === null ? 'joker' : v);
 }
 
+/**
+ * Le banc est une planque (demande de Clément, DF.13) : l'élève assis dessus ne peut être ni
+ * recouvert par un adversaire, ni envoyé à la CPE, ni déplacé.
+ */
+export function estPlanque(e: EtatPartie, ilot: string): boolean {
+  return equipementActif(e, ilot) === 'banc' && sommet(e, ilot) !== undefined;
+}
+
 /** L'élève `pose` peut-il recouvrir l'élève visible `dessous` ? (hors surveillance) */
 export function peutRecouvrir(pose: Eleve, dessous: Eleve): boolean {
   if (dessous.bande === pose.bande) return true;
@@ -233,6 +241,7 @@ export function posePossible(
 
   const dessus = sommet(e, cible);
   if (dessus && dessus.bande !== bande) {
+    if (estPlanque(e, cible)) return false;
     if (!peutRecouvrir(eleve, dessus)) return false;
   }
   if (eleve.role === 'fouine') return true;
@@ -277,7 +286,8 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
   const adv = adversaire(bande);
   const moi = e.joueurs[bande];
   const cour = e.cour;
-  const adverseVisible = (ilot: string) => sommet(e, ilot)?.bande === adv;
+  // Un adversaire planqué sur le banc est hors d'atteinte des pouvoirs.
+  const adverseVisible = (ilot: string) => sommet(e, ilot)?.bande === adv && !estPlanque(e, ilot);
 
   if (effet.type === 'pouvoir') {
     switch (effet.role) {
@@ -314,11 +324,6 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
   }
 
   switch (effet.equipement) {
-    case 'banc':
-      if (moi.rang.length >= TAILLE_RANG) return [];
-      return cour.ilots
-        .filter((ilot) => ilot !== effet.ilot && sommet(e, ilot)?.bande === bande)
-        .map((ilot) => ({ type: 'rappeler', ilot }));
     case 'cabanePerchee':
       return nombreAPiocher(moi, 1) > 0 ? [{ type: 'piocher' }] : [];
     case 'porteVieScolaire':
@@ -339,13 +344,16 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
       for (const depart of ilotsVoisins(cour, effet.ilot)) {
         if (!adverseVisible(depart)) continue;
         for (const arrivee of ilotsVoisins(cour, depart)) {
+          // On ne fait pas glisser un élève sur quelqu'un de planqué.
+          if (estPlanque(e, arrivee)) continue;
           options.push({ type: 'glisser', depart, arrivee });
         }
       }
       return options;
     }
     default:
-      // Marelle (restriction avant la pose) et banc des maîtresses (annule les pouvoirs).
+      // Banc (planque, appliquée par les règles de pose), marelle (restriction avant la pose)
+      // et banc des maîtresses (annule les pouvoirs).
       return [];
   }
 }

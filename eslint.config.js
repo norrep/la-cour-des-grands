@@ -11,8 +11,8 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
-    // Le moteur de règles doit rester pur : aucune dépendance à Phaser.
-    files: ['src/engine/**/*.ts'],
+    // Le moteur de règles et l'IA doivent rester purs : aucune dépendance à Phaser.
+    files: ['src/engine/**/*.ts', 'src/ia/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', { patterns: ['phaser', '*/game/*', '../game/*'] }],
     },

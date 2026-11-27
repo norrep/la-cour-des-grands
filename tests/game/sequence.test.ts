@@ -6,6 +6,7 @@ import {
   ECART_CONSEQUENCES,
   dureeAnimations,
   planAnimations,
+  rondeParcourue,
 } from '../../src/game/sequence';
 
 const pose: Evenement = {
@@ -52,5 +53,40 @@ describe('Mise en scène d’un coup', () => {
   it('un appel de copains se voit aussitôt', () => {
     const appel: Evenement = { type: 'appel', tour: 1, bande: 'rouge', nombre: 2 };
     expect(planAnimations([appel])[0]?.debut).toBe(0);
+  });
+
+  it('la surveillante finit sa marche avant le goûter qu’elle quitte, puis la victoire', () => {
+    const appel: Evenement = { type: 'appel', tour: 2, bande: 'bleu', nombre: 2 };
+    const marche: Evenement = {
+      type: 'surveillante',
+      tour: 2,
+      position: 1,
+      pas: 1,
+      parDelegue: false,
+    };
+    const fin: Evenement = { type: 'fin', tour: 2, gagnant: 'rouge', raison: 'bonsPoints' };
+    const plan = planAnimations([appel, marche, region, fin]);
+    const debut = (type: string): number => plan.find((p) => p.ev.type === type)?.debut ?? -1;
+    expect(debut('region')).toBeGreaterThanOrEqual(debut('surveillante') + DUREE_CONSEQUENCE);
+    expect(debut('fin')).toBeGreaterThanOrEqual(debut('region') + DUREE_CONSEQUENCE);
+    expect(dureeAnimations([appel, marche, region, fin])).toBe(debut('fin'));
+  });
+});
+
+describe('La ronde de la surveillante', () => {
+  it('un pas : du goûter quitté au suivant', () => {
+    expect(rondeParcourue(4, 1, 1)).toEqual([0, 1]);
+  });
+  it('deux pas (Mot d’excuse) : elle longe le goûter du milieu au lieu de couper la cour', () => {
+    expect(rondeParcourue(4, 1, 2)).toEqual([3, 0, 1]);
+  });
+  it('elle boucle sa ronde', () => {
+    expect(rondeParcourue(4, 0, 1)).toEqual([3, 0]);
+  });
+  it('deux marches dans le même coup s’enchaînent sans retour en arrière', () => {
+    // Le Délégué l'envoie de 0 à 2, puis le pas de fin de tour de 2 à 3.
+    const premiere = rondeParcourue(4, 2, 2);
+    const seconde = rondeParcourue(4, 3, 1);
+    expect(seconde[0]).toBe(premiere[premiere.length - 1]);
   });
 });

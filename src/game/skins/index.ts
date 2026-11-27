@@ -7,6 +7,7 @@ import { lireSkin, ecrireSkin } from '../preferences';
 import { SKIN_CARTOON } from './cartoon/index';
 import { SKIN_CLASSIQUE } from './classique';
 import type { Skin, SkinId, TextureSkin } from './types';
+import { avecVersion } from '../../version';
 
 export type { Skin, SkinId } from './types';
 
@@ -46,7 +47,9 @@ export function skinSuivant(id: SkinId): SkinId {
 
 function chargerImage(scene: Phaser.Scene, t: TextureSkin): Promise<void> {
   if (scene.textures.exists(t.cle)) return Promise.resolve();
-  const source = t.svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(t.svg)}` : t.url;
+  const source = t.svg
+    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(t.svg)}`
+    : t.url && avecVersion(t.url);
   if (!source) return Promise.resolve();
   return new Promise((ok, echec) => {
     const img = new Image();

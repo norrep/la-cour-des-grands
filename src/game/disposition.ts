@@ -12,9 +12,11 @@ export const MONTEE = Math.round(HAUT * 0.55);
 /** Zone de l'écran (en pixels de la résolution de base) où l'on dessine la cour. */
 export const ZONE_COUR = {
   x: 40,
-  y: 100 + MONTEE,
+  // Descendue de 40 px (DF.19) : la cabane du haut ne passe plus sous le bandeau.
+  y: 140 + MONTEE,
   largeur: LARGEUR - 80,
-  hauteur: 940 + DESCENTE - MONTEE,
+  // La cour descend jusqu'au bouton d'appel : plus de feuille de cahier en bas (DF.14).
+  hauteur: 955 + DESCENTE - MONTEE,
 } as const;
 
 export interface Point {

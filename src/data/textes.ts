@@ -4,6 +4,7 @@
  */
 import type { Bande, EquipementId, RaisonFin, RoleId } from '../engine/types';
 import type { SkinId } from '../game/skins/types';
+import type { Niveau } from '../ia/index';
 
 const ROLES: Record<RoleId, string> = {
   petit: 'Le Petit de maternelle',
@@ -42,8 +43,8 @@ const POUVOIRS: Record<RoleId, string> = {
   petit:
     'Joker : plaque n’importe qui, mais tout le monde le plaque. Jamais dans la cabane adverse.',
   populaire: 'Arrive avec des copains : pioche 2 élèves.',
-  chouchou: 'Appelle ses grands frères : pose aussitôt un 2e élève de 5 ou plus.',
-  rapporteuse: '« Madame, c’est lui ! » : un adversaire voisin part chez la CPE.',
+  chouchou: 'Appelle son grand frère : pose aussitôt un 2e élève de 5 ou plus.',
+  rapporteuse: '« Madame, c’est lui ! » : un adversaire voisin est puni.',
   fouine: 'Passe par les buissons : se pose même loin de ton chemin.',
   contagieux: 'Atchoum ! Un élève adverse au hasard rate son prochain tour.',
   delegue: 'Mot d’excuse : la surveillante file 1 ou 2 goûters plus loin (au hasard).',
@@ -52,11 +53,10 @@ const POUVOIRS: Record<RoleId, string> = {
 
 /** Effet de chaque équipement spécial. */
 const EFFETS_EQUIPEMENTS: Record<EquipementId, string> = {
-  banc: 'Pose un élève ici : tu peux reprendre un autre de tes élèves de la cour dans ton rang.',
+  banc: 'Une planque : l’élève assis ici ne peut plus être plaqué, ni puni, ni déplacé.',
   cabanePerchee: 'Quand tu poses un élève ici, tu peux piocher 1 élève.',
-  porteVieScolaire:
-    'Quand tu poses un élève ici, tu peux reprendre un de tes élèves de chez la CPE.',
-  buts: 'Quand tu poses un élève ici, tu peux envoyer chez la CPE un adversaire de valeur 1 ou 2 situé à 2 allées.',
+  porteVieScolaire: 'Quand tu poses un élève ici, tu peux faire revenir un de tes élèves punis.',
+  buts: 'Quand tu poses un élève ici, tu peux punir un adversaire de valeur 1 ou 2 situé à 2 allées.',
   toboggan:
     'Quand tu poses un élève ici, tu peux faire glisser un adversaire voisin vers un autre îlot.',
   marelle: 'Seules certaines valeurs peuvent se poser sur cette case.',
@@ -64,6 +64,13 @@ const EFFETS_EQUIPEMENTS: Record<EquipementId, string> = {
 };
 
 const BANDES: Record<Bande, string> = { rouge: 'bande rouge', bleu: 'bande bleue' };
+
+const NIVEAUX_ORDI: Record<Niveau, string> = {
+  hasard: 'au hasard',
+  facile: 'facile',
+  moyen: 'moyen',
+  difficile: 'difficile',
+};
 const BANDES_TITRE: Record<Bande, string> = { rouge: 'Bande rouge', bleu: 'Bande bleue' };
 
 const RAISONS: Record<RaisonFin, string> = {
@@ -88,18 +95,25 @@ export const TEXTES = {
   accueil: {
     jouerADeux: 'Jouer à deux',
     sousJouerADeux: 'sur ce téléphone',
-    equipements: (actifs: boolean) => `Équipements spéciaux : ${actifs ? 'oui' : 'non'}`,
-    regle:
-      'À ton tour : appelle des copains ou envoie un élève dans la cour. Atteins la cabane adverse ou ramasse les goûters.',
+    contreOrdi: 'Jouer contre l’ordi',
+    /** Les niveaux de l'ordi, en pastilles sous le bouton. */
+    niveau: (n: Niveau) => NIVEAUX_ORDI[n],
+    /** Ce que dit le Petit dans sa bulle : le but du jeu en une phrase. */
+    bulle: 'Entre dans la cabane d’en face\nou ramasse les goûters !',
+    equipements: 'Équipements',
+    conseils: 'Conseils',
+    sons: 'Sons',
+    style: (nom: string) => `Style : ${nom}`,
   },
   hud: {
     tourDe: (b: Bande) => `Au tour de la ${BANDES[b]}`,
     seuil: (n: number) => `Objectif : ${n} goûters`,
     points: (n: number) => `${n}`,
-    couloir: (n: number) => `Couloir : ${n}`,
-    cpe: (n: number) => `CPE : ${n}`,
+    couloir: (n: number) => `Pioche : ${n}`,
+    cpe: (n: number) => `Punis : ${n}`,
     infirmerie: 'Infirmerie',
     rangVide: 'Ton rang est vide : appelle des copains !',
+    ordiReflechit: 'L’ordi réfléchit…',
     toucherCarte: 'Touche un élève : son pouvoir',
     consigneTour: 'Glisse un élève vers la cour, ou :',
     consigneSansPose: 'Aucune pose possible : appelle des copains.',
@@ -116,16 +130,16 @@ export const TEXTES = {
     pret: (b: Bande) => `Je suis la ${BANDES[b]}`,
   },
   choix: {
-    populaire: 'Populaire : touche ton portail pour faire venir 2 copains.',
+    populaire: 'Populaire : touche ta pioche pour faire venir 2 copains.',
     chouchou: 'Chouchou : glisse un 2e élève de 5 ou plus (cartes claires).',
-    rapporteuse: 'Rapporteuse : touche l’adversaire qui tremble pour l’envoyer chez la CPE.',
+    rapporteuse: 'Rapporteuse : touche l’adversaire qui tremble pour le faire punir.',
     contagieux:
-      'Contagieux : touche le portail d’en face, un adversaire au hasard rate son prochain tour.',
-    delegue: 'Délégué : touche Mme Josiane, elle file 1 ou 2 goûters plus loin.',
-    banc: '★ Banc : touche un de tes élèves pour le reprendre dans ton rang.',
-    cabanePerchee: '★ Cabane perchée : touche ton portail pour piocher 1 élève.',
-    porteVieScolaire: '★ Vie scolaire : touche l’élève à faire sortir de chez la CPE.',
-    buts: '★ Buts : touche l’adversaire (1 ou 2) à envoyer chez la CPE.',
+      'Contagieux : touche la pioche d’en face, un adversaire au hasard rate son prochain tour.',
+    delegue: 'Délégué : touche Mme Josiane pour qu’elle file 1 ou 2 goûters plus loin, ou passe.',
+    banc: '★ Banc : ton élève est planqué, personne ne peut plus le toucher.',
+    cabanePerchee: '★ Cabane perchée : touche ta pioche pour piocher 1 élève.',
+    porteVieScolaire: '★ Vie scolaire : touche l’élève puni à faire revenir.',
+    buts: '★ Buts : touche l’adversaire (1 ou 2) à punir.',
     tobogganDepart: '★ Toboggan : touche l’adversaire à faire glisser.',
     tobogganArrivee: '★ Toboggan : touche l’îlot d’arrivée.',
     bulle: 'Pouvoir !',
@@ -156,15 +170,17 @@ export const TEXTES = {
   regionPrise: (b: Bande, points: number) =>
     `Déjà ramassé par la ${BANDES[b]} (+${points}). Il n’y a plus rien à prendre ici.`,
   cinematiques: {
-    cpe: { titre: 'Direction la CPE !', sous: 'Dénoncé par la Rapporteuse…' },
+    cpe: { titre: 'Puni !', sous: 'Dénoncé par la Rapporteuse…' },
     infirmerie: { titre: 'Atchoum !', sous: 'Un élève file à l’infirmerie.' },
     grandsFreres: {
-      titre: 'Les grands frères arrivent !',
+      titre: 'Le grand frère arrive !',
       sous: 'Le Chouchou appelle du renfort.',
     },
     sonnerie: { titre: 'DRIIIIING !', sous: 'La récré est finie.' },
     toboggan: { titre: 'Wiiiiz !', sous: 'Glissade sur le toboggan.' },
     delegue: { titre: 'Mot d’excuse !', sous: 'Le Délégué déplace la surveillante.' },
+    fouine: { titre: 'Par les buissons !', sous: 'La Fouine se faufile où elle veut.' },
+    petit: { titre: 'Prise de catch !', sous: 'Le Petit de maternelle plaque tout le monde.' },
     gouter: (b: Bande, nom: string, n: number) => ({
       titre: 'Miam !',
       sous: `La ${BANDES[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} (+${n}).`,
@@ -181,13 +197,10 @@ export const TEXTES = {
       `${ROLES_COURTS[role]} plaqué${role === 'populaire' || role === 'rapporteuse' || role === 'fouine' ? 'e' : ''} !`,
     gouter: (n: number) => `+${n} goûter${n > 1 ? 's' : ''} !`,
   },
-  sons: (actifs: boolean) => `Sons : ${actifs ? 'oui' : 'non'}`,
   /** Nom de chaque skin, affiché sur le bouton « Style » de l'accueil. */
   skins: { cartoon: 'Cartoon', classique: 'Jetons' } as Record<SkinId, string>,
-  style: (nom: string) => `Style : ${nom}`,
   chargement: 'Chargement…',
   conseils: {
-    accueil: (actifs: boolean) => `Conseils pour débuter : ${actifs ? 'oui' : 'non'}`,
     titre: 'Conseil',
     compris: 'Compris !',
     couper: 'Plus de conseils',
@@ -221,15 +234,42 @@ export const TEXTES = {
     ],
     fermer: 'Fermer',
   },
+  planque: 'Planqué !',
+  /** Fiche de la cour, au lancement de la partie (DF.17). */
+  presentation: {
+    bouton: 'C’est parti !',
+    /** Plus tard : affiché pendant qu'on cherche un adversaire en ligne. */
+    attente: 'On attend un adversaire',
+    regleTitre: '★ Règle spéciale',
+    sansRegle: 'Pas d’îlot spécial aujourd’hui : tous les îlots se valent.',
+    bulles: {
+      cabane: 'Pose un élève dans la cabane d’en face : gagné !',
+      gouter: (seuil: number) =>
+        `Entoure un goûter d’élèves pour le ramasser. ${seuil} bons points : gagné !`,
+      banc: '★ Le banc est une planque : là, personne ne peut te toucher.',
+      josiane: 'Mme Josiane garde ce goûter. Elle bouge à chaque tour.',
+    },
+    cours: {
+      'cour-premier-jour': {
+        contexte:
+          'Premier jour de récré ! Les rouges et les bleus se disputent la cour et ses goûters avant la sonnerie.',
+        regle:
+          'Deux bancs planques : l’élève assis dessus ne peut être ni plaqué, ni puni, ni déplacé.',
+      },
+    } as Partial<Record<string, { contexte: string; regle: string }>>,
+  },
   passe: {
     bientot: (b: Bande) => `À la ${BANDES[b]} de jouer…`,
     titre: 'Passe le téléphone',
     a: (b: Bande) => `à la ${BANDES[b]}`,
     cache: 'Ne regarde pas le rang de l’adversaire !',
+    resume: 'Au tour d’avant :',
   },
   fin: {
     titre: 'DRIIIIING !',
     gagnant: (b: Bande) => `La ${BANDES[b]}`,
+    /** En solo : la phrase continue par « a envahi… » ou « a ramassé… ». */
+    gagnantSolo: (ordi: boolean) => (ordi ? 'L’ordi' : 'Ta bande'),
     raison: (r: RaisonFin) => RAISONS[r],
     score: (rouge: number, bleu: number) => `Goûters : rouge ${rouge}, bleu ${bleu}`,
     tours: (n: number) => `Partie en ${n} tours`,
@@ -242,20 +282,25 @@ export const TEXTES = {
     motExcuse: 'Mot d’excuse !',
     recuperer: 'Récupérer qui ?',
   },
-  /** Les lieux autour de la cour : chaque bande a son portail (le couloir) et son bureau de CPE. */
+  /** Les lieux autour de la cour : chaque bande a sa pioche (les copains pas encore appelés) et ses punis. */
   lieux: {
-    portail: 'Portail',
-    cpe: 'CPE',
-    fichePortail: (b: Bande) => `Portail de la ${BANDES[b]}`,
+    portail: 'Pioche',
+    cpe: 'Punis',
+    fichePortail: (b: Bande) => `Pioche de la ${BANDES[b]}`,
     texteCouloir: (n: number) =>
       n === 0
-        ? 'Plus personne n’attend au portail : on ne peut plus appeler de copains.'
-        : `${n} copain${n > 1 ? 's attendent' : ' attend'} au portail. « Appeler des copains » en fait venir 2 dans le rang.`,
-    ficheCpe: (b: Bande) => `Bureau de la CPE (${BANDES[b]})`,
+        ? 'La pioche est vide : on ne peut plus appeler de copains.'
+        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. « Appeler des copains » en fait venir 2 dans le rang.`,
+    ficheCpe: (b: Bande) => `Les punis (${BANDES[b]})`,
     texteCpe: (n: number) =>
       n === 0
-        ? 'Personne n’est puni pour l’instant. La Rapporteuse et les buts y envoient les adversaires.'
-        : `${n} élève${n > 1 ? 's sont punis' : ' est puni'} ici. La porte de la vie scolaire permet d’en récupérer un.`,
+        ? 'Personne n’est puni pour l’instant. La Rapporteuse et les buts font punir les adversaires.'
+        : `${n} élève${n > 1 ? 's sont punis' : ' est puni'}, hors du jeu. La porte de la vie scolaire permet d’en faire revenir un.`,
+    ficheRang: (b: Bande) => `Rang de la ${BANDES[b]}`,
+    texteRang: (n: number) =>
+      n === 0
+        ? 'Plus personne dans son rang : il devra appeler des copains.'
+        : `${n} élève${n > 1 ? 's' : ''} dans son rang, prêt${n > 1 ? 's' : ''} à entrer dans la cour. On ne sait pas lesquels.`,
     texteInfirmerie: (n: number) =>
       `${n} élève${n > 1 ? 's sont enrhumés' : ' est enrhumé'} : ${n > 1 ? 'ils ratent' : 'il rate'} le prochain tour.`,
   },
@@ -267,13 +312,13 @@ export const TEXTES = {
       `${BANDES_TITRE[b]} : ${ROLES[role]} → ${lieu}.`,
     plaque: (role: RoleId) => `${ROLES[role]} est plaqué au sol !`,
     pioche: (b: Bande, n: number) => `${BANDES_TITRE[b]} pioche ${n} élève${n > 1 ? 's' : ''}.`,
-    cpe: (role: RoleId, b: Bande) => `${ROLES[role]} (${BANDES[b]}) part chez la CPE !`,
+    cpe: (role: RoleId, b: Bande) => `${ROLES[role]} (${BANDES[b]}) est puni !`,
     infirmerie: (b: Bande) => `Atchoum ! Un élève de la ${BANDES[b]} part à l’infirmerie.`,
     surveillanteDelegue:
       'Le Délégué brandit son mot d’excuse : la surveillante va garder un autre goûter.',
     surveillante: 'La surveillante poursuit sa ronde.',
     rappel: (b: Bande) => `${BANDES_TITRE[b]} rappelle un élève dans son rang.`,
-    repechage: (b: Bande) => `${BANDES_TITRE[b]} récupère un élève chez la CPE.`,
+    repechage: (b: Bande) => `${BANDES_TITRE[b]} fait revenir un élève puni.`,
     glissade: (role: RoleId) => `${ROLES[role]} glisse sur le toboggan !`,
     passe: (b: Bande) => `${BANDES_TITRE[b]} renonce à son pouvoir.`,
     region: (b: Bande, nom: string, n: number) =>
