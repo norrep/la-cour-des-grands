@@ -65,6 +65,8 @@ import { animerMarionnette, Marionnette } from '../ui/marionnette';
 import { RIG_JOSIANE } from '../skins/cartoon/rig';
 
 const RAYON_ILOT = 48;
+/** Haut de la cour, à défaut de cabane en haut (fiche de la cour). */
+const ZONE_HAUT_COUR = 100;
 const TAILLE_BADGE = 70;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
 const DIAMETRE_PASTILLE = 92;
@@ -112,6 +114,13 @@ export class PartieScene extends Phaser.Scene {
   private animations = true;
   /** Un coup vient de finir : on montre son effet avant l'écran « Passe le téléphone ». */
   private entreDeuxTours = false;
+  /** Fiche de la cour affichée au lancement, avant le premier « Passe le téléphone ». */
+  private presentation = true;
+  /**
+   * Plus tard, en ligne : la fiche sert d'écran d'attente pendant qu'on cherche un adversaire
+   * (le bouton laisse place à « On attend un adversaire… »).
+   */
+  private attenteAdversaire = false;
   private finDeTour: Phaser.Time.TimerEvent | null = null;
   /** Cinématiques en attente, jouées l'une après l'autre. */
   private cinematiques: Cinematique[] = [];
@@ -148,6 +157,8 @@ export class PartieScene extends Phaser.Scene {
     this.cinematiques = [];
     this.cinematiqueEnCours = null;
     this.entreDeuxTours = false;
+    this.presentation = true;
+    this.attenteAdversaire = false;
     this.tourHorloge = 0;
     this.animations = !(window as unknown as { __sansAnimations?: boolean }).__sansAnimations;
     activerSons(lireSons());
@@ -185,7 +196,8 @@ export class PartieScene extends Phaser.Scene {
     // Le contenu du bandeau du haut remonte vers le bord sur un écran allongé (pas son papier, qui
     // va déjà jusqu'au bord).
     const avantHud = this.dyn.length + 1;
-    this.dessinerHud();
+    // Pendant la fiche de la cour, son bandeau remplace celui du jeu.
+    if (!(this.presentation && this.ctrl.phase === 'passe')) this.dessinerHud();
     for (const o of this.dyn.list.slice(avantHud)) {
       const objet = o as unknown as { y: number };
       objet.y += MONTEE;
@@ -199,7 +211,8 @@ export class PartieScene extends Phaser.Scene {
       this.bulleConsigne();
     }
     if (this.ctrl.phase === 'passe') {
-      if (this.entreDeuxTours) this.dessinerFinDeTour();
+      if (this.presentation) this.dessinerPresentation();
+      else if (this.entreDeuxTours) this.dessinerFinDeTour();
       else this.dessinerPasse();
     }
     if (this.ctrl.phase === 'fin') this.dessinerFin();
@@ -1238,8 +1251,12 @@ export class PartieScene extends Phaser.Scene {
     texte: string,
     ancre?: Point,
     fond: number = COULEURS.papier,
+    largeurMax = 400,
+    /** Forcer la bulle sous ce qu'elle décrit (pour ne pas le cacher). */
+    dessous = false,
+    /** Décaler la bulle de côté (sa pointe reste sur la cible). */
+    decalageX = 0,
   ): Phaser.GameObjects.Container {
-    const largeurMax = 400;
     const marge = 16;
     const corps = this.add.text(0, 0, texte, {
       fontFamily: POLICE,
@@ -1260,8 +1277,8 @@ export class PartieScene extends Phaser.Scene {
     const l = Math.min(largeurMax, Math.max(corps.width, enTete?.width ?? 0) + 2 * marge);
     const h = corps.height + (enTete ? enTete.height + 4 : 0) + 2 * marge - 4;
     const cible = ancre ?? { x: LARGEUR / 2, y: Y_ACTIONS - 60 };
-    const dessus = !ancre || cible.y - h - 30 > 130 + MONTEE;
-    const x0 = Phaser.Math.Clamp(cible.x - l / 2, GAUCHE + 12, DROITE - 12 - l);
+    const dessus = !ancre || (!dessous && cible.y - h - 30 > 130 + MONTEE);
+    const x0 = Phaser.Math.Clamp(cible.x - l / 2 + decalageX, GAUCHE + 12, DROITE - 12 - l);
     const y0 = ancre ? (dessus ? cible.y - 26 - h : cible.y + 26) : cible.y - h;
     const g = this.add.graphics();
     forme(g, contourRect(x0, y0, l, h, 16, graineDe(x0, y0), 0.8), {
@@ -1886,6 +1903,171 @@ export class PartieScene extends Phaser.Scene {
     );
     v.setOrigin(0, 0);
     v.setInteractive();
+  }
+
+  /**
+   * Fiche de la cour, au lancement (demandes de Clément) : la vraie cour reste visible et se
+   * légende elle-même par quelques bulles ; un bandeau en haut donne le nom et le contexte, un
+   * volet en bas la règle spéciale et « C'est parti ! ». En ligne, le volet servira d'écran
+   * d'attente (`attenteAdversaire`).
+   */
+  private dessinerPresentation(): void {
+    const P = TEXTES.presentation;
+    const infos = P.cours[this.cour.id];
+    // La cour déjà dessinée passe dans un plateau qu'on recentre (et réduit si besoin) entre le
+    // bandeau et le volet.
+    const plateau = this.add.container(0, 0);
+    const objets = [...this.dyn.list];
+    this.dyn.removeAll(false);
+    plateau.add(objets);
+    this.dyn.add(plateau);
+    // La cour ne se touche pas pendant la fiche.
+    const bloc = this.ajouter(
+      this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, COULEURS.fondSombre, 0.12),
+    );
+    bloc.setOrigin(0, 0).setInteractive();
+    const cx = LARGEUR / 2;
+
+    // Bandeau du haut : le nom de la cour et le contexte, par-dessus le bandeau de jeu.
+    const fondHaut = this.ajouter(this.add.graphics());
+    const titre = this.texte(cx, HAUT + 22, this.cour.nom, 34, COULEURS.texteSombre, {
+      fontFamily: POLICE_TITRE,
+      fontStyle: '700',
+    }).setOrigin(0.5, 0);
+    let bas = titre.y + titre.height;
+    if (infos) {
+      const t = this.texte(cx, bas + 6, infos.contexte, 18, COULEURS.texteSombre, {
+        fontStyle: '500',
+        align: 'center',
+        wordWrap: { width: LARGEUR - 90 },
+      }).setOrigin(0.5, 0);
+      bas = t.y + t.height;
+    }
+    forme(
+      fondHaut,
+      contourRect(GAUCHE - 20, HAUT - 30, DROITE - GAUCHE + 40, bas - HAUT + 50, 26, 5),
+      {
+        remplissage: COULEURS.papier,
+        ombre: 6,
+      },
+    );
+
+    // Volet du bas : la règle spéciale et le bouton (ou l'attente d'un adversaire).
+    const regle = this.etat.equipements && infos ? infos.regle : P.sansRegle;
+    const yBouton = Math.min(BAS - 64, 1210 + DESCENTE);
+    const corps = this.texte(cx, 0, regle, 18, COULEURS.texteSombre, {
+      fontStyle: '500',
+      align: 'center',
+      wordWrap: { width: LARGEUR - 110 },
+    }).setOrigin(0.5, 0);
+    const enTete = this.texte(cx, 0, P.regleTitre, 22, COULEURS.texteSombre, {
+      fontStyle: '700',
+    }).setOrigin(0.5, 0);
+    const haut = yBouton - 64 - corps.height - enTete.height - 34;
+    enTete.setY(haut + 22);
+    corps.setY(enTete.y + enTete.height + 4);
+    const fondBas = this.add.graphics();
+    forme(fondBas, contourRect(GAUCHE - 20, haut, DROITE - GAUCHE + 40, BAS - haut + 40, 26, 9), {
+      remplissage: COULEURS.jaune,
+      ombre: 6,
+    });
+    this.dyn.addAt(fondBas, this.dyn.getIndex(corps));
+    // Le plateau : de la toiture de la cabane du haut aux bureaux du bas, centré dans l'espace libre.
+    const bleue = this.cour.cabanes.bleu[0];
+    const rouge = this.cour.cabanes.rouge[0];
+    const dessusCour = bleue ? this.pos(bleue).y - 80 : ZONE_HAUT_COUR;
+    const dessousCour = rouge
+      ? Math.max(this.pos(rouge).y + 50, positionLieu(this.cour, 'rouge', 'portail').y + 60)
+      : haut;
+    const libreHaut = bas + 24;
+    const libreBas = haut - 12;
+    const echelle = Math.min(1, (libreBas - libreHaut) / (dessousCour - dessusCour));
+    plateau.setScale(echelle);
+    plateau.setPosition(
+      (LARGEUR * (1 - echelle)) / 2,
+      (libreHaut + libreBas) / 2 - ((dessusCour + dessousCour) / 2) * echelle,
+    );
+    const surPlateau = (p: Point): Point => ({
+      x: plateau.x + p.x * echelle,
+      y: plateau.y + p.y * echelle,
+    });
+
+    // Les bulles posées sur la cour, qui apparaissent l'une après l'autre.
+    const bulles: { ancre: Point; texte: string; dessous?: boolean; decalage?: number }[] = [];
+    const cabane = this.cour.cabanes.bleu[0];
+    if (cabane) {
+      const p = this.pos(cabane);
+      bulles.push({ ancre: { x: p.x, y: p.y + 34 }, texte: P.bulles.cabane, dessous: true });
+    }
+    const region = this.cour.regions.find((r) => r.id === 'bas') ?? this.cour.regions[0];
+    if (region) {
+      const c = centreRegion(this.cour, region.ilots);
+      bulles.push({
+        ancre: { x: c.x, y: c.y + 22 },
+        texte: P.bulles.gouter(this.cour.seuilBonsPoints),
+        dessous: true,
+      });
+    }
+    const banc = this.etat.equipements
+      ? [...this.cour.ilots].reverse().find((id) => this.cour.noeuds[id]?.equipement === 'banc')
+      : undefined;
+    if (banc) {
+      const p = this.pos(banc);
+      bulles.push({ ancre: { x: p.x, y: p.y - RAYON_ILOT }, texte: P.bulles.banc });
+    }
+    const garde = gouterSurveille(this.etat);
+    if (garde) {
+      const m = this.positionSurveillante(garde);
+      // Au-dessus de sa tête, pour ne pas la cacher.
+      bulles.push({
+        ancre: { x: m.x, y: m.y - 82 },
+        texte: P.bulles.josiane,
+        // Vers le bord le plus proche, pour ne pas cacher le goûter du milieu.
+        decalage: m.x < LARGEUR / 2 ? -110 : 110,
+      });
+    }
+    bulles.forEach((b, i) => {
+      const c = this.bulle(
+        null,
+        b.texte,
+        surPlateau(b.ancre),
+        COULEURS.papier,
+        300,
+        b.dessous,
+        b.decalage,
+      );
+      if (!this.animations) return;
+      c.setAlpha(0);
+      this.tweens.add({ targets: c, alpha: 1, duration: 220, delay: 300 + i * 450 });
+      this.tweens.add({
+        targets: c,
+        y: { from: 14, to: 0 },
+        duration: 320,
+        delay: 300 + i * 450,
+        ease: 'Back.easeOut',
+      });
+    });
+
+    if (this.attenteAdversaire) {
+      const t = this.texte(cx, yBouton, `${P.attente}…`, 26, COULEURS.texteSombre, {
+        fontStyle: '700',
+      }).setOrigin(0.5);
+      this.tweens.add({ targets: t, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
+      return;
+    }
+    this.ajouter(
+      creerBouton(
+        this,
+        cx,
+        yBouton,
+        P.bouton,
+        () => {
+          this.presentation = false;
+          this.rafraichir();
+        },
+        { largeur: 400, hauteur: 80, taille: 30, couleur: COULEURS.papier },
+      ),
+    );
   }
 
   /** Ce que l'adversaire vient de faire (remplace l'ancien journal en bas de l'écran). */
