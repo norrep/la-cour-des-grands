@@ -19,6 +19,17 @@ export const PLATEAU = {
   cpe: 'plateau-cpe',
   basket: 'plateau-basket',
 } as const;
+/** Goûters illustrés (DF.21), dans l'ordre des régions de la cour : chocolat, biscuits, bonbon, sucette. */
+export const GOUTERS = [
+  'gouter-chocolat',
+  'gouter-biscuits',
+  'gouter-bonbon',
+  'gouter-sucette',
+] as const;
+/** Clé de l'image du goûter de la région n° `i`. */
+export function cleGouter(i: number): string {
+  return GOUTERS[i % GOUTERS.length] ?? GOUTERS[0];
+}
 export const ILLUSTRATIONS: Partial<Record<string, string>> = { banc: 'decor-banc' };
 
 /** La police ronde du jeu doit être prête avant d'écrire quoi que ce soit (2 s au plus). */
@@ -52,6 +63,7 @@ export class ChargementScene extends Phaser.Scene {
     for (const [piece, cle] of Object.entries(PLATEAU)) {
       this.load.image(cle, avecVersion(`plateau/${fichiers[piece as keyof typeof PLATEAU]}.png`));
     }
+    for (const cle of GOUTERS) this.load.image(cle, avecVersion(`gouters/${cle.slice(7)}.png`));
     for (const [equipement, cle] of Object.entries(ILLUSTRATIONS)) {
       if (cle) this.load.image(cle, avecVersion(`decor/${equipement}.png`));
     }

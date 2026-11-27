@@ -60,7 +60,7 @@ import { ecrireConseils, lireSons } from '../preferences';
 import { activerSons, jouerSon, type SonId } from '../sons';
 import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
-import { DECOR, ILLUSTRATIONS, JOSIANE, PLATEAU } from './ChargementScene';
+import { cleGouter, DECOR, ILLUSTRATIONS, JOSIANE, PLATEAU } from './ChargementScene';
 import { cadrer, decorPlein } from '../ui/ecran';
 import { animerMarionnette, Marionnette } from '../ui/marionnette';
 import { RIG_JOSIANE } from '../skins/cartoon/rig';
@@ -871,7 +871,17 @@ export class PartieScene extends Phaser.Scene {
       }
     }
     g.setAlpha(prise ? 0.8 : 1);
-    this.dessinerFriandise(g, index, x, y);
+    const illu = cleGouter(index);
+    if (this.textures.exists(illu)) {
+      this.ajouter(
+        this.add
+          .image(x, y, illu)
+          .setScale(64 / 512)
+          .setAlpha(prise ? 0.85 : 1),
+      );
+    } else {
+      this.dessinerFriandise(g, index, x, y);
+    }
     const t = this.texte(x - 26, y - 24, `+${points}`, 17, COULEURS.texteSombre, {
       fontStyle: '700',
     }).setOrigin(0.5);
@@ -2872,6 +2882,10 @@ export class PartieScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0.8);
     const scene = this.add.container(-LARGEUR, 0, [bandeau, picto, titre, sous]);
+    const gouter = picto.getData('gouter') as number | undefined;
+    if (gouter !== undefined) {
+      scene.add(this.add.image(picto.x, picto.y, cleGouter(gouter)).setScale(170 / 512));
+    }
     const tout = this.add.container(0, 0, [fond, scene, passer]).setDepth(1000);
     this.cinematiqueEnCours = tout;
 
@@ -2949,7 +2963,8 @@ export class PartieScene extends Phaser.Scene {
           this.cour.regions.findIndex((r) => r.id === cin?.region),
         );
         g.setScale(2.6);
-        this.dessinerFriandise(g, i, 0, 0);
+        if (this.textures.exists(cleGouter(i))) g.setData('gouter', i);
+        else this.dessinerFriandise(g, i, 0, 0);
         break;
       }
       case 'toboggan':
