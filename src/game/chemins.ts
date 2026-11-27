@@ -1,4 +1,4 @@
-import { sommet, type Bande, type EtatPartie } from '../engine/index';
+import { alleeOuverte, sommet, type Bande, type EtatPartie } from '../engine/index';
 
 /**
  * Allées du « chemin à la craie » d'une bande : celles qui relient sa cabane et ses îlots
@@ -13,6 +13,7 @@ export function alleesDuChemin(e: EtatPartie, bande: Bande): number[] {
   while (file.length > 0) {
     const n = file.shift() as string;
     for (const v of e.cour.voisins[n] ?? []) {
+      if (!alleeOuverte(e.cour, v.allee, n)) continue;
       const aMoi = e.cour.noeuds[v.noeud]?.type === 'ilot' && sommet(e, v.noeud)?.bande === bande;
       if (!aMoi) continue;
       allees.add(v.allee);

@@ -87,6 +87,10 @@ export const FUN = {
     infirmerie: (b: Bande) => [
       `Atchoum ! Un élève de la ${B(b)} file à l’infirmerie, mouchoir en main.`,
     ],
+    courant: [
+      'Glouglou ! Le courant embarque tout le grand bain d’un cran.',
+      'Le grand bain tourne comme une machine à laver.',
+    ],
     surveillanteDelegue: [
       'Le Délégué agite son mot d’excuse : la surveillante file garder un autre goûter.',
       '« C’est signé par le directeur ! » La surveillante change de goûter.',

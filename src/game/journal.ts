@@ -26,6 +26,8 @@ export function phraseEvenement(ev: Evenement, cour: Cour, fun = false, graine =
       return J.infirmerie(ev.bande);
     case 'surveillante':
       return ev.parDelegue ? J.surveillanteDelegue : null;
+    case 'courant':
+      return J.courant;
     case 'rappel':
       return J.rappel(ev.bande);
     case 'repechage':
@@ -61,6 +63,8 @@ function phraseDrole(ev: Evenement, cour: Cour, g: number): string | null {
       return v(F.infirmerie(ev.bande));
     case 'surveillante':
       return ev.parDelegue ? v(F.surveillanteDelegue) : null;
+    case 'courant':
+      return v(F.courant);
     case 'rappel':
       return v(F.rappel(ev.bande));
     case 'repechage':

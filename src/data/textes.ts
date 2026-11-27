@@ -316,6 +316,7 @@ export const TEXTES = {
     surveillanteDelegue:
       'Le Délégué brandit son mot d’excuse : la surveillante va garder un autre goûter.',
     surveillante: 'La surveillante poursuit sa ronde.',
+    courant: 'Le courant fait tourner le grand bain d’un cran.',
     rappel: (b: Bande) => `${BANDES_TITRE[b]} rappelle un élève dans son rang.`,
     repechage: (b: Bande) => `${BANDES_TITRE[b]} récupère un élève chez la CPE.`,
     glissade: (role: RoleId) => `${ROLES[role]} glisse sur le toboggan !`,

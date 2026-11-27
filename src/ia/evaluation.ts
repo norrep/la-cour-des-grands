@@ -7,6 +7,7 @@ import {
   posePossible,
   sommet,
 } from '../engine/partie';
+import { alleeOuverte } from '../engine/cour';
 import { valeur } from '../engine/roles';
 import type { Bande, EtatPartie } from '../engine/types';
 
@@ -99,6 +100,7 @@ export function distanceCabane(e: EtatPartie, b: Bande): number {
       const noeud = e.cour.noeuds[n];
       if (noeud?.type === 'cabane' && noeud.bande !== b) continue;
       for (const v of e.cour.voisins[n] ?? []) {
+        if (!alleeOuverte(e.cour, v.allee, n)) continue;
         const nd = d + cout(e, b, v.noeud);
         if (nd < (dist[v.noeud] ?? Infinity)) {
           dist[v.noeud] = nd;

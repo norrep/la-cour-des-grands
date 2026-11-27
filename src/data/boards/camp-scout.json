@@ -1,0 +1,58 @@
+{
+  "id": "camp-scout",
+  "nom": "Le camp scout",
+  "cabanes": [
+    { "id": "CabBleue", "bande": "bleu", "x": 0.5, "y": 0.05 },
+    { "id": "CabRouge", "bande": "rouge", "x": 0.5, "y": 0.88 }
+  ],
+  "ilots": [
+    { "id": "A1", "nom": "Le hamac", "x": 0.28, "y": 0.25, "decor": "hamac" },
+    { "id": "A2", "nom": "Le tas de bois", "x": 0.72, "y": 0.25, "decor": "tasDeBois" },
+    { "id": "M1", "nom": "La tyrolienne", "x": 0.1, "y": 0.475, "decor": "tyrolienne" },
+    { "id": "M2", "nom": "Le feu de camp", "x": 0.5, "y": 0.475, "decor": "feuDeCamp" },
+    { "id": "M3", "nom": "L’échelle de corde", "x": 0.9, "y": 0.475, "decor": "echelleDeCorde" },
+    { "id": "B1", "nom": "La source", "x": 0.28, "y": 0.69, "decor": "source" },
+    { "id": "B2", "nom": "Le totem", "x": 0.72, "y": 0.69, "decor": "totem" }
+  ],
+  "allees": [
+    ["CabBleue", "A1"],
+    ["CabBleue", "A2"],
+    ["A1", "A2"],
+    ["A1", "M1"],
+    ["A1", "M2"],
+    ["A2", "M2"],
+    ["A2", "M3"],
+    ["M1", "B1"],
+    ["M2", "B1"],
+    ["M2", "B2"],
+    ["M3", "B2"],
+    ["B1", "B2"],
+    ["B1", "CabRouge"],
+    ["B2", "CabRouge"]
+  ],
+  "regions": [
+    { "id": "haut", "nom": "Le haut du camp", "ilots": ["A1", "A2", "M2"], "bonsPoints": 2 },
+    { "id": "bas", "nom": "Le bas du camp", "ilots": ["B1", "B2", "M2"], "bonsPoints": 2 },
+    {
+      "id": "gauche",
+      "nom": "Le côté de la tyrolienne",
+      "ilots": ["A1", "M1", "B1", "M2"],
+      "bonsPoints": 1
+    },
+    {
+      "id": "droite",
+      "nom": "Le côté de l’échelle",
+      "ilots": ["A2", "M3", "B2", "M2"],
+      "bonsPoints": 1
+    }
+  ],
+  "seuilBonsPoints": 3,
+  "ronde": ["gauche", "haut", "droite", "bas"],
+  "departRonde": 0,
+  "sensUnique": [
+    ["A1", "M1"],
+    ["M1", "B1"],
+    ["B2", "M3"],
+    ["M3", "A2"]
+  ]
+}
