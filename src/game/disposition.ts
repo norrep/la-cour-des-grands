@@ -121,12 +121,24 @@ const ECARTS_LIEUX: Record<Lieu, number> = { portail: 265, cpe: 140 };
 /** Piscine : les îlots des bords sont plus écartés, les lieux vont vers le bord (DP.9, DP.10). */
 const ECARTS_LIEUX_PISCINE: Record<Lieu, number> = { portail: 295, cpe: 172 };
 
-/** Centre d'un lieu : à gauche de la cabane de la bande, la pioche au bord, les punis à côté. */
+/**
+ * La zone des punis n'a d'utilité que si la cour a une porte de la vie scolaire (on peut en faire
+ * revenir). Sans elle, les punis sont seulement comptés sur la pioche (DL.10).
+ */
+export function avecZonePunis(cour: Cour): boolean {
+  return Object.values(cour.noeuds).some((n) => n.equipement === 'porteVieScolaire');
+}
+
+/**
+ * Centre d'un lieu : à gauche de la cabane de la bande, la pioche au bord, les punis à côté. Sans
+ * zone des punis, la pioche prend la place la plus proche de la cabane, et les punis y volent.
+ */
 export function positionLieu(cour: Cour, bande: 'rouge' | 'bleu', lieu: Lieu): Point {
   const cabane = cour.cabanes[bande][0];
   const c = cabane ? positionNoeud(cour, cabane) : { x: LARGEUR / 2, y: ZONE_COUR.y };
   // En bas (bande rouge), on remonte un peu pour laisser la place au journal.
   const dy = bande === 'rouge' ? -22 : 14;
-  const ecart = (cour.id === 'piscine' ? ECARTS_LIEUX_PISCINE : ECARTS_LIEUX)[lieu];
+  const ecarts = cour.id === 'piscine' ? ECARTS_LIEUX_PISCINE : ECARTS_LIEUX;
+  const ecart = avecZonePunis(cour) ? ecarts[lieu] : ecarts.cpe;
   return { x: c.x - ecart, y: c.y + dy };
 }

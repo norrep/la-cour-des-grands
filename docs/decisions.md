@@ -395,3 +395,11 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.9 — Les punis passent à côté de la pioche**, à gauche de la cabane (essai demandé par
   Clément), pour les deux bandes et sur toutes les cartes. La droite de la cabane reste libre pour
   le rond « +2 copains » en bas et le rang adverse en haut.
+- **DL.10 — La zone des punis disparaît quand la cour n'a pas de porte de la vie scolaire** (aucune
+  des trois cartes actuelles) : elle ne faisait qu'afficher les exclus. Les punis sont comptés par
+  une pastille rouge « N punis » sous la pioche (le détail est dans la fiche de la pioche), et
+  l'exclu vole jusqu'à la pioche. La pioche prend la place la plus proche de la cabane. Le code de
+  la zone reste : elle revient d'elle-même sur une cour qui a la porte (`avecZonePunis`).
+- **DL.11 — Rond « +2 copains » redessiné** : jeton jaune au trait épais avec reflet, deux cartes
+  de la pioche en éventail qui se dandinent, « +2 » en autocollant blanc cerclé de noir, « copains »
+  sur un ruban à la couleur de l'équipe, halo qui respire, et le rond s'enfonce sous le pouce.

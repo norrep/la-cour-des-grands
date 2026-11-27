@@ -390,6 +390,9 @@ export const TEXTES = {
       n === 0
         ? 'La pioche est vide : on ne peut plus appeler de copains.'
         : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. Le rond jaune « +2 copains », au-dessus de ta main, en fait venir 2.`,
+    punisPioche: (n: number) => `${n} puni${n > 1 ? 's' : ''}`,
+    textePunisPioche: (n: number) =>
+      `${n} élève${n > 1 ? 's ont été punis' : ' a été puni'} : ${n > 1 ? 'ils sont sortis' : 'il est sorti'} du jeu.`,
     ficheCpe: (b: Bande) => `Les punis (${BANDES[b]})`,
     texteCpe: (n: number) =>
       n === 0
