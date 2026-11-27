@@ -641,7 +641,7 @@ export class PartieScene extends Phaser.Scene {
     const g = this.add.graphics();
     const graine = graineDe(p.x, p.y);
     const illustre = true;
-    // Lieu illustré (DF.31) : l'image seule, en grand, sans carte de papier autour.
+    // Lieu illustré (DF.32) : l'image seule, en grand, sans carte de papier autour.
     if (!illustre) {
       forme(g, contourRect(-62, -34, 124, 76, 14, graine), {
         remplissage: COULEURS.papier,
@@ -817,7 +817,7 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * La pioche (DF.33) : les copains pas encore appelés, en paquet de cartes face cachée, comme
+   * La pioche (DF.34) : les copains pas encore appelés, en paquet de cartes face cachée, comme
    * les cartes du rang. Le nombre est dans une pastille ; le paquet maigrit quand il se vide.
    */
   private dessinerPortail(bande: Bande): void {
@@ -887,7 +887,7 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * Les cartons rouges (DF.35) : les exclus, sous un carton rouge brandi. Les 3 derniers arrivés sont
+   * Les cartons rouges (DF.36) : les exclus, sous un carton rouge brandi. Les 3 derniers arrivés sont
    * en badges ; leur nombre est dans une pastille.
    */
   private dessinerBureauCpe(bande: Bande): void {
@@ -899,7 +899,7 @@ export class PartieScene extends Phaser.Scene {
         positionLieu(this.cour, bande, 'cpe'),
       ),
     );
-    // Le carton rouge (DF.35) : illustré, ou à défaut un bonnet d'âne dessiné en code.
+    // Le carton rouge (DF.36) : illustré, ou à défaut un bonnet d'âne dessiné en code.
     if (this.textures.exists(PLATEAU.carton)) {
       c.addAt(this.add.image(0, -6, PLATEAU.carton).setScale(82 / 512), 0);
     } else {
@@ -1420,7 +1420,7 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * Boîte à goûter (DF.36) : un biscuit illustré et le score écrit en gros, « 2 / 3 ».
+   * Boîte à goûter (DF.37) : un biscuit illustré et le score écrit en gros, « 2 / 3 ».
    * Plus de cases : le nombre de goûters à ramasser se lit d'un coup d'œil.
    */
   private dessinerCartable(bande: Bande, cx: number, cy: number, points: number): void {
@@ -3154,7 +3154,7 @@ export class PartieScene extends Phaser.Scene {
     g.setPosition(x, y);
     g.lineStyle(5, COULEURS.encre, 1);
     switch (id) {
-      case 'cpe': // Le carton rouge (DF.35), ou à défaut le bonnet d'âne
+      case 'cpe': // Le carton rouge (DF.36), ou à défaut le bonnet d'âne
         if (this.textures.exists(PLATEAU.carton)) g.setData('image', PLATEAU.carton);
         else this.dessinerBonnetAne(g, 0, -10, 1.9);
         break;
