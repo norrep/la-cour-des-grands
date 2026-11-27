@@ -6,6 +6,7 @@ import { TEXTES } from '../../data/textes';
 import { ROLES } from '../../engine/index';
 import { avecVersion } from '../../version';
 import { chargerIncrustations } from '../ui/incrust';
+import { prechargerVideos } from '../videos';
 
 /** Clé du décor de la cour (image plein écran derrière le plateau). */
 export const DECOR = 'decor-cour';
@@ -45,15 +46,20 @@ function chargerPolice(): Promise<unknown> {
   return Promise.race([attente, new Promise((ok) => setTimeout(ok, 2000))]);
 }
 
-/** Les vidéos de pouvoir et de goûter du skin se téléchargent en fond : elles seront prêtes en partie. */
-function prechargerVideos(): void {
+/**
+ * Les vidéos de pouvoir et de goûter du skin se téléchargent en fond, gardées en mémoire : elles
+ * seront prêtes en partie (DV.6). Les Rouges d'abord (l'équipe proposée), puis les goûters.
+ */
+function prechargerToutesLesVideos(): void {
   const skin = skinActif();
-  if ((!skin.videoPouvoir && !skin.videoGouter) || typeof fetch !== 'function') return;
-  const urls = new Set(
-    ROLES.flatMap(({ id }) => (['rouge', 'bleu'] as const).map((b) => skin.videoPouvoir?.(b, id))),
-  );
-  if (skin.videoGouter) for (let i = 0; i < GOUTERS.length; i++) urls.add(skin.videoGouter(i)?.url);
-  for (const url of urls) if (url) void fetch(url).catch(() => undefined);
+  if (!skin.videoPouvoir && !skin.videoGouter) return;
+  const urls: (string | undefined)[] = [];
+  for (const b of ['rouge', 'bleu'] as const) {
+    urls.push(...ROLES.map(({ id }) => skin.videoPouvoir?.(b, id)));
+    if (b === 'rouge' && skin.videoGouter)
+      for (let i = 0; i < GOUTERS.length; i++) urls.push(skin.videoGouter(i)?.url);
+  }
+  prechargerVideos(urls);
 }
 
 /** Prépare la police, le décor et les images du skin actif, puis ouvre l'accueil. */
@@ -98,7 +104,7 @@ export class ChargementScene extends Phaser.Scene {
       choisirSkin('classique');
     });
     void Promise.all([skin, chargerPolice()]).finally(() => {
-      prechargerVideos();
+      prechargerToutesLesVideos();
       this.scene.start('accueil');
     });
   }

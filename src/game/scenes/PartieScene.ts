@@ -80,6 +80,7 @@ import {
 import { visuelCarte, type VisuelCarte } from '../cartes';
 import { choisirCarte } from '../../data/cartes';
 import { effacerIncrustations, jouerIncrust } from '../ui/incrust';
+import { prechargerVideos, videoEnMemoire } from '../videos';
 import { couchesPiscinePretes, poserDecorPiscine } from '../ui/decorPiscine';
 
 const RAYON_ILOT = 48;
@@ -197,6 +198,13 @@ export class PartieScene extends Phaser.Scene {
     const carte = donnees.carte ?? 'cour-premier-jour';
     choisirCarte(carte);
     choisirEquipes(donnees.equipes ?? { rouge: 'rouges', bleu: 'bleus' });
+    // Les vidéos des deux équipes de cette partie passent en tête des téléchargements (DV.6).
+    const skin = skinActif();
+    prechargerVideos(
+      (['rouge', 'bleu'] as const).flatMap((b) =>
+        ROLES.map(({ id }) => skin.videoPouvoir?.(b, id)),
+      ),
+    );
     this.visuel = visuelCarte(carte);
     this.cour = chargerCour(COURS[carte] as CourData);
     this.ctrl = new Controleur(this.cour, {
@@ -3501,7 +3509,7 @@ export class PartieScene extends Phaser.Scene {
     const url = gouter
       ? creme?.url
       : role
-        ? skin.videoPouvoir?.(cin.bande ?? 'rouge', role)
+        ? cin.bande && skin.videoPouvoir?.(cin.bande, role)
         : undefined;
     if (!url) return false;
 
@@ -3648,11 +3656,15 @@ export class PartieScene extends Phaser.Scene {
       video.play();
     });
     fond.on('pointerup', () => finir());
-    // Rien après 2,5 s (réseau lent) : on montre le panneau plutôt que de faire attendre.
-    this.time.delayedCall(2500, () => {
+    // La vidéo est d'habitude déjà en mémoire (DV.6) et démarre tout de suite. Sinon, on la
+    // prend sur le réseau et on lui laisse un peu plus de temps ; le coup reste visible pendant
+    // l'attente. Rien après ce délai : le panneau prend le relais.
+    const enMemoire = videoEnMemoire(url);
+    this.time.delayedCall(enMemoire ? 2500 : 5000, () => {
       if (!demarree) finir(true);
     });
-    video.loadURL(url, !lireSons());
+    if (enMemoire) video.loadHandler(enMemoire, !lireSons());
+    else video.loadURL(url, !lireSons());
     video.play();
     return true;
   }
