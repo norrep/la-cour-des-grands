@@ -622,13 +622,18 @@ export class PartieScene extends Phaser.Scene {
     const c = this.add.container(p.x, p.y);
     const g = this.add.graphics();
     const graine = graineDe(p.x, p.y);
-    forme(g, contourRect(-62, -34, 124, 76, 14, graine), {
-      remplissage: COULEURS.papier,
-      ombre: 5,
-      trait: 4,
-    });
+    const illustre = this.textures.exists(lieu === 'portail' ? PLATEAU.portail : PLATEAU.cpe);
+    // Lieu illustré (DF.25) : l'image seule, en grand, sans carte de papier autour.
+    if (!illustre) {
+      forme(g, contourRect(-62, -34, 124, 76, 14, graine), {
+        remplissage: COULEURS.papier,
+        ombre: 5,
+        trait: 4,
+      });
+    }
+    const yTitre = illustre ? -58 : -36;
     const t = this.add
-      .text(0, -36, titre, {
+      .text(0, yTitre, titre, {
         fontFamily: POLICE,
         fontSize: '16px',
         color: COULEURS.texteSombre,
@@ -636,13 +641,15 @@ export class PartieScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     const e = this.add.graphics();
-    forme(e, contourRect(-t.width / 2 - 9, -48, t.width + 18, 24, 10, graine + 1, 0.6), {
+    forme(e, contourRect(-t.width / 2 - 9, yTitre - 12, t.width + 18, 24, 10, graine + 1, 0.6), {
       remplissage: bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu,
       trait: 3,
     });
     c.add([g, e, t]);
-    c.setRotation((bande === 'rouge' ? 1 : -1) * (lieu === 'portail' ? -0.04 : 0.04));
-    c.setSize(124, 90);
+    c.setRotation(
+      illustre ? 0 : (bande === 'rouge' ? 1 : -1) * (lieu === 'portail' ? -0.04 : 0.04),
+    );
+    c.setSize(124, illustre ? 120 : 90);
     if (this.ctrl.phase === 'jeu') {
       c.setInteractive({ useHandCursor: true });
       c.on('pointerup', fiche);
@@ -650,6 +657,52 @@ export class PartieScene extends Phaser.Scene {
     this.ajouter(c);
     this.panneauxLieux.set(`${bande}:${lieu}`, c);
     return c;
+  }
+
+  /** Pastille de nombre d'un lieu illustré (copains au portail, punis à la CPE). */
+  private compteurLieu(
+    x: number,
+    y: number,
+    texte: string,
+    bande: Bande,
+  ): Phaser.GameObjects.Container {
+    const t = this.add
+      .text(0, 0, texte, {
+        fontFamily: POLICE,
+        fontSize: '22px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const g = this.add.graphics();
+    const l = Math.max(40, t.width + 18);
+    forme(g, contourRect(-l / 2, -17, l, 34, 17, graineDe(x, l), 0.5), {
+      remplissage: COULEURS.papier,
+      trait: 3,
+    });
+    g.lineStyle(3, bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu, 1);
+    return this.add.container(x, y, [g, t]);
+  }
+
+  /** Les enrhumés du rang : un mouchoir avec leur nombre, au coin du portail. */
+  private dessinerMalades(c: Phaser.GameObjects.Container, malades: number): void {
+    if (malades === 0) return;
+    const m = this.add.graphics();
+    forme(m, contourRond(-46, 30, 17, graineDe(malades, 9)), { remplissage: 0xffffff, trait: 3 });
+    m.fillStyle(0xe0503f, 1);
+    m.fillRect(-50, 19, 8, 22);
+    m.fillRect(-57, 26, 22, 8);
+    const tm = this.add
+      .text(-30, 44, `${malades}`, {
+        fontFamily: POLICE,
+        fontSize: '16px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+        backgroundColor: '#ffffff',
+        padding: { x: 3, y: 0 },
+      })
+      .setOrigin(0.5);
+    c.add([m, tm]);
   }
 
   /** Le portail : les copains du couloir y attendent qu'on les appelle. */
@@ -665,8 +718,10 @@ export class PartieScene extends Phaser.Scene {
     );
     const g = this.add.graphics();
     if (this.textures.exists(PLATEAU.portail)) {
-      c.add(this.add.image(-28, 6, PLATEAU.portail).setScale(78 / 512));
-      g.setVisible(false);
+      c.addAt(this.add.image(0, 4, PLATEAU.portail).setScale(112 / 512), 0);
+      c.add(this.compteurLieu(40, 34, `×${n}`, bande));
+      this.dessinerMalades(c, j.infirmerie.length);
+      return;
     }
     // Grille du portail : deux piliers et des barreaux.
     g.fillStyle(0xbfb3a0, 1);
@@ -732,8 +787,15 @@ export class PartieScene extends Phaser.Scene {
     );
     const g = this.add.graphics();
     if (this.textures.exists(PLATEAU.cpe)) {
-      c.add(this.add.image(-36, 4, PLATEAU.cpe).setScale(74 / 512));
-      g.setVisible(false);
+      c.addAt(this.add.image(0, 2, PLATEAU.cpe).setScale(108 / 512), 0);
+      // Les punis assis devant le bureau (les 3 derniers), et leur nombre dans une pastille.
+      punis.slice(-3).forEach((el, k, liste) => {
+        const b = creerBadge(this, el.bande, el.role, 26);
+        b.setPosition((k - (liste.length - 1) / 2) * 24 - 8, 40);
+        c.add(b);
+      });
+      c.add(this.compteurLieu(40, 34, punis.length === 0 ? '0' : `×${punis.length}`, bande));
+      return;
     }
     // Porte vitrée du bureau.
     forme(g, contourRect(-54, -18, 34, 52, 4, graineDe(bande.length, 3), 0.5), {
