@@ -224,24 +224,24 @@ export const TEXTES = {
   planque: 'Planqué !',
   /** Fiche de la cour, au lancement de la partie (DF.17). */
   presentation: {
-    surtitre: 'Aujourd’hui, on joue dans…',
     bouton: 'C’est parti !',
     /** Plus tard : affiché pendant qu'on cherche un adversaire en ligne. */
     attente: 'On attend un adversaire',
     regleTitre: '★ Règle spéciale',
     sansRegle: 'Pas d’îlot spécial aujourd’hui : tous les îlots se valent.',
-    legende: {
-      cabanes: 'Les cabanes : pose un élève dans celle d’en face et tu gagnes.',
-      gouters: (seuil: number) =>
-        `Les goûters : entoure-les d’élèves pour les ramasser. ${seuil} bons points et tu gagnes.`,
-      josiane: 'Mme Josiane garde un goûter et change de place à chaque tour.',
+    bulles: {
+      cabane: 'Pose un élève dans la cabane d’en face : gagné !',
+      gouter: (seuil: number) =>
+        `Entoure un goûter d’élèves pour le ramasser. ${seuil} bons points : gagné !`,
+      banc: '★ Le banc est une planque : là, personne ne peut te toucher.',
+      josiane: 'Mme Josiane garde ce goûter. Elle bouge à chaque tour.',
     },
     cours: {
       'cour-premier-jour': {
         contexte:
           'Premier jour de récré ! Les rouges et les bleus se disputent la cour et ses goûters avant la sonnerie.',
         regle:
-          'Deux bancs, un de chaque côté. L’élève qui s’y assoit est planqué : personne ne peut le plaquer, l’envoyer chez la CPE ni le déplacer.',
+          'Deux bancs planques : l’élève assis dessus ne peut être ni plaqué, ni envoyé chez la CPE, ni déplacé.',
       },
     } as Partial<Record<string, { contexte: string; regle: string }>>,
   },
