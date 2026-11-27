@@ -234,12 +234,19 @@ export interface OptionsPartie {
   equipements?: boolean;
   /** Force le premier joueur (sinon tiré au hasard). */
   premier?: Bande;
+  /**
+   * Un pouvoir sans vrai choix (une seule option, ou des options équivalentes) s'applique tout
+   * seul, sans demande (DF.40). Le jeu l'active ; par défaut la règle stricte (facultatif).
+   */
+  pouvoirsAuto?: boolean;
 }
 
 export interface EtatPartie {
   /** Référence partagée, jamais modifiée. */
   cour: Cour;
   equipements: boolean;
+  /** Voir `OptionsPartie.pouvoirsAuto`. */
+  pouvoirsAuto?: boolean;
   /** État du générateur aléatoire à graine. */
   rng: number;
   joueurs: Record<Bande, Joueur>;

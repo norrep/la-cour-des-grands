@@ -44,8 +44,15 @@ export function planAnimations(nouveaux: readonly Evenement[]): Etape[] {
   // Fin de la dernière conséquence déjà lancée : la victoire attend qu'elle soit finie.
   let finConsequences = t;
   const plan: Etape[] = [];
+  let poses = 0;
   for (const ev of nouveaux) {
-    if (ev.type === 'pose' || ev.type === 'appel') {
+    if (ev.type === 'pose' && poses++ > 0) {
+      // 2e élève posé dans le même coup (Chouchou appliqué tout seul, DF.40) : il arrive une fois
+      // les conséquences du premier jouées, puis les siennes suivent.
+      plan.push({ ev, debut: t });
+      t += DUREE_ARRIVEE;
+      finConsequences = Math.max(finConsequences, t);
+    } else if (ev.type === 'pose' || ev.type === 'appel') {
       plan.push({ ev, debut: 0 });
     } else if (estConsequence(ev)) {
       plan.push({ ev, debut: t });
