@@ -33,13 +33,13 @@ export const FUN = {
   choix: {
     populaire: ['La Populaire claque des doigts : touche ta pioche, 2 copains rappliquent.'],
     chouchou: ['« Mon grand frère va venir ! » Glisse un 5 ou plus (cartes claires).'],
-    rapporteuse: ['« Madaaame ! » Touche l’adversaire qui tremble : carton rouge !'],
+    rapporteuse: ['« Madaaame ! » Touche l’adversaire qui tremble : puni !'],
     contagieux: ['Atchoum ! Touche la pioche d’en face pour refiler le rhume.'],
     delegue: ['Mot d’excuse en main : touche Mme Josiane pour l’éloigner, ou garde-le pour toi.'],
     banc: ['★ Banc : planqué sur le banc, il ne bouge plus d’un poil.'],
     cabanePerchee: ['★ Cabane perchée : touche ta pioche, un copain grimpe.'],
-    porteVieScolaire: ['★ Vie scolaire : touche le copain exclu à faire revenir.'],
-    buts: ['★ Buts : touche le petit (1 ou 2) qui prend un carton rouge. Tir cadré !'],
+    porteVieScolaire: ['★ Vie scolaire : touche le copain puni à faire revenir.'],
+    buts: ['★ Buts : touche le petit (1 ou 2) à punir. Tir cadré !'],
     tobogganDepart: ['★ Toboggan : qui on fait glisser ? Touche-le.'],
     tobogganArrivee: ['★ Toboggan : il atterrit où ? Touche l’îlot.'],
   },
@@ -81,8 +81,8 @@ export const FUN = {
       `${BT(b)} récupère ${n} élève${s(n)} qui traînai${n > 1 ? 'ent' : 't'} dans la pioche.`,
     ],
     cpe: (role: RoleId, b: Bande) => [
-      `${R(role)} (${B(b)}) prend un carton rouge, oreilles basses.`,
-      `Carton rouge pour ${min(R(role))} (${B(b)}) ! Sur la touche.`,
+      `${R(role)} (${B(b)}) est puni, oreilles basses.`,
+      `Puni, ${min(R(role))} (${B(b)}) ! Carton rouge.`,
     ],
     infirmerie: (b: Bande) => [
       `Atchoum ! Un élève de la ${B(b)} file à l’infirmerie, mouchoir en main.`,
@@ -92,7 +92,7 @@ export const FUN = {
       '« C’est signé par le directeur ! » La surveillante change de goûter.',
     ],
     rappel: (b: Bande) => [`${BT(b)} rappelle un élève : « Reviens, on a besoin de toi ! »`],
-    repechage: (b: Bande) => [`${BT(b)} négocie le retour d’un exclu. Promis, il sera sage.`],
+    repechage: (b: Bande) => [`${BT(b)} négocie le retour d’un puni. Promis, il sera sage.`],
     glissade: (role: RoleId) => [`Wiiiz ! ${R(role)} dévale le toboggan.`],
     passe: (b: Bande) => [`${BT(b)} garde son pouvoir dans sa poche.`],
     region: (b: Bande, nom: string, n: number) => [

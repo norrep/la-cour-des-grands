@@ -164,3 +164,5 @@ Le bonnet d'âne, dessiné puis illustré, ne se reconnaissait pas (« Ça ne fo
 
 - Image : `public/plateau/carton.png`, clé `PLATEAU.carton` ; le bonnet d'âne dessiné en code reste en secours. `bonnet.png` est retiré.
 - Vocabulaire affiché : « Au coin » → « Carton rouge » (lieu, fiche « Cartons rouges », annonce « Carton rouge ! », consignes « prend un carton rouge », « faire revenir un élève exclu »). Nom interne `cpe` inchangé.
+
+Mise à jour (Clément : « Garde le texte punis non ? ») : l'image reste le carton rouge, mais les mots reviennent à « punis » : lieu « Punis », fiche « Les punis », annonce « Puni ! », consignes « est puni », « à punir », « faire revenir un élève puni ».
