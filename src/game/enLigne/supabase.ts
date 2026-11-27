@@ -10,6 +10,9 @@ import {
 } from '../../reseau/index';
 import { SUPABASE_CLE_PUBLIQUE, SUPABASE_URL } from './config';
 
+/** Temps maximal d'une demande au serveur (ms). */
+const DELAI_RESEAU = 15_000;
+
 export interface Profil {
   id: string;
   pseudo: string;
@@ -27,7 +30,20 @@ export class ServeurSupabase implements ServeurParties {
 
   constructor(url = SUPABASE_URL, cle = SUPABASE_CLE_PUBLIQUE) {
     this.base = createClient(url, cle, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        // Le verrou entre onglets du navigateur peut rester bloqué sur certains téléphones (et
+        // dans les navigateurs intégrés aux applis) : le jeu n'a qu'un onglet, on s'en passe.
+        lock: async (_nom, _delai, faire) => faire(),
+      },
+      // Une demande sans réponse au bout de 15 s échoue avec un message, au lieu d'attendre
+      // pour toujours.
+      global: {
+        fetch: (entree, init) =>
+          fetch(entree, { ...init, signal: init?.signal ?? AbortSignal.timeout(DELAI_RESEAU) }),
+      },
     });
   }
 
@@ -36,6 +52,9 @@ export class ServeurSupabase implements ServeurParties {
     const { data } = await this.base.auth.getSession();
     if (data.session) return data.session.user.id;
     const { data: cree, error } = await this.base.auth.signInAnonymously();
+    if (error?.code === 'anonymous_provider_disabled') {
+      throw new Refus('connexion_fermee', error.message);
+    }
     if (error || !cree.user) throw error ?? new Error('Connexion impossible.');
     return cree.user.id;
   }
