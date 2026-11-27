@@ -180,6 +180,7 @@ export const TEXTES = {
     infirmerie: 'Infirmerie',
     rangVide: 'Ton rang est vide : appelle des copains !',
     ordiReflechit: 'L’ordi réfléchit…',
+    aToi: 'À toi !',
     toucherCarte: 'Touche un élève : son pouvoir',
     consigneTour: 'Glisse un élève vers la cour, ou :',
     consigneSansPose: 'Aucune pose possible : appelle des copains.',
@@ -187,6 +188,8 @@ export const TEXTES = {
   },
   boutons: {
     appeler: (n: number) => (n > 1 ? `Appeler ${n} copains` : 'Appeler 1 copain'),
+    /** Sur la pioche (DL.2) : la place est comptée. */
+    appelerCourt: (n: number) => (n > 1 ? `+${n} copains` : '+1 copain'),
     passer: 'Passer',
     motExcuse: 'Mot d’excuse !',
     piocher: 'Piocher',
@@ -221,6 +224,7 @@ export const TEXTES = {
     ilotVide: 'Îlot vide.',
     titreIlot: 'Un îlot',
     pile: (lignes: string[]) => `Pile, du dessus au dessous : ${lignes.join(', ')}.`,
+    pileTitre: (n: number) => `Pile de ${n} : seul le dessus joue`,
     elevePile: (role: RoleId, b: Bande, valeur: number | null) =>
       `${ROLES_COURTS[role]} ${equipeDe(b).court} (${valeur === null ? 'J' : valeur})`,
     get garde(): string {
@@ -279,7 +283,8 @@ export const TEXTES = {
     but: 'Deux façons de gagner : entrer dans la cabane adverse, ou ramasser 3 goûters en entourant les friandises de la cour.',
     glisser:
       'Glisse un élève de ton rang vers la cour. Il ne peut aller que sur un îlot touchant ta cabane ou ton chemin.',
-    appeler: '« Appeler des copains » pioche 2 élèves. Ton tour s’arrête là.',
+    appeler:
+      'Le bouton « +2 copains », à côté de ta pioche, fait venir 2 élèves. Ton tour s’arrête là.',
     chemin:
       'Le trait de couleur, c’est ton chemin depuis ta cabane. Tu peux poser sur tout îlot qui touche ce chemin.',
     plaquer:
@@ -383,7 +388,7 @@ export const TEXTES = {
     texteCouloir: (n: number) =>
       n === 0
         ? 'La pioche est vide : on ne peut plus appeler de copains.'
-        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. « Appeler des copains » en fait venir 2 dans le rang.`,
+        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. Le bouton « +2 copains » en fait venir 2 dans le rang.`,
     ficheCpe: (b: Bande) => `Les punis (${BANDES[b]})`,
     texteCpe: (n: number) =>
       n === 0

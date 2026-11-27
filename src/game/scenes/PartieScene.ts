@@ -54,7 +54,8 @@ import {
   noeudSous,
   positionNoeud,
   RANG,
-  xCarteRang,
+  poseCarteRang,
+  ZONE_COUR,
   type Point,
   DESCENTE,
   MONTEE,
@@ -92,8 +93,12 @@ const RAYON_ILOT = 48;
 const ZONE_HAUT_COUR = 100;
 const TAILLE_BADGE = 70;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
-const DIAMETRE_PASTILLE = 92;
+const DIAMETRE_PASTILLE = 112;
 const RAYON_DEPOT = 75;
+/** Temps du doigt posé sur une carte avant que la loupe s'ouvre (ms). */
+const DELAI_LOUPE = 220;
+/** De combien la main descend pendant le tour d'en face. */
+const DESCENTE_REPOS = 70;
 const Y_ACTIONS = 1064 + DESCENTE;
 
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
@@ -122,7 +127,15 @@ export class PartieScene extends Phaser.Scene {
   private surbrillances: Phaser.GameObjects.GameObject[] = [];
   private departToboggan: string | null = null;
   /** Fiche d'information affichée à la place du journal (élève ou îlot touché). */
-  private fiche: { titre: string; texte: string; ancre?: Point } | null = null;
+  private fiche: {
+    titre: string;
+    texte: string;
+    ancre?: Point;
+    /** Loupe (DL.3) : la fiche d'un élève montre sa carte en grand. */
+    eleve?: Eleve;
+    /** Pile dépliée (DL.5) : la fiche d'un îlot montre tous ses élèves. */
+    pile?: string;
+  } | null = null;
   /** Rang de la bande qui joue, juste avant son coup : les nouveaux venus y entrent en volant. */
   /** Rang avant le dernier coup, et d'où arrivent les nouveaux venus (portail par défaut). */
   private rangAvant: {
@@ -156,6 +169,8 @@ export class PartieScene extends Phaser.Scene {
   private cinematiques: Cinematique[] = [];
   private cinematiqueEnCours: Phaser.GameObjects.Container | null = null;
   private tweensCinematique = new Set<Phaser.Tweens.Tween>();
+  /** Au dernier dessin, c'était à l'ordi (ou à l'ami) de jouer : pour le « À toi ! » (DL.7). */
+  private etaitTourAdverse = false;
   /** Pouvoir dont la vidéo est passée à la pose : sa résolution, au coup suivant, ne la remontre
    * pas (DV.7). */
   private pouvoirDejaMontre: RoleId | null = null;
@@ -377,27 +392,20 @@ export class PartieScene extends Phaser.Scene {
     // Plus de zone de notes : le rang reste toujours visible, et les explications viennent en
     // bulles près de ce qu'elles décrivent (demande de Clément).
     if (this.ctrl.phase === 'jeu' && this.tourOrdi) {
-      // L'ordi joue : on garde son propre rang sous les yeux, sans pouvoir y toucher.
-      this.dessinerRang(this.bandeVue, false);
+      // L'ordi joue : on garde son propre rang sous les yeux, rangé plus bas et passé, sans pouvoir
+      // y toucher ; un bandeau et un cadre à la couleur d'en face disent que c'est son tour (DL.7).
+      this.dessinerRang(this.bandeVue, false, true);
       const attente = this.enLigne ? TEXTES.enLigne.tourAdverse : TEXTES.hud.ordiReflechit;
-      this.texte(LARGEUR / 2, Y_ACTIONS, attente, 24, COULEURS.texteSombre, {
-        fontStyle: '700',
-        stroke: '#fff6e4',
-        strokeThickness: 6,
-      }).setOrigin(0.5);
+      this.bandeauTour(attente, this.bandeActive, true);
       this.planifierOrdi();
     } else if (this.ctrl.phase === 'jeu' && this.enLigne?.envoi) {
       // Le coup est parti au serveur : on attend son résultat pour le montrer.
-      this.dessinerRang(this.bandeVue, false);
-      this.texte(LARGEUR / 2, Y_ACTIONS, TEXTES.enLigne.envoi, 24, COULEURS.texteSombre, {
-        fontStyle: '700',
-        stroke: '#fff6e4',
-        strokeThickness: 6,
-      }).setOrigin(0.5);
+      this.dessinerRang(this.bandeVue, false, true);
+      this.bandeauTour(TEXTES.enLigne.envoi, this.bandeVue, false);
     } else if (this.ctrl.phase === 'jeu') {
       this.dessinerActions();
       // Pendant un choix hors du rang, le rang reste visible mais ne se glisse pas.
-      this.dessinerRang(this.bandeActive, !this.attenteHorsRang());
+      this.dessinerRang(this.bandeActive, !this.attenteHorsRang(), this.attenteHorsRang());
       this.bulleConsigne();
     }
     if (this.ctrl.phase === 'passe') {
@@ -408,13 +416,106 @@ export class PartieScene extends Phaser.Scene {
     // Le rang d'en face : combien d'élèves l'adversaire a en main (demande de Clément).
     if (this.rangVisible) this.dessinerRangAdverse(this.rangVisible === 'rouge' ? 'bleu' : 'rouge');
     if (this.ctrl.phase === 'fin' && !this.finEnAttente) this.dessinerFin();
-    if (this.fiche) this.dessinerFiche(this.fiche.titre, this.fiche.texte, this.fiche.ancre);
+    if (this.fiche) this.dessinerFiche(this.fiche);
     if (this.aideOuverte) this.dessinerAide();
     else this.dessinerConseil();
+    // Le tour revient au joueur : un « À toi ! » bien visible (DL.7).
+    const adverse = this.ctrl.phase === 'jeu' && this.tourOrdi;
+    if (this.etaitTourAdverse && !adverse && this.ctrl.phase === 'jeu') this.tamponAToi();
+    this.etaitTourAdverse = adverse;
   }
 
-  private montrerFiche(titre: string, texte: string, ancre?: Point): void {
-    this.fiche = ancre ? { titre, texte, ancre } : { titre, texte };
+  /**
+   * Bandeau du tour, posé sur la main rangée (DL.7) : à la couleur de la bande qui joue. Pendant
+   * le tour d'en face, un cadre de sa couleur borde aussi l'écran.
+   */
+  private bandeauTour(texte: string, bande: Bande, cadre: boolean): void {
+    const couleur = equipeDe(bande).couleur;
+    if (cadre) {
+      const g = this.ajouter(this.add.graphics());
+      g.lineStyle(14, couleur, 0.9);
+      g.strokeRect(GAUCHE + 7, HAUT + 7, DROITE - GAUCHE - 14, BAS - HAUT - 14);
+    }
+    const y = RANG.y - 40;
+    const t = this.add
+      .text(0, 0, texte, {
+        fontFamily: POLICE,
+        fontSize: '30px',
+        color: COULEURS.texteClair,
+        fontStyle: '700',
+        stroke: COULEURS.texteSombre,
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5);
+    const l = Math.max(360, t.width + 60);
+    const fond = this.add.graphics();
+    forme(fond, contourRect(-l / 2, -38, l, 76, 24, graineDe(l, 17), 0.8), {
+      remplissage: couleur,
+      trait: 4,
+      ombre: 5,
+    });
+    const c = this.ajouter(this.add.container(LARGEUR / 2, y, [fond, t]));
+    c.setRotation(-0.02);
+    // Il se balance doucement : quelqu'un est en train de jouer.
+    this.tweens.add({
+      targets: c,
+      rotation: 0.02,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  /** « À toi ! » : un tampon qui claque au-dessus de la main quand le tour revient (DL.7). */
+  private tamponAToi(): void {
+    jouerSon('aToi');
+    const bande = this.bandeVue;
+    const t = this.add
+      .text(0, 0, TEXTES.hud.aToi, {
+        fontFamily: POLICE,
+        fontSize: '64px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const l = t.width + 70;
+    const fond = this.add.graphics();
+    forme(fond, contourRect(-l / 2, -56, l, 112, 30, graineDe(l, 5), 0.9), {
+      remplissage: COULEURS.jaune,
+      trait: 5,
+      ombre: 7,
+    });
+    const bord = this.add.graphics();
+    bord.lineStyle(8, equipeDe(bande).couleur, 1);
+    bord.strokeRoundedRect(-l / 2 + 10, -46, l - 20, 92, 22);
+    const c = this.add
+      .container(LARGEUR / 2, RANG.y - RANG.hauteurCarte / 2 - 120, [fond, bord, t])
+      .setDepth(900)
+      .setRotation(-0.06);
+    if (!this.animations) {
+      this.time.delayedCall(900, () => c.destroy());
+      return;
+    }
+    c.setScale(0.2).setAlpha(0);
+    this.tweenCinematique({ targets: c, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
+    this.tweenCinematique({
+      targets: c,
+      alpha: 0,
+      y: c.y - 40,
+      delay: 1000,
+      duration: 300,
+      onComplete: () => c.destroy(),
+    });
+  }
+
+  private montrerFiche(
+    titre: string,
+    texte: string,
+    ancre?: Point,
+    extra: { eleve?: Eleve; pile?: string } = {},
+  ): void {
+    this.fiche = { titre, texte, ...(ancre ? { ancre } : {}), ...extra };
     this.rafraichir(true);
   }
 
@@ -651,14 +752,8 @@ export class PartieScene extends Phaser.Scene {
         );
       }
 
-      // Élèves plaqués : petits badges en colonne à gauche de l'îlot (le plus haut = juste dessous).
-      const pileIlot = e.piles[id] ?? [];
-      const dessous = pileIlot.slice(0, -1).reverse();
-      dessous.slice(0, 4).forEach((el, k) => {
-        const mini = creerBadge(this, el.bande, el.role, 26);
-        mini.setPosition(p.x - RAYON_ILOT - 22, p.y - 30 + k * 22);
-        this.ajouter(mini);
-      });
+      // Les élèves plaqués ne sont plus en mini-badges illisibles (DL.5) : la pastille « ×N »
+      // dit la hauteur, et toucher la pile la déplie.
 
       const dessus = sommet(e, id);
       if (dessus) {
@@ -673,12 +768,13 @@ export class PartieScene extends Phaser.Scene {
         const hauteur = e.piles[id]?.length ?? 0;
         if (hauteur > 1) {
           const cg = this.ajouter(this.add.graphics());
-          forme(cg, contourRond(p.x - 40, p.y + 30, 15, graineDe(p.x, p.y) + 3), {
+          forme(cg, contourRond(p.x - 50, p.y + 38, 23, graineDe(p.x, p.y) + 3), {
             remplissage: COULEURS.papier,
             trait: 3,
+            ombre: 3,
           });
-          this.texte(p.x - 40, p.y + 30, `×${hauteur}`, 15, COULEURS.texteSombre, {
-            fontStyle: '600',
+          this.texte(p.x - 50, p.y + 38, `×${hauteur}`, 24, COULEURS.texteSombre, {
+            fontStyle: '700',
           }).setOrigin(0.5);
         }
       }
@@ -691,7 +787,7 @@ export class PartieScene extends Phaser.Scene {
 
   /** Étiquette de papier au trait noir, centrée en x, posée sous le point donné. */
   private etiquette(x: number, y: number, contenu: string, fond: number): void {
-    const t = this.texte(x, y + 3, contenu, 15, COULEURS.texteSombre, { fontStyle: '600' });
+    const t = this.texte(x, y + 3, contenu, 22, COULEURS.texteSombre, { fontStyle: '600' });
     t.setOrigin(0.5, 0);
     const l = t.width + 16;
     const h = t.height + 6;
@@ -766,12 +862,25 @@ export class PartieScene extends Phaser.Scene {
       morceaux.push(F.special + TEXTES.effetsEquipements[n.equipement]);
     }
     const pile = (this.etat.piles[id] ?? []).slice().reverse();
+    const special = this.etat.equipements && n.equipement;
+    // Un élève seul : sa carte à la loupe (DL.3). Une pile : dépliée (DL.5).
+    const dessus = pile[0];
+    if (pile.length === 1 && dessus) {
+      const texte = [TEXTES.pouvoirs[dessus.role], ...morceaux].join(' ');
+      this.montrerFiche(TEXTES.fiche.eleve(dessus.role, valeur(dessus.role)), texte, this.pos(id), {
+        eleve: dessus,
+      });
+      return;
+    }
+    if (pile.length > 1) {
+      this.montrerFiche(F.pileTitre(pile.length), morceaux.join(' '), this.pos(id), { pile: id });
+      return;
+    }
     morceaux.push(
       pile.length === 0
         ? aide(F.ilotVide, FUN.fiche.ilotVide, this.etat.tour)
         : F.pile(pile.map((el) => F.elevePile(el.role, el.bande, valeur(el.role)))),
     );
-    const special = this.etat.equipements && n.equipement;
     this.montrerFiche(special ? n.nom : TEXTES.fiche.titreIlot, morceaux.join(' '), this.pos(id));
   }
 
@@ -869,13 +978,13 @@ export class PartieScene extends Phaser.Scene {
     const t = this.add
       .text(0, yTitre, titre, {
         fontFamily: POLICE,
-        fontSize: '16px',
+        fontSize: '21px',
         color: COULEURS.texteSombre,
         fontStyle: '700',
       })
       .setOrigin(0.5);
     const e = this.add.graphics();
-    forme(e, contourRect(-t.width / 2 - 9, yTitre - 12, t.width + 18, 24, 10, graine + 1, 0.6), {
+    forme(e, contourRect(-t.width / 2 - 10, yTitre - 15, t.width + 20, 30, 12, graine + 1, 0.6), {
       remplissage: equipeDe(bande).couleur,
       trait: 3,
     });
@@ -903,14 +1012,14 @@ export class PartieScene extends Phaser.Scene {
     const t = this.add
       .text(0, 0, texte, {
         fontFamily: POLICE,
-        fontSize: '22px',
+        fontSize: '24px',
         color: COULEURS.texteSombre,
         fontStyle: '700',
       })
       .setOrigin(0.5);
     const g = this.add.graphics();
-    const l = Math.max(40, t.width + 18);
-    forme(g, contourRect(-l / 2, -17, l, 34, 17, graineDe(x, l), 0.5), {
+    const l = Math.max(44, t.width + 18);
+    forme(g, contourRect(-l / 2, -19, l, 38, 19, graineDe(x, l), 0.5), {
       remplissage: COULEURS.papier,
       trait: 3,
     });
@@ -929,7 +1038,7 @@ export class PartieScene extends Phaser.Scene {
     const tm = this.add
       .text(-30, 44, `${malades}`, {
         fontFamily: POLICE,
-        fontSize: '16px',
+        fontSize: '22px',
         color: COULEURS.texteSombre,
         fontStyle: '700',
         backgroundColor: '#ffffff',
@@ -1357,11 +1466,11 @@ export class PartieScene extends Phaser.Scene {
     } else {
       this.dessinerFriandise(g, index, x, y);
     }
-    const t = this.texte(x - 26, y - 24, `+${points}`, 17, COULEURS.texteSombre, {
+    const t = this.texte(x - 28, y - 26, `+${points}`, 22, COULEURS.texteSombre, {
       fontStyle: '700',
     }).setOrigin(0.5);
     const fond = this.add.graphics();
-    forme(fond, contourRond(t.x, t.y, 15, graineDe(x, y) + 5), {
+    forme(fond, contourRond(t.x, t.y, 19, graineDe(x, y) + 5), {
       remplissage: COULEURS.jaune,
       trait: 3,
     });
@@ -1527,12 +1636,12 @@ export class PartieScene extends Phaser.Scene {
   }
 
   private etiquetteVerbe(x: number, y: number, verbe: string): void {
-    const t = this.texte(x, y, verbe, 20, COULEURS.texteSombre, { fontStyle: '700' }).setOrigin(
+    const t = this.texte(x, y, verbe, 24, COULEURS.texteSombre, { fontStyle: '700' }).setOrigin(
       0.5,
     );
     const l = t.width + 22;
     const g = this.add.graphics();
-    forme(g, contourRect(x - l / 2, y - 17, l, 34, 14, graineDe(x, y), 0.8), {
+    forme(g, contourRect(x - l / 2, y - 20, l, 40, 15, graineDe(x, y), 0.8), {
       remplissage: COULEURS.jaune,
       trait: 3,
       ombre: 3,
@@ -1812,7 +1921,7 @@ export class PartieScene extends Phaser.Scene {
     texte: string,
     ancre?: Point,
     fond: number = COULEURS.papier,
-    largeurMax = 400,
+    largeurMax = 470,
     /** Forcer la bulle sous ce qu'elle décrit (pour ne pas le cacher). */
     dessous = false,
     /** Décaler la bulle de côté (sa pointe reste sur la cible). */
@@ -1821,7 +1930,7 @@ export class PartieScene extends Phaser.Scene {
     const marge = 16;
     const corps = this.add.text(0, 0, texte, {
       fontFamily: POLICE,
-      fontSize: '18px',
+      fontSize: '22px',
       color: COULEURS.texteSombre,
       fontStyle: '500',
       wordWrap: { width: largeurMax - 2 * marge },
@@ -1829,7 +1938,7 @@ export class PartieScene extends Phaser.Scene {
     const enTete = titre
       ? this.add.text(0, 0, titre, {
           fontFamily: POLICE,
-          fontSize: '18px',
+          fontSize: '22px',
           color: COULEURS.texteSombre,
           fontStyle: '700',
           wordWrap: { width: largeurMax - 2 * marge },
@@ -1873,9 +1982,181 @@ export class PartieScene extends Phaser.Scene {
     return c;
   }
 
+  /**
+   * La loupe (DL.3) : la carte de l'élève en grand au-dessus du rang, son nom et son pouvoir en
+   * gros dessous. Elle s'ouvre au doigt posé sur une carte (le temps qu'on la tienne) ou au toucher
+   * (jusqu'au toucher suivant), et aussi sur un élève seul sur la cour.
+   */
+  private dessinerLoupe(el: Eleve, titre: string, texte: string): Phaser.GameObjects.Container {
+    const c = this.add.container(0, 0);
+    const voile = this.add.rectangle(
+      GAUCHE,
+      HAUT,
+      DROITE - GAUCHE,
+      BAS - HAUT,
+      COULEURS.fondSombre,
+      0.5,
+    );
+    voile.setOrigin(0, 0);
+    const largeur = Math.min(620, DROITE - GAUCHE - 40);
+    const marge = 22;
+    const enTete = this.add
+      .text(LARGEUR / 2, 0, titre, {
+        fontFamily: POLICE,
+        fontSize: '30px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+        align: 'center',
+        wordWrap: { width: largeur - 2 * marge },
+      })
+      .setOrigin(0.5, 0);
+    const corps = this.add
+      .text(LARGEUR / 2, 0, texte, {
+        fontFamily: POLICE,
+        fontSize: '25px',
+        color: COULEURS.texteSombre,
+        fontStyle: '500',
+        align: 'center',
+        lineSpacing: 2,
+        wordWrap: { width: largeur - 2 * marge },
+      })
+      .setOrigin(0.5, 0);
+    const h = enTete.height + 8 + corps.height + 2 * marge;
+    // Le papier se pose juste au-dessus du rang, la carte au-dessus du papier.
+    const y0 = RANG.y - RANG.hauteurCarte / 2 - 24 - h;
+    const papier = this.add.graphics();
+    forme(
+      papier,
+      contourRect(LARGEUR / 2 - largeur / 2, y0, largeur, h, 20, graineDe(y0, 3), 0.8),
+      {
+        remplissage: COULEURS.papier,
+        trait: 4,
+        ombre: 6,
+      },
+    );
+    enTete.setY(y0 + marge);
+    corps.setY(y0 + marge + enTete.height + 8);
+    const haut = ZONE_COUR.y + 10;
+    const echelle = Phaser.Math.Clamp((y0 + 16 - haut) / RANG.hauteurCarte, 1.2, 2.1);
+    const malade = this.etat.joueurs[el.bande].infirmerie.includes(el.id);
+    const carte = this.carte(
+      el,
+      LARGEUR / 2,
+      y0 + 16 - (RANG.hauteurCarte * echelle) / 2,
+      malade,
+      true,
+    );
+    carte.setScale(echelle).setRotation(-0.03);
+    c.add([voile, carte, papier, enTete, corps]);
+    this.ajouter(c);
+    // Petite arrivée : la carte grossit depuis le rang.
+    if (this.animations) {
+      carte.setScale(echelle * 0.6);
+      this.tweens.add({ targets: carte, scale: echelle, duration: 140, ease: 'Back.easeOut' });
+    }
+    return c;
+  }
+
+  /**
+   * Une pile dépliée (DL.5) : ses élèves côte à côte, du dessus au dessous, dans une bulle sous
+   * (ou sur) l'îlot. Remplace les mini-badges illisibles à côté de la pile.
+   */
+  private dessinerPileDepliee(
+    id: string,
+    titre: string,
+    texte: string,
+  ): Phaser.GameObjects.Container {
+    const p = this.pos(id);
+    const pile = (this.etat.piles[id] ?? []).slice().reverse();
+    const c = this.add.container(0, 0);
+    const voile = this.add.rectangle(
+      GAUCHE,
+      HAUT,
+      DROITE - GAUCHE,
+      BAS - HAUT,
+      COULEURS.fondSombre,
+      0.35,
+    );
+    voile.setOrigin(0, 0);
+    c.add(voile);
+    const skin = skinActif();
+    const pas = pile.length > 4 ? 112 : 132;
+    const marge = 20;
+    const l = Math.min(DROITE - GAUCHE - 24, Math.max(360, pile.length * pas + 2 * marge));
+    const enTete = this.add
+      .text(0, 0, titre, {
+        fontFamily: POLICE,
+        fontSize: '24px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+        align: 'center',
+        wordWrap: { width: l - 2 * marge },
+      })
+      .setOrigin(0.5, 0);
+    const corps = texte
+      ? this.add
+          .text(0, 0, texte, {
+            fontFamily: POLICE,
+            fontSize: '22px',
+            color: COULEURS.texteSombre,
+            fontStyle: '500',
+            align: 'center',
+            wordWrap: { width: l - 2 * marge },
+          })
+          .setOrigin(0.5, 0)
+      : null;
+    // Les têtes dépassent du haut des pastilles : on leur laisse de la place.
+    const hPastilles = pas + 60;
+    const h = marge + enTete.height + 8 + hPastilles + (corps ? corps.height + 8 : 0) + marge;
+    const dessous = p.y + 70 + h < RANG.y - RANG.hauteurCarte / 2;
+    const y0 = dessous ? p.y + 70 : p.y - 70 - h;
+    const x0 = Phaser.Math.Clamp(p.x - l / 2, GAUCHE + 12, DROITE - 12 - l);
+    const g = this.add.graphics();
+    forme(g, contourRect(x0, y0, l, h, 20, graineDe(x0, y0), 0.8), {
+      remplissage: COULEURS.papier,
+      trait: 4,
+      ombre: 6,
+    });
+    const px = Phaser.Math.Clamp(p.x, x0 + 30, x0 + l - 30);
+    const by = dessous ? y0 + 2 : y0 + h - 2;
+    const pointe = dessous ? p.y + 44 : p.y - 44;
+    g.fillStyle(COULEURS.papier, 1);
+    g.lineStyle(4, COULEURS.encre, 1);
+    g.fillTriangle(px - 16, by, px + 16, by, px, pointe);
+    g.lineBetween(px - 16, by, px, pointe);
+    g.lineBetween(px + 16, by, px, pointe);
+    const anneau = this.add.circle(p.x, p.y, DIAMETRE_PASTILLE / 2 + 10);
+    anneau.setStrokeStyle(7, COULEURS.allume, 1);
+    c.add([anneau, g]);
+    enTete.setPosition(x0 + l / 2, y0 + marge);
+    c.add(enTete);
+    const yP = y0 + marge + enTete.height + 8 + hPastilles / 2 + 22;
+    pile.forEach((el, k) => {
+      const x = x0 + l / 2 + (k - (pile.length - 1) / 2) * pas;
+      const b = skin.pastille
+        ? skin.pastille(this, el.bande, el.role, pas - 18)
+        : skin.eleve(this, el.bande, el.role, pas - 40);
+      b.setPosition(x, yP);
+      // Le dessus joue ; ceux d'en dessous sont plaqués, un peu passés.
+      if (k > 0) b.setAlpha(0.85);
+      c.add(b);
+    });
+    if (corps) {
+      corps.setPosition(x0 + l / 2, yP + hPastilles / 2 + 8);
+      c.add(corps);
+    }
+    this.ajouter(c);
+    return c;
+  }
+
   /** Fiche d'un élève, d'un îlot ou d'un lieu : une bulle qui pointe vers lui. */
-  private dessinerFiche(titre: string, texte: string, ancre?: Point): Phaser.GameObjects.Container {
-    const c = this.bulle(titre, texte, ancre);
+  private dessinerFiche(fiche: NonNullable<PartieScene['fiche']>): Phaser.GameObjects.Container {
+    const { titre, texte, ancre } = fiche;
+    const c = fiche.eleve
+      ? this.dessinerLoupe(fiche.eleve, titre, texte)
+      : fiche.pile
+        ? this.dessinerPileDepliee(fiche.pile, titre, texte)
+        : this.bulle(titre, texte, ancre);
     // Toucher ailleurs ferme la bulle.
     const fermer = this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 0.001);
     fermer.setOrigin(0, 0).setInteractive();
@@ -1987,15 +2268,34 @@ export class PartieScene extends Phaser.Scene {
       }
       if (boutons.length === 1 && n > 0) {
         // Plus de feuille de cahier (demande de Clément) : le bouton est posé seul sur le décor.
+        // Le bouton est posé sur la pioche de la bande (DL.2) : on pioche là où sont les cartes,
+        // et la bande du bas reste à la main.
         const b = boutons[0] as (typeof boutons)[number];
-        this.ajouter(
-          creerBouton(this, LARGEUR / 2, Y_ACTIONS, b.texte, b.action, {
-            largeur: 320,
-            hauteur: 58,
-            taille: 24,
+        const pioche = positionLieu(this.cour, this.bandeActive, 'portail');
+        const bouton = creerBouton(
+          this,
+          // À droite du paquet, entre la pioche et la cabane : le compteur reste visible.
+          pioche.x + 96,
+          pioche.y + 6,
+          TEXTES.boutons.appelerCourt(n),
+          b.action,
+          {
+            largeur: 100,
+            hauteur: 78,
+            taille: 23,
             couleur: COULEURS.jaune,
-          }),
+          },
         );
+        this.ajouter(bouton);
+        // Il respire doucement pour qu'on le remarque.
+        this.tweens.add({
+          targets: bouton,
+          scale: 1.06,
+          duration: 700,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
         return;
       }
       this.rangeeBoutons(Y_ACTIONS, boutons);
@@ -2044,7 +2344,7 @@ export class PartieScene extends Phaser.Scene {
    * Le rang d'une bande, en bas. `interactif` : ses cartes se touchent et se glissent ; sinon il
    * reste juste visible (pendant un choix hors du rang, ou le temps de voir la fin de son coup).
    */
-  private dessinerRang(bande: Bande, interactif: boolean): void {
+  private dessinerRang(bande: Bande, interactif: boolean, auRepos = false): void {
     this.rangVisible = bande;
     const e = this.etat;
     const j = e.joueurs[bande];
@@ -2086,8 +2386,12 @@ export class PartieScene extends Phaser.Scene {
           : malade
             ? []
             : ciblesPossibles(e, el.id);
-      const x = xCarteRang(i, j.rang.length);
-      const carte = this.carte(el, x, RANG.y, malade, !interactif || cibles.length > 0);
+      const pose = poseCarteRang(i, j.rang.length);
+      const { x } = pose;
+      const carte = this.carte(el, x, pose.y, malade, !interactif || cibles.length > 0);
+      carte.setRotation(pose.rotation);
+      // Au repos (tour d'en face) : la main descend et pâlit, on voit qu'on ne joue pas (DL.7).
+      if (auRepos) carte.setY(pose.y + DESCENTE_REPOS).setAlpha(0.6);
       if (interactif) {
         this.rendreTouchable(carte, el, malade, cibles.length > 0);
         if (cibles.length > 0) this.rendreDeplacable(carte, el, cibles, optionsChouchou !== null);
@@ -2113,7 +2417,7 @@ export class PartieScene extends Phaser.Scene {
             const v = tw.getValue() ?? 0;
             carte.setPosition(
               portail.x + (x - portail.x) * v,
-              portail.y + (RANG.y - portail.y) * v - Math.sin(v * Math.PI) * 140,
+              portail.y + (pose.y - portail.y) * v - Math.sin(v * Math.PI) * 140,
             );
             carte.setScale(0.4 + 0.6 * v);
             carte.setRotation(angle + (1 - v) * -0.5);
@@ -2149,21 +2453,13 @@ export class PartieScene extends Phaser.Scene {
     });
     // Tête et débardeur seulement : la carte montre la chasuble de l'élève.
     const skin = skinActif();
+    // Plus de nom écrit sous le portrait (DL.1) : le visage et le chiffre suffisent, la loupe
+    // montre le nom et le pouvoir en grand.
     const badge = skin.buste
-      ? skin.buste(this, el.bande, el.role, l - 8, h - 44)
-      : skin.eleve(this, el.bande, el.role, 56);
-    badge.setPosition(0, skin.buste ? -18 : -24);
-    const nom = this.add
-      .text(0, 52, TEXTES.rolesCourts[el.role], {
-        fontFamily: POLICE,
-        fontSize: TEXTES.rolesCourts[el.role].length > 9 ? '13px' : '15px',
-        color: COULEURS.texteSombre,
-        fontStyle: '600',
-        align: 'center',
-        wordWrap: { width: l - 4 },
-      })
-      .setOrigin(0.5);
-    const enfants: Phaser.GameObjects.GameObject[] = [g, badge, nom];
+      ? skin.buste(this, el.bande, el.role, l - 8, h - 14)
+      : skin.eleve(this, el.bande, el.role, 84);
+    badge.setPosition(0, skin.buste ? -2 : -10);
+    const enfants: Phaser.GameObjects.GameObject[] = [g, badge];
     if (malade) {
       const voile = this.add.graphics();
       voile.fillStyle(0xbfe3b0, 0.8);
@@ -2171,11 +2467,11 @@ export class PartieScene extends Phaser.Scene {
       const t = this.add
         .text(0, 0, TEXTES.hud.infirmerie, {
           fontFamily: POLICE,
-          fontSize: '15px',
+          fontSize: '24px',
           color: COULEURS.texteSombre,
           fontStyle: '700',
           backgroundColor: '#ffffff',
-          padding: { x: 5, y: 3 },
+          padding: { x: 6, y: 3 },
         })
         .setOrigin(0.5)
         .setRotation(-0.5);
@@ -2212,14 +2508,42 @@ export class PartieScene extends Phaser.Scene {
   ): void {
     if (!carte.input) carte.setInteractive({ useHandCursor: true });
     let glisse = false;
-    carte.on('pointerdown', () => (glisse = false));
-    carte.on('dragstart', () => (glisse = true));
+    const titre = TEXTES.fiche.eleve(el.role, valeur(el.role));
+    const texte = this.texteFicheEleve(el, malade, jouable);
+    // Doigt posé (DL.3) : la loupe s'ouvre tant qu'on tient la carte ; glisser la referme.
+    let loupe: Phaser.GameObjects.Container | null = null;
+    let minuteur: Phaser.Time.TimerEvent | null = null;
+    const fermerLoupe = (): void => {
+      minuteur?.remove();
+      minuteur = null;
+      loupe?.destroy();
+      loupe = null;
+    };
+    carte.on('pointerdown', () => {
+      glisse = false;
+      fermerLoupe();
+      minuteur = this.time.delayedCall(DELAI_LOUPE, () => {
+        minuteur = null;
+        if (!glisse && carte.active) loupe = this.dessinerLoupe(el, titre, texte);
+      });
+      // Le doigt peut se lever ailleurs que sur la carte.
+      this.input.once('pointerup', () => {
+        if (!glisse) fermerLoupe();
+      });
+    });
+    carte.on('dragstart', () => {
+      glisse = true;
+      fermerLoupe();
+    });
     carte.on('pointerup', () => {
       if (glisse) return;
+      fermerLoupe();
+      // Toucher (ou lâcher sans glisser) : la loupe reste ouverte jusqu'au toucher suivant.
       this.montrerFiche(
-        TEXTES.fiche.eleve(el.role, valeur(el.role)),
-        this.texteFicheEleve(el, malade, jouable),
+        titre,
+        texte,
         { x: carte.x, y: carte.y - RANG.hauteurCarte / 2 },
+        { eleve: el },
       );
     });
   }
@@ -2290,8 +2614,18 @@ export class PartieScene extends Phaser.Scene {
       if (this.animations) {
         // La carte s'efface : c'est l'élève lui-même qu'on tient par le col.
         carte.setAlpha(0.01);
-        survol = this.ajouter(this.add.circle(0, 0, RAYON_ILOT + 4, COULEURS.allume, 0.45));
+        // L'îlot visé grossit (DL.6) : un grand disque jaune qui respire sous l'élève tenu.
+        survol = this.ajouter(this.add.circle(0, 0, RAYON_ILOT + 18, COULEURS.allume, 0.5));
+        survol.setStrokeStyle(5, COULEURS.encre, 0.6);
         survol.setVisible(false);
+        this.tweens.add({
+          targets: survol,
+          scale: 1.18,
+          duration: 380,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
         pantin = new PantinVisuel(this, el, doigt.x, doigt.y);
         this.ajouter(pantin.conteneur);
         this.events.on('update', animer);
@@ -2302,7 +2636,8 @@ export class PartieScene extends Phaser.Scene {
     });
     carte.on('drag', (p: Phaser.Input.Pointer, x: number, y: number) => {
       doigt = { x: p.worldX, y: p.worldY };
-      if (!pantin) carte.setPosition(x, y - 30);
+      // Sans animations, la carte passe au-dessus du doigt pour ne pas cacher l'îlot visé (DL.6).
+      if (!pantin) carte.setPosition(x, y - 110);
     });
     carte.on('dragend', (p: Phaser.Input.Pointer) => {
       this.cacherCibles();
@@ -2310,7 +2645,7 @@ export class PartieScene extends Phaser.Scene {
       ficheGlisse = null;
       const avecPantin = pantin !== null;
       lacher();
-      const visee = { x: p.worldX, y: p.worldY - (avecPantin ? VISEE : 30) };
+      const visee = { x: p.worldX, y: p.worldY - (avecPantin ? VISEE : 110) };
       const cible = noeudSous(this.cour, cibles, visee, RAYON_DEPOT);
       const ok =
         cible !== null &&
@@ -2435,15 +2770,8 @@ export class PartieScene extends Phaser.Scene {
   private dessinerFinDeTour(): void {
     // La bande qui vient de jouer voit encore son rang (le téléphone est toujours dans ses mains) :
     // les copains appelés y arrivent.
-    this.dessinerRang(this.bandeVue, false);
-    this.texte(
-      LARGEUR / 2,
-      Y_ACTIONS,
-      TEXTES.passe.bientot(this.etat.courant),
-      24,
-      COULEURS.texteSombre,
-      { fontStyle: '700', stroke: '#fff6e4', strokeThickness: 6 },
-    ).setOrigin(0.5);
+    this.dessinerRang(this.bandeVue, false, true);
+    this.bandeauTour(TEXTES.passe.bientot(this.etat.courant), this.etat.courant, false);
     const bloc = this.ajouter(
       this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 0.001),
     );
