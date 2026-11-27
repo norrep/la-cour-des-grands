@@ -31,12 +31,14 @@ Badge **rond** = bande rouge, badge **carré** = bande bleue. Les traces de pas 
 | `npm run format`     | formate le code avec Prettier                                                                              |
 | `npm run check`      | types + lint + format + tests (à lancer avant chaque push)                                                 |
 | `npm run simulate`   | fait jouer des parties aléatoires (`-- --parties 10000 --graine 1`)                                        |
+| `npm run arene`      | fait jouer deux IA l'une contre l'autre (`-- --a difficile --b moyen --parties 200`) et donne le bilan     |
 
 ## Organisation
 
 ```
 src/
   engine/        moteur de règles en TypeScript pur, déterministe, sans Phaser
+  ia/            adversaire IA, pur lui aussi : tours complets, évaluation, niveaux, arène
   game/          rendu Phaser : lit l'état et envoie des actions
     skins/       visuels interchangeables des élèves (Cartoon, Jetons)
   data/

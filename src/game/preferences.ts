@@ -1,3 +1,5 @@
+import type { Niveau } from '../ia/index';
+
 /** Préférences gardées sur le téléphone. Sans stockage (navigation privée…), on les garde en mémoire. */
 const memoire = new Map<string, boolean>();
 
@@ -56,3 +58,28 @@ const CLE_DEBUTANT = 'cour-des-grands.debutant';
 /** Le joueur découvre encore le jeu (tuto pas encore passé). */
 export const lireDebutant = (): boolean => lire(CLE_DEBUTANT);
 export const ecrireDebutant = (oui: boolean): void => ecrire(CLE_DEBUTANT, oui);
+
+const CLE_NIVEAU_ORDI = 'cour-des-grands.niveau-ordi';
+const NIVEAUX: readonly Niveau[] = ['facile', 'moyen', 'difficile'];
+
+/** Niveau choisi pour l'ordi (moyen par défaut). */
+export function lireNiveauOrdi(): Niveau {
+  let v = memoireTexte.get(CLE_NIVEAU_ORDI);
+  if (v === undefined) {
+    try {
+      v = globalThis.localStorage?.getItem(CLE_NIVEAU_ORDI) ?? undefined;
+    } catch {
+      v = undefined;
+    }
+  }
+  return NIVEAUX.includes(v as Niveau) ? (v as Niveau) : 'moyen';
+}
+
+export function ecrireNiveauOrdi(n: Niveau): void {
+  memoireTexte.set(CLE_NIVEAU_ORDI, n);
+  try {
+    globalThis.localStorage?.setItem(CLE_NIVEAU_ORDI, n);
+  } catch {
+    // Stockage indisponible : le choix vaut pour cette visite seulement.
+  }
+}

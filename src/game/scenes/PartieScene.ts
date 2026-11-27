@@ -36,6 +36,7 @@ import { alleesDuChemin } from '../chemins';
 import { cinematiquesPour, type Cinematique, type CinematiqueId } from '../cinematiques';
 import { NB_CONSEILS, prochainConseil, type ConseilId } from '../conseils';
 import { Controleur } from '../controleur';
+import { Ordi } from '../ordi';
 import {
   centreRegion,
   noeudSous,
@@ -136,6 +137,12 @@ export class PartieScene extends Phaser.Scene {
   private panneauxLieux = new Map<string, Phaser.GameObjects.Container>();
   /** Goûters en train de voler vers le cartable (leurs cases restent vides jusqu'à l'arrivée). */
   private gouterEnVol: Record<Bande, number> = { rouge: 0, bleu: 0 };
+  /** Partie en solo : l'ordinateur qui joue la bande bleue (`null` : partie à deux). */
+  private ordi: Ordi | null = null;
+  /** Prochain coup de l'ordi, programmé pour laisser voir le précédent. */
+  private coupOrdi: Phaser.Time.TimerEvent | null = null;
+  /** Durée des animations du dernier coup joué (ms). */
+  private dureeDernierCoup = 0;
 
   constructor() {
     super('partie');
@@ -160,6 +167,10 @@ export class PartieScene extends Phaser.Scene {
     this.presentation = true;
     this.attenteAdversaire = false;
     this.tourHorloge = 0;
+    // En solo, le joueur garde la bande rouge (en bas, D2.1) ; l'ordi joue la bleue.
+    this.ordi = donnees.ordi ? new Ordi('bleu', donnees.ordi, donnees.graine) : null;
+    this.coupOrdi = null;
+    this.dureeDernierCoup = 0;
     this.animations = !(window as unknown as { __sansAnimations?: boolean }).__sansAnimations;
     activerSons(lireSons());
     // Accès de débogage, utilisé aussi par les tests automatisés de l'écran.
@@ -186,6 +197,10 @@ export class PartieScene extends Phaser.Scene {
   /** Redessine tout l'écran à partir de l'état. La fiche ouverte est fermée, sauf demande. */
   rafraichir(garderFiche = false): void {
     if (!garderFiche) this.fiche = null;
+    // En solo, pas de « Passe le téléphone » : le téléphone reste dans les mêmes mains.
+    if (this.ordi && this.ctrl.phase === 'passe' && !this.presentation && !this.entreDeuxTours) {
+      this.ctrl.reprendre();
+    }
     // Les animations du plateau s'arrêtent ; celles d'une cinématique continuent.
     for (const t of this.tweens.getTweens()) if (!this.tweensCinematique.has(t)) t.stop();
     this.dyn.removeAll(true);
@@ -204,7 +219,16 @@ export class PartieScene extends Phaser.Scene {
     }
     // Plus de zone de notes : le rang reste toujours visible, et les explications viennent en
     // bulles près de ce qu'elles décrivent (demande de Clément).
-    if (this.ctrl.phase === 'jeu') {
+    if (this.ctrl.phase === 'jeu' && this.tourOrdi) {
+      // L'ordi joue : on garde son propre rang sous les yeux, sans pouvoir y toucher.
+      this.dessinerRang(this.bandeVue, false);
+      this.texte(LARGEUR / 2, Y_ACTIONS, TEXTES.hud.ordiReflechit, 24, COULEURS.texteSombre, {
+        fontStyle: '700',
+        stroke: '#fff6e4',
+        strokeThickness: 6,
+      }).setOrigin(0.5);
+      this.planifierOrdi();
+    } else if (this.ctrl.phase === 'jeu') {
       this.dessinerActions();
       // Pendant un choix hors du rang, le rang reste visible mais ne se glisse pas.
       this.dessinerRang(this.bandeActive, !this.attenteHorsRang());
@@ -264,6 +288,39 @@ export class PartieScene extends Phaser.Scene {
   /** La bande dont c'est le coup. */
   private get bandeActive(): Bande {
     return this.etat.courant;
+  }
+
+  /** En solo, c'est au tour de l'ordi. */
+  private get tourOrdi(): boolean {
+    return this.ordi !== null && this.ordi.doitJouer(this.etat);
+  }
+
+  /** La bande dont on montre le rang quand personne ne le touche (en solo : celle du joueur). */
+  private get bandeVue(): Bande {
+    return this.ordi ? this.ordi.humain : this.etat.courant === 'rouge' ? 'bleu' : 'rouge';
+  }
+
+  /**
+   * Programme la prochaine action de l'ordi, une fois le coup précédent vu. Un tour de l'ordi
+   * peut demander plusieurs actions (pose puis pouvoir) : chacune est jouée comme un toucher.
+   */
+  private planifierOrdi(): void {
+    if (!this.ordi || this.coupOrdi) return;
+    const delai = this.animations ? Math.max(750, this.dureeDernierCoup + 350) : 30;
+    this.coupOrdi = this.time.delayedCall(delai, () => {
+      this.coupOrdi = null;
+      const ordi = this.ordi;
+      if (!ordi || this.ctrl.phase !== 'jeu' || !this.tourOrdi) return;
+      // L'aide est ouverte : on attend qu'elle soit fermée.
+      if (this.aideOuverte) {
+        this.planifierOrdi();
+        return;
+      }
+      const action = ordi.prochaineAction(this.etat);
+      const deuxieme = action.type === 'choisir' && action.option.type === 'poser';
+      this.departToboggan = null;
+      if (!this.agir(() => this.ctrl.jouer(action), deuxieme)) this.rafraichir();
+    });
   }
 
   /** Un choix est en cours et ne passe pas par le rang (tout sauf le Chouchou). */
@@ -857,7 +914,7 @@ export class PartieScene extends Phaser.Scene {
 
   /** Îlots touchables pendant certains choix (Rapporteuse, banc, buts, toboggan). */
   private zonesTactiles(): boolean {
-    if (this.ctrl.phase !== 'jeu') return false;
+    if (this.ctrl.phase !== 'jeu' || this.tourOrdi) return false;
     const attente = this.etat.attente;
     if (!attente) return false;
     const touchables = new Map<string, () => void>();
@@ -1062,6 +1119,7 @@ export class PartieScene extends Phaser.Scene {
     const debut = arrivees.length > 0 ? Math.min(...arrivees.map((a) => a.debut)) : 0;
     this.rangAvant = { bande, ids: rangAvant, origines, debut };
     const duree = this.animations ? dureeAnimations(nouveaux) : 0;
+    this.dureeDernierCoup = duree;
     if (this.ctrl.phase === 'passe' && this.animations) {
       // Coup terminé : le temps de voir l'élève atterrir et ses conséquences, puis on passe le
       // téléphone.
@@ -1881,8 +1939,7 @@ export class PartieScene extends Phaser.Scene {
   private dessinerFinDeTour(): void {
     // La bande qui vient de jouer voit encore son rang (le téléphone est toujours dans ses mains) :
     // les copains appelés y arrivent.
-    const joueur: Bande = this.etat.courant === 'rouge' ? 'bleu' : 'rouge';
-    this.dessinerRang(joueur, false);
+    this.dessinerRang(this.bandeVue, false);
     this.texte(
       LARGEUR / 2,
       Y_ACTIONS,
@@ -2241,7 +2298,7 @@ export class PartieScene extends Phaser.Scene {
 
   /** Bulle de conseil pour débuter : un seul à la fois, à fermer avant de jouer. */
   private dessinerConseil(): void {
-    if (!this.conseilsActifs) return;
+    if (!this.conseilsActifs || this.tourOrdi) return;
     const bande = this.bandeActive;
     const tour = this.etat.tour;
     const id = prochainConseil(
@@ -2980,7 +3037,9 @@ export class PartieScene extends Phaser.Scene {
     this.texte(
       cx,
       650,
-      TEXTES.fin.gagnant(fin.gagnant),
+      this.ordi
+        ? TEXTES.fin.gagnantSolo(fin.gagnant === this.ordi.bande)
+        : TEXTES.fin.gagnant(fin.gagnant),
       46,
       fin.gagnant === 'rouge' ? COULEURS.texteRouge : COULEURS.texteBleu,
       {

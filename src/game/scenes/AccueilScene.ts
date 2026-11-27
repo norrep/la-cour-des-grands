@@ -9,15 +9,20 @@ import { contourRect, forme } from '../ui/style';
 import { cadrer, decorPlein } from '../ui/ecran';
 import { VERSION } from '../../version';
 import { DECOR } from './ChargementScene';
+import type { Niveau } from '../../ia/index';
+import { niveauSuivant } from '../ordi';
+import { ecrireNiveauOrdi, lireNiveauOrdi } from '../preferences';
 
 export interface DonneesPartie {
   equipements: boolean;
   /** Conseils pour débuter pendant les premiers tours. */
   conseils: boolean;
   graine: number;
+  /** Partie en solo contre l'ordinateur : son niveau (le joueur a la bande rouge). */
+  ordi?: Niveau;
 }
 
-/** Écran d'accueil : lancer une partie à deux, avec ou sans équipements spéciaux. */
+/** Écran d'accueil : lancer une partie à deux ou contre l'ordi, avec ou sans équipements spéciaux. */
 export class AccueilScene extends Phaser.Scene {
   private equipements = true;
 
@@ -78,26 +83,55 @@ export class AccueilScene extends Phaser.Scene {
     sous.setDepth(1);
 
     const rouge = skinActif().eleve(this, 'rouge', 'grand', 100);
-    rouge.setPosition(cx - 110, 590);
+    rouge.setPosition(cx - 110, 540);
     const bleu = skinActif().eleve(this, 'bleu', 'petit', 100);
-    bleu.setPosition(cx + 110, 590);
+    bleu.setPosition(cx + 110, 540);
     this.tweens.add({ targets: [rouge, bleu], angle: 6, duration: 600, yoyo: true, repeat: -1 });
 
+    const lancer = (ordi?: Niveau): void => {
+      const donnees: DonneesPartie = {
+        equipements: this.equipements,
+        conseils: lireConseils(),
+        graine: Date.now(),
+        ...(ordi ? { ordi } : {}),
+      };
+      this.scene.start('partie', donnees);
+    };
     creerBouton(
       this,
       cx,
-      780,
+      700,
       `${TEXTES.accueil.jouerADeux}\n${TEXTES.accueil.sousJouerADeux}`,
-      () => {
-        const donnees: DonneesPartie = {
-          equipements: this.equipements,
-          conseils: lireConseils(),
-          graine: Date.now(),
-        };
-        this.scene.start('partie', donnees);
-      },
-      { largeur: 420, hauteur: 120, taille: 34, couleur: COULEURS.jaune },
+      () => lancer(),
+      { largeur: 420, hauteur: 104, taille: 32, couleur: COULEURS.jaune },
     );
+    // Contre l'ordi : le grand bouton lance la partie, le petit change de niveau (gardé).
+    const creerBoutonOrdi = () =>
+      creerBouton(
+        this,
+        cx,
+        818,
+        `${TEXTES.accueil.contreOrdi}\n${TEXTES.accueil.sousContreOrdi(lireNiveauOrdi())}`,
+        () => lancer(lireNiveauOrdi()),
+        { largeur: 420, hauteur: 104, taille: 32, couleur: COULEURS.jaune },
+      );
+    let boutonOrdi = creerBoutonOrdi();
+    const creerBoutonNiveau = () =>
+      creerBouton(
+        this,
+        cx,
+        913,
+        TEXTES.accueil.niveauOrdi(lireNiveauOrdi()),
+        () => {
+          ecrireNiveauOrdi(niveauSuivant(lireNiveauOrdi()));
+          boutonOrdi.destroy();
+          boutonOrdi = creerBoutonOrdi();
+          boutonNiveau.destroy();
+          boutonNiveau = creerBoutonNiveau();
+        },
+        { largeur: 420, hauteur: 60, taille: 24 },
+      );
+    let boutonNiveau = creerBoutonNiveau();
 
     const bascule = (): void => {
       boutonEquip.destroy();
@@ -107,7 +141,7 @@ export class AccueilScene extends Phaser.Scene {
       creerBouton(
         this,
         cx,
-        885,
+        983,
         TEXTES.accueil.equipements(this.equipements),
         () => {
           this.equipements = !this.equipements;
@@ -121,7 +155,7 @@ export class AccueilScene extends Phaser.Scene {
       creerBouton(
         this,
         cx,
-        960,
+        1053,
         TEXTES.conseils.accueil(lireConseils()),
         () => {
           ecrireConseils(!lireConseils());
@@ -136,7 +170,7 @@ export class AccueilScene extends Phaser.Scene {
       creerBouton(
         this,
         cx - 108,
-        1035,
+        1123,
         TEXTES.sons(lireSons()),
         () => {
           ecrireSons(!lireSons());
@@ -153,7 +187,7 @@ export class AccueilScene extends Phaser.Scene {
     creerBouton(
       this,
       cx + 108,
-      1035,
+      1123,
       TEXTES.style(TEXTES.skins[skinActif().id]),
       () => {
         if (changement) return;
@@ -168,7 +202,7 @@ export class AccueilScene extends Phaser.Scene {
     );
 
     const regle = this.add
-      .text(cx, 1170, TEXTES.accueil.regle, {
+      .text(cx, 1208, TEXTES.accueil.regle, {
         fontFamily: POLICE,
         fontSize: '22px',
         color: COULEURS.texteSombre,
@@ -181,12 +215,12 @@ export class AccueilScene extends Phaser.Scene {
     const fondRegle = this.add.graphics();
     forme(
       fondRegle,
-      contourRect(50, 1170 - regle.height / 2 - 18, LARGEUR - 100, regle.height + 36, 22, 13),
+      contourRect(50, 1208 - regle.height / 2 - 18, LARGEUR - 100, regle.height + 36, 22, 13),
       { remplissage: COULEURS.papier, ombre: 6 },
     );
     // Numéro de version, discret : pour savoir d'un coup d'œil si le téléphone a la dernière.
     this.add
-      .text(cx, 1170 + regle.height / 2 + 36, `v ${VERSION}`, {
+      .text(cx, 1208 + regle.height / 2 + 30, `v ${VERSION}`, {
         fontFamily: POLICE,
         fontSize: '15px',
         color: COULEURS.texteSombre,

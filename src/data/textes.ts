@@ -4,6 +4,7 @@
  */
 import type { Bande, EquipementId, RaisonFin, RoleId } from '../engine/types';
 import type { SkinId } from '../game/skins/types';
+import type { Niveau } from '../ia/index';
 
 const ROLES: Record<RoleId, string> = {
   petit: 'Le Petit de maternelle',
@@ -64,6 +65,13 @@ const EFFETS_EQUIPEMENTS: Record<EquipementId, string> = {
 };
 
 const BANDES: Record<Bande, string> = { rouge: 'bande rouge', bleu: 'bande bleue' };
+
+const NIVEAUX_ORDI: Record<Niveau, string> = {
+  hasard: 'au hasard',
+  facile: 'facile',
+  moyen: 'moyen',
+  difficile: 'difficile',
+};
 const BANDES_TITRE: Record<Bande, string> = { rouge: 'Bande rouge', bleu: 'Bande bleue' };
 
 const RAISONS: Record<RaisonFin, string> = {
@@ -88,6 +96,9 @@ export const TEXTES = {
   accueil: {
     jouerADeux: 'Jouer à deux',
     sousJouerADeux: 'sur ce téléphone',
+    contreOrdi: 'Jouer contre l’ordi',
+    sousContreOrdi: (n: Niveau) => `niveau ${NIVEAUX_ORDI[n]}`,
+    niveauOrdi: (n: Niveau) => `Niveau de l’ordi : ${NIVEAUX_ORDI[n]}`,
     equipements: (actifs: boolean) => `Équipements spéciaux : ${actifs ? 'oui' : 'non'}`,
     regle:
       'À ton tour : appelle des copains ou envoie un élève dans la cour. Atteins la cabane adverse ou ramasse les goûters.',
@@ -100,6 +111,7 @@ export const TEXTES = {
     cpe: (n: number) => `CPE : ${n}`,
     infirmerie: 'Infirmerie',
     rangVide: 'Ton rang est vide : appelle des copains !',
+    ordiReflechit: 'L’ordi réfléchit…',
     toucherCarte: 'Touche un élève : son pouvoir',
     consigneTour: 'Glisse un élève vers la cour, ou :',
     consigneSansPose: 'Aucune pose possible : appelle des copains.',
@@ -255,6 +267,8 @@ export const TEXTES = {
   fin: {
     titre: 'DRIIIIING !',
     gagnant: (b: Bande) => `La ${BANDES[b]}`,
+    /** En solo : la phrase continue par « a envahi… » ou « a ramassé… ». */
+    gagnantSolo: (ordi: boolean) => (ordi ? 'L’ordi' : 'Ta bande'),
     raison: (r: RaisonFin) => RAISONS[r],
     score: (rouge: number, bleu: number) => `Goûters : rouge ${rouge}, bleu ${bleu}`,
     tours: (n: number) => `Partie en ${n} tours`,
