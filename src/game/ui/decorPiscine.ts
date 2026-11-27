@@ -7,7 +7,7 @@
  */
 import type Phaser from 'phaser';
 import { BAS, DROITE, GAUCHE, HAUT } from '../config';
-import { versEcran, type Point } from '../disposition';
+import { DESCENTE, MONTEE, versEcran, type Point } from '../disposition';
 import { forme } from './style';
 
 /** Le carrelage est dessiné à 3 × l'échelle du jeu (`scripts/couches-piscine.py`). */
@@ -25,8 +25,8 @@ export const COUCHES_PISCINE = {
 /** Fichiers des couches, par nom de pièce (sous `public/cartes/piscine/`). */
 export const PIECES_PISCINE = ['sol', 'serviette-a', 'serviette-b', 'tongs', 'ballon', 'plante'];
 
-/** Bord extérieur du bassin, en coordonnées de la cour (0 à 1) : à mi-chemin cabane / îlots. */
-const BASSIN = { gauche: -0.03, droite: 1.03, haut: 0.13, bas: 0.815 } as const;
+/** Bords gauche et droit du bassin, en coordonnées de la cour (0 à 1). */
+const BASSIN = { gauche: -0.03, droite: 1.03 } as const;
 
 const CREME = 0xfef2d8;
 const EAU = 0x58c9cb;
@@ -64,8 +64,10 @@ export function poserDecorPiscine(scene: Phaser.Scene): void {
     .setOrigin(0)
     .setScale(1 / K);
 
-  const a = versEcran(BASSIN.gauche, BASSIN.haut);
-  const b = versEcran(BASSIN.droite, BASSIN.bas);
+  // En hauteur, le bassin va du bandeau du haut (qu'il touche un peu) jusqu'au bouton d'action,
+  // demande de Clément : il passe sous la pioche, les punis et les casiers (DP.8).
+  const a = { x: versEcran(BASSIN.gauche, 0).x, y: 92 + MONTEE };
+  const b = { x: versEcran(BASSIN.droite, 0).x, y: 1064 + DESCENTE };
   const cx = (a.x + b.x) / 2;
   const cy = (a.y + b.y) / 2;
   const rx = (b.x - a.x) / 2;
@@ -137,10 +139,10 @@ export function poserDecorPiscine(scene: Phaser.Scene): void {
   const place = gauche - GAUCHE;
   // Coins du bassin : toujours visibles, même sur un téléphone étroit (à moitié hors de l'écran
   // s'il le faut). Plantes en haut, tongs et ballon en bas.
-  poser(COUCHES_PISCINE.plante, Math.max(GAUCHE + 26, gauche + 6), a.y + 18, 104, 0, 4);
-  poser(COUCHES_PISCINE.plante, Math.min(DROITE - 26, droite - 6), a.y + 18, 104, 40, 4);
-  poser(COUCHES_PISCINE.tongs, Math.max(GAUCHE + 30, gauche + 14), b.y - 6, 70, -18);
-  poser(COUCHES_PISCINE.ballon, Math.min(DROITE - 30, droite - 10), b.y - 14, 64, 0, 9);
+  poser(COUCHES_PISCINE.plante, Math.max(GAUCHE + 26, gauche + 6), a.y + 150, 104, 0, 4);
+  poser(COUCHES_PISCINE.plante, Math.min(DROITE - 26, droite - 6), a.y + 150, 104, 40, 4);
+  poser(COUCHES_PISCINE.tongs, Math.max(GAUCHE + 30, gauche + 14), b.y - 110, 70, -18);
+  poser(COUCHES_PISCINE.ballon, Math.min(DROITE - 30, droite - 10), b.y - 120, 64, 0, 9);
   // Écran plus large que 9:16 : des serviettes étendues sur les côtés.
   if (place >= 70) {
     const xg = GAUCHE + place / 2;
@@ -152,7 +154,6 @@ export function poserDecorPiscine(scene: Phaser.Scene): void {
     poser(COUCHES_PISCINE.serviette, xg, cy - ry * 0.32, l, 94, 0);
     poser(COUCHES_PISCINE.ballon, xg + 6, cy + ry * 0.2, petit, 0, 9);
     poser(COUCHES_PISCINE.plante, xg - 4, cy + ry * 0.62, petit + 16, 20, 4);
-    poser(COUCHES_PISCINE.plante, xd + 4, cy - ry * 0.62, petit + 16, 60, 4);
     poser(COUCHES_PISCINE.servietteA, xd, cy + ry * 0.02, l, 84, 0);
     poser(COUCHES_PISCINE.tongs, xd + 4, cy + ry * 0.5, petit, 22);
   }
