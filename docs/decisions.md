@@ -256,6 +256,15 @@ Clément : « Lorsqu'un pouvoir ne demande pas de choix à l'utilisateur, appliq
 - Interprétation pour la Chouchou : s'il y a plusieurs élèves ou plusieurs îlots possibles, le choix reste à faire au doigt (c'est un vrai choix).
 - Réglage du moteur `pouvoirsAuto`, activé par le jeu (`Controleur`) ; les tests de règles et l'arène gardent la règle stricte (pouvoir facultatif). L'ordi joue avec le même réglage que l'écran.
 
+## Piscine v3 (27/11)
+
+Clément, sur la piscine fusionnée : « La piscine ne doit pas être carrée. Trouver autre chose qu'une maison en bout de course (un casier ?). Les casiers sur les côtés sont tristes, il faut apporter de la vie. »
+
+- **DP.5 — Un bassin aux bords ronds.** Le bassin est dessiné en code (`ui/decorPiscine.ts`) au trait du plateau : un carré aux coins très arrondis, un peu resserré à la taille comme le réseau d'îlots du grand bain, avec margelle crème, bande d'eau claire le long du bord et petites vagues blanches qui vont et viennent. Les textures `bassin`, `vague` et `casiers` de DP.1 sont supprimées ; le carrelage reste.
+- **DP.6 — La base de chaque bande est un casier du vestiaire.** Dessiné dans le style des îlots (perspective, trait noir épais, porte à aérations), ses murs prennent la couleur de l'équipe comme la cabane (`casier.png`, `casier-murs.png`, `scripts/accessoires-piscine.py`). Les textes disent toujours « cabane » (mot du jeu commun à toutes les cartes).
+- **DP.7 — Des affaires de baignade autour du bassin.** Serviettes à rayures, tongs, ballon de plage et plantes en pot, dessinés sans rien générer. Plantes, tongs et ballons aux coins du bassin sur tous les écrans (à moitié hors de l'écran sur un téléphone étroit) ; serviettes et objets en plus sur les côtés quand l'écran est plus large que 9:16. Les plantes et les ballons se balancent doucement. Rien n'est posé sur la cour elle-même. Les casiers gris des côtés (DP.2) sont retirés.
+- **DP.8 — Bassin agrandi en hauteur (Clément : « Agrandir le bassin en hauteur quitte à mordre un peu sur les HUD »).** Le bassin va maintenant du bas du bandeau du haut, qu'il touche un peu, jusqu'au bouton d'action. La pioche, les punis et les casiers des deux bandes sont posés sur l'eau. Les accessoires des coins descendent ou remontent sur le carrelage à côté.
+
 ## DE.1 — Une équipe, une couleur ; la seconde ne sert qu'en miroir (27/11)
 
 Clément, sur l'écran « Choisis ta bande » : « Chaque équipe devrait avoir une seule couleur et une seconde non affichée si jamais deux équipes identiques s'affrontent. » Les Rouges et les Bleus étaient en fait les mêmes élèves, dessinés en deux couleurs : l'écran montrait une même équipe deux fois.

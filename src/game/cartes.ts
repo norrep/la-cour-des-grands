@@ -8,6 +8,7 @@ import type { CarteId } from '../data/cartes';
 import type { Rig } from './ui/marionnette';
 import { RIG_JOSIANE } from './skins/cartoon/rig';
 import { avecVersion } from '../version';
+import { PIECES_PISCINE } from './ui/decorPiscine';
 
 export interface VisuelCarte {
   /** Clé de la texture du décor plein écran. */
@@ -88,15 +89,12 @@ function fichiers(carte: CarteId): Record<string, string> {
   if (carte === 'cour-premier-jour') return {};
   const f: Record<string, string> = {
     [cle(carte, 'decor')]: `decor/${carte}.jpg`,
-    [cle(carte, 'cabane')]: `cartes/${carte}/cabane.png`,
-    [cle(carte, 'cabane-murs')]: `cartes/${carte}/cabane-murs.png`,
+    // Piscine : la base de chaque bande est un casier du vestiaire (DP.6).
+    [cle(carte, 'cabane')]: `cartes/${carte}/${carte === 'piscine' ? 'casier' : 'cabane'}.png`,
+    [cle(carte, 'cabane-murs')]:
+      `cartes/${carte}/${carte === 'piscine' ? 'casier-murs' : 'cabane-murs'}.png`,
     ...(carte === 'piscine'
-      ? Object.fromEntries(
-          ['sol', 'bassin', 'vague', 'casiers'].map((n) => [
-            cle(carte, n),
-            `cartes/${carte}/${n}.png`,
-          ]),
-        )
+      ? Object.fromEntries(PIECES_PISCINE.map((n) => [cle(carte, n), `cartes/${carte}/${n}.png`]))
       : {}),
     [cle(carte, 'surveillant')]:
       `skins/dodu/${carte === 'piscine' ? 'maitre-nageur' : 'cheftaine'}.png`,
