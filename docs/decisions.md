@@ -177,3 +177,9 @@ Mise à jour (Clément : « Garde le texte punis non ? ») : l'image reste le ca
 Clément : « Tu peux simplifier le picto de la boîte à goûter ou le rendre plus explicite ». Le cartable (poignée + rabat blanc + cases vides) devient une simple boîte à la couleur de la bande. Case vide = biscuit pâle en pointillé (« à ramasser »), case pleine = vrai biscuit sur fond jaune. Les biscuits illustrés (DF.21) sont collés sur le côté extérieur de la boîte pour dire tout de suite ce qu'on y range. Formes rondes (rouge) / carrées (bleu) gardées pour les daltoniens.
 
 Mise à jour : Clément trouve la boîte à cases « pas clair ». Remplacée par une pastille à la couleur de la bande avec les biscuits illustrés et le score écrit en gros (« 2 / 3 »). Les goûters ramassés volent jusqu'au biscuit.
+
+## DF.38 — Les sons passent en ton « dessin animé » (27/11)
+
+Les 15 bruitages réalistes générés d'abord ont tous été refusés (Clément : « je pense que l'on n'est pas parti dans la bonne direction »). Test de la direction dessin animé (boing, sifflet à coulisse, xylophone, klaxon) sur 3 moments : « poser un élève » (boing mou) et « ramasser un goûter » (sifflet qui monte + ding de xylophone) sont validés et branchés (`public/sons/`, `FICHIERS_SONS`, volumes égalisés). « Puni » est à refaire ; les autres sons gardent leur bip provisoire en attendant.
+
+Deuxième série (13 sons × 2) : retenus le plaquage (v2), le grand frère (v1), « Tuuut ! » (v2) et « Passe le téléphone » (v1). Bouton, prise, pioche, toboggan, puni, éternuement, sonnerie et pendule sont à refaire ; la victoire n'est pas encore choisie. Ces sons gardent leur bip provisoire en attendant.
