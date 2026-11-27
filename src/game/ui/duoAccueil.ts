@@ -343,7 +343,8 @@ export class DuoAccueil {
         }
         this.afficherBulle(false);
       } else {
-        this.afficherBulle(true);
+        // La bulle revient une fois les effets du sketch envolés.
+        if (!enCours || ts > enCours.duree + 0.7) this.afficherBulle(true);
         const finAttente = (enCours ? this.debutSketch + enCours.duree : ENTREE) + ATTENTE;
         if (t > finAttente) {
           this.sketch = (this.sketch + 1) % SKETCHS.length;
