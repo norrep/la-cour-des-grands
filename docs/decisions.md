@@ -398,3 +398,5 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   le garde. Ambiguïté : « sur les cartes » lu comme « partout où l'élève porte sa chasuble » ; les
   badges seuls (punis au bureau de la CPE, élève plaqué, skin « Jetons ») restent,
   car il n'y a pas d'élève dessiné à côté.
+- **DP.2 — « J » blanc sur la chasuble du Petit des Vers** (et de sa tenue miroir), comme les
+  autres numéros : le bleu marine du dessin est passé en blanc, trait noir inchangé.
