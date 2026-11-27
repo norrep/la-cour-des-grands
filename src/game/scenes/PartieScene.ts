@@ -21,6 +21,7 @@ import {
   type RoleId,
 } from '../../engine/index';
 import { apercu } from '../apercu';
+import { cadreManga, fondManga } from '../ui/fondManga';
 import { DUREE_CONSEQUENCE, dureeAnimations, planAnimations, rondeParcourue } from '../sequence';
 import {
   BAS,
@@ -3205,18 +3206,34 @@ export class PartieScene extends Phaser.Scene {
         : undefined;
     if (!url) return false;
 
-    // Les goûters sont filmés en carré sur fond crème : on les montre entiers, et le fond de la
-    // vidéo se prolonge jusqu'aux bords (sa couleur du haut au-dessus, du bas en dessous).
-    const yVideo = creme ? HAUTEUR / 2 - 80 : HAUTEUR / 2;
+    // Les goûters sont filmés en carré : on les montre entiers dans une case de manga, sur un
+    // fond manga animé à la couleur de la bande (DV.3).
+    const yVideo = creme ? HAUTEUR / 2 - 90 : HAUTEUR / 2;
     const fond = this.add
-      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, creme?.bas ?? 0x000000, 1)
+      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 1)
       .setOrigin(0, 0)
       .setInteractive();
-    const dessus = this.add
-      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, yVideo - HAUT, creme?.haut ?? 0x000000, 1)
-      .setOrigin(0, 0)
-      .setVisible(!!creme);
-    const video = this.add.video(LARGEUR / 2, yVideo);
+    const video = this.add.video(0, 0);
+    const COTE_CASE = 600;
+    const decor: Phaser.GameObjects.GameObject[] = [];
+    let laCase: Phaser.GameObjects.Container | undefined;
+    if (creme) {
+      decor.push(
+        fondManga(
+          this,
+          { x: GAUCHE, y: HAUT, w: DROITE - GAUCHE, h: BAS - HAUT },
+          { x: LARGEUR / 2, y: yVideo },
+          COULEURS[cin.bande ?? 'rouge'],
+        ),
+      );
+      laCase = this.add
+        .container(LARGEUR / 2, yVideo, [video, cadreManga(this, 0, 0, COTE_CASE)])
+        .setAngle(-3);
+      decor.push(laCase);
+    } else {
+      video.setPosition(LARGEUR / 2, yVideo);
+      decor.push(video);
+    }
     const T = TEXTES.cinematiques;
     const C =
       cin.id === 'gouter'
@@ -3252,12 +3269,13 @@ export class PartieScene extends Phaser.Scene {
       .text(LARGEUR / 2, 1190, TEXTES.cinematiques.passer, {
         ...style,
         fontSize: '18px',
-        color: creme ? '#6f655b' : COULEURS.texteClair,
+        stroke: '#1d1a16',
+        strokeThickness: 4,
       })
       .setOrigin(0.5)
       .setAlpha(0.7);
     const tout = this.add
-      .container(0, 0, [fond, dessus, video, titre, sous, passer])
+      .container(0, 0, [fond, ...decor, titre, sous, passer])
       .setDepth(1000)
       .setAlpha(0);
     this.cinematiqueEnCours = tout;
@@ -3286,9 +3304,16 @@ export class PartieScene extends Phaser.Scene {
       // La vidéo couvre tout l'écran, quelle que soit sa forme, sans être déformée.
       const w = video.width || LARGEUR;
       const h = video.height || HAUTEUR;
-      video.setScale(
-        gouter ? (DROITE - GAUCHE) / w : Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h),
-      );
+      video.setScale(laCase ? COTE_CASE / w : Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
+      // La case du goûter arrive d'un coup, en se penchant, comme une case de manga.
+      if (laCase)
+        this.tweenCinematique({
+          targets: laCase,
+          scale: { from: 1.35, to: 1 },
+          angle: { from: 6, to: -3 },
+          duration: 320,
+          ease: 'Back.easeOut',
+        });
       this.tweenCinematique({ targets: tout, alpha: 1, duration: 160 });
       // Le titre arrive avec l'éternuement, vers la fin : on suit l'horloge de la vidéo, pas
       // celle du jeu, pour rester calé même si le téléphone rame.
