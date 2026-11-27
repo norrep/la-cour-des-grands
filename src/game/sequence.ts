@@ -35,15 +35,21 @@ export interface Etape {
 export function planAnimations(nouveaux: readonly Evenement[]): Etape[] {
   const arrivee = nouveaux.some((ev) => ev.type === 'pose');
   let t = arrivee ? DUREE_ARRIVEE : 0;
+  // Fin de la dernière conséquence déjà lancée : la victoire attend qu'elle soit finie.
+  let finConsequences = t;
   const plan: Etape[] = [];
   for (const ev of nouveaux) {
     if (ev.type === 'pose' || ev.type === 'appel') {
       plan.push({ ev, debut: 0 });
     } else if (estConsequence(ev)) {
       plan.push({ ev, debut: t });
-      t += ECART_CONSEQUENCES;
+      finConsequences = Math.max(finConsequences, t + DUREE_CONSEQUENCE);
+      // La surveillante finit sa marche avant qu'on ramasse le goûter qu'elle quitte.
+      t += ev.type === 'surveillante' ? DUREE_CONSEQUENCE : ECART_CONSEQUENCES;
+    } else if (ev.type === 'fin') {
+      // La victoire n'arrive qu'une fois toute la cour jouée (marche de la surveillante comprise).
+      plan.push({ ev, debut: finConsequences });
     } else {
-      // La victoire et le reste arrivent après les conséquences.
       plan.push({ ev, debut: t });
     }
   }
