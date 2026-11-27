@@ -156,14 +156,9 @@ export function poserDecorPiscine(scene: Phaser.Scene): void {
     }
   };
   const gauche = a.x;
-  const droite = b.x;
   const place = gauche - GAUCHE;
-  // Coins du bassin : toujours visibles, même sur un téléphone étroit (à moitié hors de l'écran
-  // s'il le faut). Plantes en haut, tongs et ballon en bas.
-  poser(COUCHES_PISCINE.plante, Math.max(GAUCHE + 26, gauche + 6), a.y + 150, 104, 0, 4);
-  poser(COUCHES_PISCINE.plante, Math.min(DROITE - 26, droite - 6), a.y + 150, 104, 40, 4);
-  poser(COUCHES_PISCINE.tongs, Math.max(GAUCHE + 30, gauche + 14), b.y - 110, 70, -18);
-  poser(COUCHES_PISCINE.ballon, Math.min(DROITE - 30, droite - 10), b.y - 120, 64, 0, 9);
+  // Les coins du bassin sont pris par la pioche et les punis (DP.10) : les accessoires restent sur
+  // le carrelage des côtés, seulement quand l'écran est assez large pour en montrer.
   // Écran plus large que 9:16 : des serviettes étendues sur les côtés.
   if (place >= 70) {
     const xg = GAUCHE + place / 2;
@@ -175,6 +170,9 @@ export function poserDecorPiscine(scene: Phaser.Scene): void {
     poser(COUCHES_PISCINE.serviette, xg, cy - ry * 0.32, l, 94, 0);
     poser(COUCHES_PISCINE.ballon, xg + 6, cy + ry * 0.2, petit, 0, 9);
     poser(COUCHES_PISCINE.plante, xg - 4, cy + ry * 0.62, petit + 16, 20, 4);
+    poser(COUCHES_PISCINE.plante, xg, cy - ry * 0.72, petit + 16, 0, 4);
+    poser(COUCHES_PISCINE.plante, xd, cy - ry * 0.62, petit + 16, 40, 4);
+    poser(COUCHES_PISCINE.ballon, xd - 4, cy + ry * 0.78, petit - 8, 0, 9);
     poser(COUCHES_PISCINE.servietteA, xd, cy + ry * 0.02, l, 84, 0);
     poser(COUCHES_PISCINE.tongs, xd + 4, cy + ry * 0.5, petit, 22);
   }

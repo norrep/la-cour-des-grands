@@ -76,8 +76,8 @@ export type Lieu = 'portail' | 'cpe';
 
 /** Écart horizontal entre la cabane et ses lieux. */
 const ECART_LIEU = 205;
-/** Piscine : les îlots des bords sont plus écartés, la pioche et les punis vont vers les bords (DP.9). */
-const ECART_LIEU_PISCINE = 252;
+/** Piscine : les îlots des bords sont plus écartés, la pioche et les punis vont vers les bords (DP.9, DP.10). */
+const ECART_LIEU_PISCINE = 290;
 
 /** Centre d'un lieu : de part et d'autre de la cabane de la bande, portail à gauche, CPE à droite. */
 export function positionLieu(cour: Cour, bande: 'rouge' | 'bleu', lieu: Lieu): Point {
