@@ -33,7 +33,7 @@ new Phaser.Game({
   // Mipmaps : les dessins réduits gardent un trait net, sans scintiller quand ils bougent.
   // Une seule texture par lot de dessin : sur certains téléphones Android, le choix de la texture
   // dans le shader « multi-textures » de Phaser se trompe d'une image à l'autre, et les élèves
-  // (une texture par élève) clignotaient (DF.28).
+  // (une texture par élève) clignotaient (DF.29).
   render: { antialias: true, mipmapFilter: 'LINEAR_MIPMAP_LINEAR', maxTextures: textures },
   fps: { target: 60 },
   scene: [ChargementScene, AccueilScene, PartieScene],

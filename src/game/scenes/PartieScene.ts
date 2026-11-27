@@ -20,7 +20,7 @@ import {
   type RoleId,
 } from '../../engine/index';
 import { apercu } from '../apercu';
-import { dureeAnimations, planAnimations } from '../sequence';
+import { DUREE_CONSEQUENCE, dureeAnimations, planAnimations, rondeParcourue } from '../sequence';
 import {
   BAS,
   COULEURS,
@@ -136,6 +136,17 @@ export class PartieScene extends Phaser.Scene {
   private tourHorloge = 0;
   /** Mme Josiane, pour la faire marcher d'un goûter à l'autre. */
   private josiane: Phaser.GameObjects.Container | null = null;
+  /** Tout ce qui dessine Mme Josiane sur la cour (ombre, marionnette, étiquette) : bouge avec elle. */
+  private objetsJosiane: Phaser.GameObjects.GameObject[] = [];
+  /** Le point où ces objets sont dessinés en ce moment (voir positionSurveillante). */
+  private ancreJosiane: Point | null = null;
+  /**
+   * Où on la montre dans sa ronde tant que ses marches du coup ne sont pas finies
+   * (`null` : là où le moteur la place).
+   */
+  private surveillanteVue: number | null = null;
+  /** Ses marches lancées et pas encore finies. */
+  private marchesEnCours = 0;
   /** Panneau de chaque lieu (portail, CPE), pour le faire rebondir quand un élève y arrive. */
   private panneauxLieux = new Map<string, Phaser.GameObjects.Container>();
   /** Goûters en train de voler vers le cartable (leurs cases restent vides jusqu'à l'arrivée). */
@@ -170,6 +181,8 @@ export class PartieScene extends Phaser.Scene {
     this.cinematiqueEnCours = null;
     this.entreDeuxTours = false;
     this.finEnAttente = false;
+    this.surveillanteVue = null;
+    this.marchesEnCours = 0;
     this.presentation = true;
     this.attenteAdversaire = false;
     this.tourHorloge = 0;
@@ -998,11 +1011,21 @@ export class PartieScene extends Phaser.Scene {
 
   private dessinerSurveillante(): void {
     this.josiane = null;
-    const garde = gouterSurveille(this.etat);
+    this.objetsJosiane = [];
+    this.ancreJosiane = null;
+    const ronde = this.cour.ronde;
+    const vue = this.surveillanteVue;
+    const garde =
+      vue !== null && ronde.length > 0
+        ? (this.cour.regions.at(ronde[vue % ronde.length] as number)?.id ?? null)
+        : gouterSurveille(this.etat);
     if (!garde) return;
     const { x, y } = this.positionSurveillante(garde);
+    const avant = this.dyn.length;
     this.silhouette(x, y, 1);
     this.etiquette(x, y + 34, TEXTES.surveillante, COULEURS.papier);
+    this.objetsJosiane = this.dyn.list.slice(avant);
+    this.ancreJosiane = { x, y };
   }
 
   /** Îlots touchables pendant certains choix (Rapporteuse, banc, buts, toboggan). */
@@ -1232,6 +1255,12 @@ export class PartieScene extends Phaser.Scene {
         this.finEnAttente = false;
         this.rafraichir();
       });
+    }
+    // Tant que ses marches ne sont pas jouées, Mme Josiane reste sur le goûter qu'elle quitte.
+    const marche = nouveaux.find((ev) => ev.type === 'surveillante' && ev.pas !== 0);
+    if (this.animations && marche?.type === 'surveillante' && this.cour.ronde.length > 0) {
+      this.surveillanteVue =
+        rondeParcourue(this.cour.ronde.length, marche.position, marche.pas)[0] ?? null;
     }
     // Les goûters ramassés volent jusqu'au cartable : leurs cases se remplissent à l'arrivée.
     if (this.animations) {
@@ -2793,31 +2822,62 @@ export class PartieScene extends Phaser.Scene {
     );
   }
 
-  /** Mme Josiane marche jusqu'au goûter qu'elle va garder, à petits pas sautillants. */
+  /**
+   * Mme Josiane marche jusqu'au goûter qu'elle va garder, à petits pas sautillants, en suivant
+   * sa ronde (elle longe les goûters qu'elle saute). Plusieurs marches dans un même coup (le
+   * Délégué, puis le pas de fin de tour) se suivent : chacune part de là où l'autre s'arrête.
+   */
   private marcheSurveillante(position: number, pas: number): void {
-    const j = this.josiane;
     const ronde = this.cour.ronde;
-    if (!j || ronde.length === 0) return;
-    const indexRegion = ronde.at((((position - pas) % ronde.length) + ronde.length) % ronde.length);
-    const ancien = indexRegion === undefined ? undefined : this.cour.regions.at(indexRegion)?.id;
-    if (!ancien || pas === 0) return;
-    const a = this.positionSurveillante(ancien);
-    const arrivee = { x: j.x, y: j.y };
-    j.setPosition(a.x, a.y + 30);
-    this.onomatopee(a.x, a.y - 40, TEXTES.animations.sifflet, 26, '#e2c8ff');
-    const duree = 760;
+    if (ronde.length === 0 || pas === 0) return;
+    const etapes = rondeParcourue(ronde.length, position, pas).map((k) => {
+      const id = this.cour.regions.at(ronde[k] as number)?.id;
+      return id ? this.positionSurveillante(id) : null;
+    });
+    if (etapes.some((p) => p === null)) return;
+    const points = etapes as Point[];
+    const depart = points[0] as Point;
+    const fini = (): void => {
+      this.marchesEnCours = Math.max(0, this.marchesEnCours - 1);
+      // La dernière marche finie, on la montre de nouveau là où le moteur la place.
+      this.surveillanteVue = this.marchesEnCours > 0 ? position : null;
+    };
+    this.marchesEnCours += 1;
+    // On la place au départ (elle y est peut-être déjà), puis on la déplace d'autant.
+    const deplacer = (p: Point): void => {
+      const ici = this.ancreJosiane;
+      if (!ici) return;
+      const dx = p.x - ici.x;
+      const dy = p.y - ici.y;
+      for (const o of this.objetsJosiane) {
+        const t = o as unknown as Phaser.GameObjects.Components.Transform;
+        if (o.active) t.setPosition(t.x + dx, t.y + dy);
+      }
+      this.ancreJosiane = p;
+    };
+    deplacer(depart);
+    this.onomatopee(depart.x, depart.y - 40, TEXTES.animations.sifflet, 26, '#e2c8ff');
+    const segments = points.length - 1;
+    const arrivee = points[segments] as Point;
     this.tweens.addCounter({
       from: 0,
       to: 1,
-      duration: duree,
+      duration: DUREE_CONSEQUENCE,
       ease: 'Sine.easeInOut',
       onUpdate: (tw) => {
         const v = tw.getValue() ?? 0;
-        // Petits pas : elle sautille 5 fois en chemin.
-        const saut = Math.abs(Math.sin(v * Math.PI * 5)) * 10;
-        j.setPosition(a.x + (arrivee.x - a.x) * v, a.y + 30 + (arrivee.y - a.y - 30) * v - saut);
+        const k = Math.min(segments - 1, Math.floor(v * segments));
+        const a = points[k] as Point;
+        const b = points[k + 1] as Point;
+        const u = v * segments - k;
+        // Petits pas : elle sautille 5 fois par goûter.
+        const saut = Math.abs(Math.sin(v * Math.PI * 5 * segments)) * 10;
+        deplacer({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u - saut });
       },
-      onComplete: () => j.setPosition(arrivee.x, arrivee.y),
+      onComplete: () => {
+        deplacer(arrivee);
+        fini();
+      },
     });
   }
 

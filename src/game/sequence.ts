@@ -12,6 +12,9 @@ export const ECART_CONSEQUENCES = 320;
 /** Durée d'une conséquence (vol jusqu'à un lieu, marche de la surveillante…) (ms). */
 export const DUREE_CONSEQUENCE = 760;
 
+/** Petit arrêt de la surveillante sur le goûter où elle arrive, avant la suite (ms). */
+export const PAUSE_SURVEILLANTE = 160;
+
 /** Événements qui se voient sur la cour comme une conséquence de l'arrivée. */
 function estConsequence(ev: Evenement): boolean {
   return (
@@ -45,7 +48,7 @@ export function planAnimations(nouveaux: readonly Evenement[]): Etape[] {
       plan.push({ ev, debut: t });
       finConsequences = Math.max(finConsequences, t + DUREE_CONSEQUENCE);
       // La surveillante finit sa marche avant qu'on ramasse le goûter qu'elle quitte.
-      t += ev.type === 'surveillante' ? DUREE_CONSEQUENCE : ECART_CONSEQUENCES;
+      t += ev.type === 'surveillante' ? DUREE_CONSEQUENCE + PAUSE_SURVEILLANTE : ECART_CONSEQUENCES;
     } else if (ev.type === 'fin') {
       // La victoire n'arrive qu'une fois toute la cour jouée (marche de la surveillante comprise).
       plan.push({ ev, debut: finConsequences });
@@ -65,4 +68,19 @@ export function dureeAnimations(nouveaux: readonly Evenement[]): number {
     fin = Math.max(fin, debut + duree);
   }
   return fin;
+}
+
+/**
+ * Les goûters par lesquels passe la surveillante quand elle avance de `pas` dans sa ronde de
+ * `n` goûters pour arriver en `position` : celui qu'elle quitte, ceux qu'elle longe, puis
+ * celui où elle s'arrête (indices dans la ronde). Elle suit sa ronde, sans couper la cour.
+ */
+export function rondeParcourue(n: number, position: number, pas: number): number[] {
+  if (n <= 0) return [];
+  const mod = (k: number): number => ((k % n) + n) % n;
+  const sens = pas < 0 ? -1 : 1;
+  const depart = mod(position - pas);
+  const etapes = [depart];
+  for (let k = 1; k <= Math.abs(pas); k++) etapes.push(mod(depart + sens * k));
+  return etapes;
 }
