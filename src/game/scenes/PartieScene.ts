@@ -71,7 +71,12 @@ import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
 import { cleGouter, DECOR, ILLUSTRATIONS, PLATEAU } from './ChargementScene';
 import { cadrer, decorPlein } from '../ui/ecran';
-import { animerMarionnette, Marionnette } from '../ui/marionnette';
+import {
+  COULEURS_SURVEILLANT,
+  MedaillonSurveillant,
+  SurveillantEnPied,
+  type Reaction,
+} from '../ui/surveillant';
 import { visuelCarte, type VisuelCarte } from '../cartes';
 import { choisirCarte } from '../../data/cartes';
 import { effacerIncrustations, jouerIncrust } from '../ui/incrust';
@@ -148,8 +153,16 @@ export class PartieScene extends Phaser.Scene {
   private cartables: Record<Bande, Point[]> = { rouge: [], bleu: [] };
   /** Tour affiché par la pendule (pour faire avancer l'aiguille quand il change). */
   private tourHorloge = 0;
-  /** Mme Josiane, pour la faire marcher d'un goûter à l'autre. */
-  private josiane: Phaser.GameObjects.Container | null = null;
+  /** Le médaillon du surveillant sur la cour (DS.1), pour le faire réagir et marcher. */
+  private medaillon: MedaillonSurveillant | null = null;
+  /** Le surveillant en pied pendant la présentation de la carte (DS.2). */
+  private enPied: SurveillantEnPied | null = null;
+  /** Le médaillon doit apparaître d'un bond (juste après la présentation). */
+  private medaillonArrive = false;
+  /** Place du médaillon pour chaque goûter (calculée une fois). */
+  private placesMedaillon = new Map<string, Point>();
+  /** Il saute de la présentation à sa place : le bouton ne répond plus. */
+  private rangement = false;
   /** Tout ce qui dessine Mme Josiane sur la cour (ombre, marionnette, étiquette) : bouge avec elle. */
   private objetsJosiane: Phaser.GameObjects.GameObject[] = [];
   /** Le point où ces objets sont dessinés en ce moment (voir positionSurveillante). */
@@ -203,6 +216,10 @@ export class PartieScene extends Phaser.Scene {
     this.surveillanteVue = null;
     this.marchesEnCours = 0;
     this.presentation = true;
+    this.enPied = null;
+    this.placesMedaillon = new Map();
+    this.medaillonArrive = false;
+    this.rangement = false;
     this.attenteAdversaire = false;
     this.tourHorloge = 0;
     // En solo, le joueur garde la bande rouge (en bas, D2.1) ; l'ordi joue la bleue.
@@ -1027,26 +1044,67 @@ export class PartieScene extends Phaser.Scene {
     return { x: c.x, y: c.y + decalage };
   }
 
-  /** Où se tient la surveillante quand elle garde ce goûter : juste à côté. */
+  /**
+   * Où se tient la surveillante quand elle garde ce goûter : son médaillon juste au-dessus, sans
+   * le cacher (DS.1) ; le dessin au trait de secours, juste à côté.
+   */
   private positionSurveillante(regionId: string): Point {
     const c = this.positionGouter(regionId);
-    return { x: c.x + 42, y: c.y + 4 };
+    if (!this.textures.exists(this.visuel.surveillant.texture)) return { x: c.x + 42, y: c.y + 4 };
+    const deja = this.placesMedaillon.get(regionId);
+    if (deja) return deja;
+    // Au-dessus du goûter de préférence ; sinon sur le côté ou dessous, là où il y a le plus de
+    // place entre les îlots, les cabanes, les lieux et les autres goûters.
+    const obstacles: Point[] = [
+      ...Object.keys(this.cour.noeuds).map((id) => this.pos(id)),
+      ...this.cour.regions.filter((r) => r.id !== regionId).map((r) => this.positionGouter(r.id)),
+      ...(['rouge', 'bleu'] as const).flatMap((b) =>
+        (['portail', 'cpe'] as const).map((l) => positionLieu(this.cour, b, l)),
+      ),
+    ];
+    const essais: [number, number, number][] = [
+      [0, -96, 14],
+      [96, -22, 6],
+      [-96, -22, 6],
+      [72, -76, 8],
+      [-72, -76, 8],
+      [0, 100, 0],
+    ];
+    let meilleur: Point = { x: c.x, y: c.y - 96 };
+    let score = -Infinity;
+    for (const [dx, dy, bonus] of essais) {
+      const p = { x: c.x + dx, y: c.y + dy };
+      if (p.x < 70 || p.x > LARGEUR - 70) continue;
+      const libre = Math.min(...obstacles.map((o) => Math.hypot(o.x - p.x, (o.y - p.y) * 1.1)));
+      if (libre + bonus > score) {
+        score = libre + bonus;
+        meilleur = p;
+      }
+    }
+    this.placesMedaillon.set(regionId, meilleur);
+    return meilleur;
   }
 
-  /** Mme Josiane : la marionnette dodue, ou à défaut un dessin au trait (robe lilas, chignon). */
-  private silhouette(x: number, y: number, alpha: number): void {
-    const { texture, rig } = this.visuel.surveillant;
+  /**
+   * Le surveillant sur la cour : son médaillon (DS.1), tête et épaules dans une rosette, ou à
+   * défaut un dessin au trait (robe lilas, chignon). Renvoie true pour le médaillon (il porte
+   * son nom sur sa banderole).
+   */
+  private silhouette(x: number, y: number, alpha: number): boolean {
+    const { texture, rig, id } = this.visuel.surveillant;
     if (this.textures.exists(texture)) {
-      const ombre = this.ajouter(this.add.graphics());
-      ombre.fillStyle(COULEURS.encre, 0.25);
-      ombre.fillEllipse(x + 2, y + 30, 46, 12);
-      // Marionnette articulée, comme les élèves (pieds à l'origine).
-      const corps = new Marionnette(this, texture, rig, 100 / rig.hauteur);
-      const josiane = this.add.container(x, y + 30, [corps.racine]).setAlpha(alpha);
-      this.ajouter(josiane);
-      this.josiane = josiane;
-      animerMarionnette(this, corps, josiane, { caractere: 'surveillante' });
-      return;
+      const m = new MedaillonSurveillant(this, texture, rig, id, TEXTES.surveillante);
+      m.racine.setPosition(x, y).setAlpha(alpha);
+      this.ajouter(m.racine);
+      this.medaillon = m;
+      if (this.medaillonArrive && this.animations) {
+        // Il vient de se ranger : le médaillon apparaît d'un bond, avec un coup de sifflet.
+        this.medaillonArrive = false;
+        m.racine.setScale(0.2);
+        this.tweens.add({ targets: m.racine, scale: 1, duration: 380, ease: 'Back.easeOut' });
+        m.reagir('sifflet');
+      }
+      return true;
     }
     const g = this.ajouter(this.add.graphics());
     g.setAlpha(alpha);
@@ -1080,6 +1138,12 @@ export class PartieScene extends Phaser.Scene {
     // Sifflet jaune au bout d'un cordon.
     g.lineBetween(x - 4, y - 14, x + 2, y - 4);
     forme(g, contourRond(x + 3, y - 3, 4, graine + 2), { remplissage: COULEURS.jaune, trait: 2 });
+    return false;
+  }
+
+  /** Le surveillant réagit au jeu, sur son médaillon. */
+  private reactionSurveillant(r: Reaction): void {
+    if (this.animations && this.medaillon?.racine.active) this.medaillon.reagir(r);
   }
 
   /** Une friandise par zone (chocolat, biscuits, bonbon, sucette) avec sa valeur. */
@@ -1161,10 +1225,14 @@ export class PartieScene extends Phaser.Scene {
         trait: 3,
       });
     } else if (garde) {
-      // Le goûter gardé : un rond lilas en pointillés autour.
-      g.lineStyle(4, COULEURS.surveillante, 1);
+      // Le goûter gardé : un rond en pointillés aux couleurs du médaillon (DS.1).
       const n = 14;
-      for (let k = 0; k < n; k += 2) {
+      for (let k = 0; k < n; k++) {
+        g.lineStyle(
+          k % 2 === 0 ? 6 : 4,
+          k % 2 === 0 ? COULEURS_SURVEILLANT.coeur : COULEURS.jaune,
+          1,
+        );
         g.beginPath();
         g.arc(x, y, 36, (k / n) * Math.PI * 2, ((k + 1) / n) * Math.PI * 2);
         g.strokePath();
@@ -1194,7 +1262,7 @@ export class PartieScene extends Phaser.Scene {
   }
 
   private dessinerSurveillante(): void {
-    this.josiane = null;
+    this.medaillon = null;
     this.objetsJosiane = [];
     this.ancreJosiane = null;
     const ronde = this.cour.ronde;
@@ -1204,10 +1272,11 @@ export class PartieScene extends Phaser.Scene {
         ? (this.cour.regions.at(ronde[vue % ronde.length] as number)?.id ?? null)
         : gouterSurveille(this.etat);
     if (!garde) return;
+    // Pendant la présentation, il est en pied à côté de la règle : il se rangera ici ensuite.
+    if (this.presentation && this.textures.exists(this.visuel.surveillant.texture)) return;
     const { x, y } = this.positionSurveillante(garde);
     const avant = this.dyn.length;
-    this.silhouette(x, y, 1);
-    this.etiquette(x, y + 34, TEXTES.surveillante, COULEURS.papier);
+    if (!this.silhouette(x, y, 1)) this.etiquette(x, y + 34, TEXTES.surveillante, COULEURS.papier);
     this.objetsJosiane = this.dyn.list.slice(avant);
     this.ancreJosiane = { x, y };
   }
@@ -2320,12 +2389,17 @@ export class PartieScene extends Phaser.Scene {
     // Volet du bas : la règle spéciale et le bouton (ou l'attente d'un adversaire).
     const regle = this.etat.equipements && infos ? infos.regle : P.sansRegle;
     const yBouton = Math.min(BAS - 64, 1210 + DESCENTE);
-    const corps = this.texte(cx, 0, regle, 18, COULEURS.texteSombre, {
+    // Le surveillant en pied se tient à gauche de la règle (DS.2) : le texte se pousse à droite.
+    const { texture, rig, id } = this.visuel.surveillant;
+    const garde = gouterSurveille(this.etat);
+    const enPied = garde !== null && this.textures.exists(texture);
+    const cxRegle = enPied ? cx + 75 : cx;
+    const corps = this.texte(cxRegle, 0, regle, 18, COULEURS.texteSombre, {
       fontStyle: '500',
       align: 'center',
-      wordWrap: { width: LARGEUR - 110 },
+      wordWrap: { width: LARGEUR - (enPied ? 270 : 110) },
     }).setOrigin(0.5, 0);
-    const enTete = this.texte(cx, 0, P.regleTitre, 22, COULEURS.texteSombre, {
+    const enTete = this.texte(cxRegle, 0, P.regleTitre, 22, COULEURS.texteSombre, {
       fontStyle: '700',
     }).setOrigin(0.5, 0);
     const haut = yBouton - 64 - corps.height - enTete.height - 34;
@@ -2387,12 +2461,11 @@ export class PartieScene extends Phaser.Scene {
       const p = this.pos(banc);
       bulles.push({ ancre: { x: p.x, y: p.y - RAYON_ILOT }, texte: P.bulles.banc });
     }
-    const garde = gouterSurveille(this.etat);
     if (garde) {
-      const m = this.positionSurveillante(garde);
-      // Au-dessus de sa tête, pour ne pas la cacher.
+      // Au-dessus de sa tête, pour ne pas la cacher ; en pied à côté, la bulle montre le goûter.
+      const m = enPied ? this.positionGouter(garde) : this.positionSurveillante(garde);
       bulles.push({
-        ancre: { x: m.x, y: m.y - 82 },
+        ancre: { x: m.x, y: m.y - (enPied ? 36 : 82) },
         texte: P.bulles.josiane,
         // Vers le bord le plus proche, pour ne pas cacher le goûter du milieu.
         decalage: m.x < LARGEUR / 2 ? -110 : 110,
@@ -2443,6 +2516,24 @@ export class PartieScene extends Phaser.Scene {
       });
     });
 
+    // Le surveillant entre, siffle, montre la règle du bras et trépigne en attendant (DS.2).
+    if (enPied) {
+      const deja = this.enPied !== null;
+      const pied = new SurveillantEnPied(
+        this,
+        texture,
+        rig,
+        id,
+        360,
+        Math.max(GAUCHE, 0) + 112,
+        haut + 92,
+        () => jouerSon('sifflet'),
+        !deja,
+      );
+      this.ajouter(pied.racine);
+      this.enPied = pied;
+    }
+
     if (this.attenteAdversaire) {
       const t = this.texte(cx, yBouton, `${P.attente}…`, 26, COULEURS.texteSombre, {
         fontStyle: '700',
@@ -2457,8 +2548,23 @@ export class PartieScene extends Phaser.Scene {
         yBouton,
         P.bouton,
         () => {
-          this.presentation = false;
-          this.rafraichir();
+          if (this.rangement) return;
+          const lancer = (): void => {
+            this.rangement = false;
+            this.presentation = false;
+            this.enPied = null;
+            this.medaillonArrive = true;
+            this.rafraichir();
+          };
+          // Il se range d'un bond à sa place sur la cour, puis la partie commence.
+          const pied = this.enPied;
+          if (pied && garde && this.animations) {
+            this.rangement = true;
+            const m = this.positionSurveillante(garde);
+            pied.ranger({ x: m.x, y: m.y + 40 }, 0.3, lancer);
+          } else {
+            lancer();
+          }
         },
         { largeur: 400, hauteur: 80, taille: 30, couleur: COULEURS.papier },
       ),
@@ -2771,6 +2877,7 @@ export class PartieScene extends Phaser.Scene {
       case 'pose':
         if (this.cour.noeuds[ev.cible]?.type === 'ilot') {
           this.atterrissage(ev.cible, ev.plaque);
+          if (ev.plaque) this.reactionSurveillant('indigne');
         } else {
           jouerSon('pose');
         }
@@ -2781,6 +2888,7 @@ export class PartieScene extends Phaser.Scene {
         break;
       case 'region':
         this.ramasserGouter(ev.region, ev.bande, ev.bonsPoints);
+        this.reactionSurveillant('surprise');
         break;
       case 'appel':
       case 'pioche':
@@ -2789,6 +2897,7 @@ export class PartieScene extends Phaser.Scene {
         break;
       case 'cpe':
         this.volerVersLieu(this.pos(ev.ilot), ev.bande, ev.role, ev.bande, 'cpe');
+        this.reactionSurveillant('colere');
         break;
       case 'infirmerie':
         this.eternuement(origine, ev.bande);
@@ -3138,7 +3247,9 @@ export class PartieScene extends Phaser.Scene {
       this.ancreJosiane = p;
     };
     deplacer(depart);
-    this.onomatopee(depart.x, depart.y - 40, TEXTES.animations.sifflet, 26, '#e2c8ff');
+    // Le coup de sifflet est sur son médaillon ; à défaut, l'onomatopée sur la cour.
+    if (this.medaillon?.racine.active) this.medaillon.reagir('sifflet');
+    else this.onomatopee(depart.x, depart.y - 40, TEXTES.animations.sifflet, 26, '#e2c8ff');
     jouerSon('sifflet');
     const segments = points.length - 1;
     const arrivee = points[segments] as Point;
@@ -3155,10 +3266,14 @@ export class PartieScene extends Phaser.Scene {
         const u = v * segments - k;
         // Petits pas : elle sautille 5 fois par goûter.
         const saut = Math.abs(Math.sin(v * Math.PI * 5 * segments)) * 10;
+        // Il regarde où il va.
+        if (Math.abs(b.x - a.x) > 2) this.medaillon?.regarder(b.x - a.x);
         deplacer({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u - saut });
       },
       onComplete: () => {
         deplacer(arrivee);
+        this.medaillon?.regarder(1);
+        if (this.marchesEnCours <= 1) this.reactionSurveillant('content');
         fini();
       },
     });

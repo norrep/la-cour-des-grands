@@ -6,6 +6,7 @@
 import type Phaser from 'phaser';
 import type { CarteId } from '../data/cartes';
 import type { Rig } from './ui/marionnette';
+import type { IdSurveillant } from './ui/surveillant';
 import { RIG_JOSIANE } from './skins/cartoon/rig';
 import { avecVersion } from '../version';
 
@@ -17,7 +18,7 @@ export interface VisuelCarte {
   /** Cabane de la carte (sinon celles de la récré) : l'image et ses murs à teinter. */
   cabane?: { image: string; murs: string };
   /** Le surveillant : texture des pièces et leur rig. */
-  surveillant: { texture: string; rig: Rig };
+  surveillant: { texture: string; rig: Rig; id: IdSurveillant };
 }
 
 const RIG_MAITRE_NAGEUR: Rig = {
@@ -69,7 +70,7 @@ export function visuelCarte(carte: CarteId): VisuelCarte {
     return {
       decor: 'decor-cour',
       ilots: {},
-      surveillant: { texture: 'decor-josiane', rig: RIG_JOSIANE },
+      surveillant: { texture: 'decor-josiane', rig: RIG_JOSIANE, id: 'josiane' },
     };
   }
   return {
@@ -79,6 +80,7 @@ export function visuelCarte(carte: CarteId): VisuelCarte {
     surveillant: {
       texture: cle(carte, 'surveillant'),
       rig: carte === 'piscine' ? RIG_MAITRE_NAGEUR : RIG_CHEFTAINE,
+      id: carte === 'piscine' ? 'maitreNageur' : 'cheftaine',
     },
   };
 }
