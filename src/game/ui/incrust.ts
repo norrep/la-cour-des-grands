@@ -23,6 +23,23 @@ const COTE = 512;
 /** Part de la `taille` demandée qu'occupe l'objet ; le reste laisse la place aux effets. */
 const PART_OBJET = 0.6;
 const ENCRE = COULEURS.encre;
+/**
+ * Durée maximale d'une incrustation, disparition comprise (ms). Au-delà, elle est détruite
+ * d'office : si ses tweens ont été arrêtés en route (redessin de l'écran), elle ne doit pas
+ * rester figée sur sa dernière image.
+ */
+export const DUREE_INCRUST = 1500;
+
+/** Incrustations posées directement sur la scène (sans parent), encore à l'écran. */
+const libres = new Set<Phaser.GameObjects.Container>();
+
+/**
+ * Efface les incrustations libres de la scène. À appeler quand l'écran se redessine : ses
+ * tweens sont arrêtés, elles resteraient sinon figées par-dessus le nouvel écran.
+ */
+export function effacerIncrustations(scene: Phaser.Scene): void {
+  for (const boite of [...libres]) if (boite.scene === scene || !boite.scene) boite.destroy();
+}
 
 /** À appeler dans le preload de la scène de chargement. */
 export function chargerIncrustations(scene: Phaser.Scene): void {
@@ -47,7 +64,11 @@ export function jouerIncrust(
   if (!scene.textures.exists(k)) return null;
   const boite = scene.add.container(x, y);
   if (options.parent) options.parent.add(boite);
-  else boite.setDepth(options.profondeur ?? 900);
+  else {
+    boite.setDepth(options.profondeur ?? 900);
+    libres.add(boite);
+    boite.once(Phaser.GameObjects.Events.DESTROY, () => libres.delete(boite));
+  }
   const echelle = (taille * PART_OBJET) / COTE;
   const objet = scene.add.image(0, 0, k).setScale(0);
   boite.add(objet);
@@ -64,6 +85,10 @@ export function jouerIncrust(
   if (id === 'appelCopains') megaphone(scene, boite, objet, echelle, taille, fin);
   else if (id === 'sonnerie') reveil(scene, boite, objet, echelle, taille, fin);
   else bagarre(scene, boite, objet, echelle, taille, fin);
+  // Filet de sécurité : l'horloge de la scène n'est pas arrêtée avec les tweens.
+  scene.time.delayedCall(DUREE_INCRUST + 100, () => {
+    if (boite.scene) boite.destroy();
+  });
   return boite;
 }
 

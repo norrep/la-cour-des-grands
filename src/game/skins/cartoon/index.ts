@@ -38,7 +38,7 @@ const PENCHE = 0.45;
 /** Nom de l'image d'un élève : préfixe de l'équipe qui joue ce camp (DB.1), puis le rôle. */
 const nom = (bande: Bande, role: RoleId) => `${equipeDe(bande).prefixe}-${role}`;
 const cle = (bande: Bande, role: RoleId) => `dodu-${nom(bande, role)}`;
-/** Les vers de terre n'ont pas de membres : un seul dessin, déformé d'un bloc (DB.7). */
+/** Les vers de terre n'ont pas de membres : un seul dessin, déformé d'un bloc (DB.8). */
 const estVer = (bande: Bande) => equipeDe(bande).sansBras === true;
 const cleCorps = (bande: Bande, role: RoleId) => `${cle(bande, role)}-corps`;
 

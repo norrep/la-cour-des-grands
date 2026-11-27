@@ -1,5 +1,5 @@
 /**
- * Ver de terre d'un seul morceau (DB.7) : pas de membres, donc pas de découpe. Le dessin entier
+ * Ver de terre d'un seul morceau (DB.8) : pas de membres, donc pas de découpe. Le dessin entier
  * (`vers-<rôle>-corps.png`, trait égalisé comme les autres élèves) est plaqué sur une colonne souple
  * de points : le corps se plie, ondule, s'étire et s'écrase sans jointure. La queue enroulée reste
  * posée au sol ; la souplesse grandit vers la tête.

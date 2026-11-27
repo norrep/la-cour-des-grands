@@ -15,6 +15,14 @@ export const DUREE_CONSEQUENCE = 760;
 /** Tourbillon du courant de la piscine (ms) : on le laisse finir avant de redessiner. */
 export const DUREE_COURANT = 1000;
 
+/**
+ * Arrivée avec plaquage : chute, puis le nuage de bagarre (≈ 1,5 s) (ms). On le laisse finir
+ * avant de redessiner, sinon il est coupé en plein vol.
+ */
+export const DUREE_PLAQUAGE = 1800;
+/** Le mégaphone des copains appelés (ms). */
+export const DUREE_COPAINS = 1450;
+
 /** Petit arrêt de la surveillante sur le goûter où elle arrive, avant la suite (ms). */
 export const PAUSE_SURVEILLANTE = 160;
 
@@ -69,12 +77,16 @@ export function dureeAnimations(nouveaux: readonly Evenement[]): number {
   for (const { ev, debut } of plan) {
     const duree =
       ev.type === 'pose'
-        ? DUREE_ARRIVEE
+        ? ev.plaque
+          ? DUREE_PLAQUAGE
+          : DUREE_ARRIVEE
         : ev.type === 'courant'
           ? DUREE_COURANT
-          : estConsequence(ev)
-            ? DUREE_CONSEQUENCE
-            : 0;
+          : ev.type === 'appel' || ev.type === 'pioche'
+            ? DUREE_COPAINS
+            : estConsequence(ev)
+              ? DUREE_CONSEQUENCE
+              : 0;
     fin = Math.max(fin, debut + duree);
   }
   return fin;

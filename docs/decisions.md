@@ -207,7 +207,13 @@ Proposition validée par Clément le 27/11 : doc « La Cour des Grands : cartes 
 - Il est maintenant dans le calque du plateau (effacé à chaque redessin), et le coup compte sa durée (1 s) avant de passer à la suite.
 - Score de fin : le nom de l'équipe sans « Les » (« Goûters : Rouges 4, Vers de terre 1 ») au lieu de l'adjectif court (« ver 1, rouge 4 »).
 
-### DB.7 — Les vers de terre d'un seul morceau (27/11)
+### DB.7 — Le nuage du plaquage ne reste plus figé
+
+- Bug (capture Android de Clément, 27/11, écran « DRIIIING ! ») : le nuage de bagarre du plaquage restait figé sur sa dernière image, par-dessus un élève et le texte de fin. Même cause que DB.6 : les incrustations (DF.39) sont posées hors du calque du plateau ; quand l'écran se redessinait avant la fin de leur animation (fin de tour à 0,9 s, victoire), leurs tweens étaient arrêtés et elles n'étaient jamais détruites. Le mégaphone des copains avait le même défaut.
+- Redessiner l'écran efface maintenant les incrustations en cours, et chacune est détruite d'office 1,6 s après son départ.
+- Un coup avec plaquage compte 1,8 s (chute + nuage), et l'appel des copains 1,45 s, avant de passer à la suite : on voit le nuage finir au lieu de le couper.
+
+### DB.8 — Les vers de terre d'un seul morceau (27/11)
 
 - Clément : « L'anim des vers est pauvre et on sent la découpe. » Un ver n'a ni bras ni jambes : découpé en trois pièces rigides (tête, chasuble, queue), il ne faisait que pivoter aux jointures, qui se voyaient.
 - Le ver n'est plus découpé : son dessin entier (`public/skins/dodu/vers-<rôle>-corps.png`, trait égalisé comme les autres, `scripts/ver-entier.py`) est plaqué sur une colonne souple de 32 points (`ui/ver.ts`, une `Rope` de Phaser). Il se plie, ondule, s'étire et s'écrase (son volume est gardé : étiré, il s'amincit) ; la queue enroulée reste posée au sol.
