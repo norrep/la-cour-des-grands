@@ -1576,6 +1576,7 @@ export class PartieScene extends Phaser.Scene {
     corps.setPosition(x0 + marge, y);
     enfants.push(corps);
     const c = this.add.container(0, 0, enfants);
+    c.setData('cadre', new Phaser.Geom.Rectangle(x0, y0, l, h));
     this.ajouter(c);
     return c;
   }
@@ -2259,13 +2260,22 @@ export class PartieScene extends Phaser.Scene {
       const p = this.pos(cabane);
       bulles.push({ ancre: { x: p.x, y: p.y + 34 }, texte: P.bulles.cabane, dessous: true });
     }
-    const region = this.cour.regions.find((r) => r.id === 'bas') ?? this.cour.regions[0];
+    // Le goûter le plus bas de la cour que personne ne garde : loin de la bulle de la cabane.
+    const gardee = gouterSurveille(this.etat);
+    const region =
+      this.cour.regions.find((r) => r.id === 'bas') ??
+      [...this.cour.regions]
+        .filter((r) => r.id !== gardee)
+        .sort(
+          (r1, r2) => centreRegion(this.cour, r2.ilots).y - centreRegion(this.cour, r1.ilots).y,
+        )[0];
     if (region) {
       const c = centreRegion(this.cour, region.ilots);
       bulles.push({
-        ancre: { x: c.x, y: c.y + 22 },
+        ancre: { x: c.x, y: region.id === 'bas' ? c.y + 22 : c.y - 26 },
         texte: P.bulles.gouter(this.cour.seuilBonsPoints),
-        dessous: true,
+        // Sous le goûter du bas de la récré ; ailleurs, au-dessus, pour ne pas cacher sa cabane.
+        dessous: region.id === 'bas',
       });
     }
     const banc = this.etat.equipements
@@ -2286,16 +2296,26 @@ export class PartieScene extends Phaser.Scene {
         decalage: m.x < LARGEUR / 2 ? -110 : 110,
       });
     }
+    const posees: Phaser.Geom.Rectangle[] = [];
+    const cadre = (c: Phaser.GameObjects.Container): Phaser.Geom.Rectangle =>
+      c.getData('cadre') as Phaser.Geom.Rectangle;
     bulles.forEach((b, i) => {
-      const c = this.bulle(
-        null,
-        b.texte,
-        surPlateau(b.ancre),
-        COULEURS.papier,
-        300,
-        b.dessous,
-        b.decalage,
-      );
+      const poser = (dessous: boolean | undefined): Phaser.GameObjects.Container =>
+        this.bulle(null, b.texte, surPlateau(b.ancre), COULEURS.papier, 300, dessous, b.decalage);
+      const chevauche = (r: Phaser.Geom.Rectangle): boolean =>
+        posees.some((q) => Phaser.Geom.Intersects.RectangleToRectangle(q, r));
+      // Une bulle qui en couvrirait une autre passe de l'autre côté de ce qu'elle montre.
+      let c = poser(b.dessous);
+      if (chevauche(cadre(c))) {
+        const autre = poser(!b.dessous);
+        if (!chevauche(cadre(autre))) {
+          c.destroy();
+          c = autre;
+        } else {
+          autre.destroy();
+        }
+      }
+      posees.push(cadre(c));
       if (!this.animations) return;
       c.setAlpha(0);
       this.tweens.add({ targets: c, alpha: 1, duration: 220, delay: 300 + i * 450 });

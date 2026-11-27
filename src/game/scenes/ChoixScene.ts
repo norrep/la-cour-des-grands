@@ -205,10 +205,16 @@ export class ChoixScene extends Phaser.Scene {
       const skin = skinActif();
       const grand = skin.eleve(this, 'rouge', 'grand', 74).setPosition(-62, -10);
       const petit = skin.eleve(this, 'rouge', 'petit', 74).setPosition(66, 10);
+      // Une ombre sous les pieds de chacun (le Grand et le Petit n'ont pas les pieds au même niveau).
       const sol = this.add.graphics();
       sol.fillStyle(COULEURS.encre, 0.18);
-      sol.fillEllipse(-62, 108, 100, 18);
-      sol.fillEllipse(66, 108, 90, 16);
+      for (const [el, l] of [
+        [grand, 100],
+        [petit, 90],
+      ] as const) {
+        const b = el.getBounds();
+        sol.fillEllipse(el.x, b.bottom - 4, l, 18);
+      }
       const nom = this.texte(0, 154, prise ? TEXTES.choixPartie.pris : equipe.nom, 28, l - 20);
       this.carteTouchable(
         c,
