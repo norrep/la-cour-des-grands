@@ -1521,16 +1521,7 @@ export class PartieScene extends Phaser.Scene {
     const e = this.etat;
     const j = e.joueurs[bande];
     // Le couloir et la CPE sont dessinés autour de la cour (portail, bureau) : plus de compteurs ici.
-    if (j.rang.length > 0 && interactif) {
-      this.texte(
-        LARGEUR - 30,
-        RANG.y - RANG.hauteurCarte / 2 - 28,
-        aide(TEXTES.hud.toucherCarte, FUN.hud.toucherCarte, this.etat.tour),
-        16,
-        COULEURS.texteSombre,
-        { fontStyle: '600', stroke: '#fff6e4', strokeThickness: 5 },
-      ).setOrigin(1, 0);
-    }
+    // Plus de « Touche un élève » au-dessus du rang (DF.24) : le tuto l'expliquera.
     if (j.rang.length === 0 && interactif) {
       this.texte(
         LARGEUR / 2,
