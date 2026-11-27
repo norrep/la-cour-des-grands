@@ -93,7 +93,9 @@ export type CodeRefus =
   | 'version_perimee'
   | 'coup_illegal'
   | 'pas_encore'
-  | 'reglages_invalides';
+  | 'reglages_invalides'
+  /** Le serveur refuse les connexions sans compte (réglage du projet). */
+  | 'connexion_fermee';
 
 export class Refus extends Error {
   constructor(

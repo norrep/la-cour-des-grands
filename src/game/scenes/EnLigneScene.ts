@@ -143,9 +143,12 @@ export class EnLigneScene extends Phaser.Scene {
     this.scene.start('accueil');
   }
 
+  /** Le message à montrer, suivi d'une petite ligne technique pour nous aider à trouver la cause. */
   private message(err: unknown): string {
-    const code = err instanceof Refus ? err.code : err instanceof TypeError ? 'reseau' : 'autre';
-    return TEXTES.enLigne.erreurs[code] ?? TEXTES.enLigne.erreurs.autre ?? '';
+    const texte = TEXTES.enLigne.erreurs[codeErreur(err)] ?? TEXTES.enLigne.erreurs.autre ?? '';
+    const e = err as { name?: string; message?: string; status?: number } | null;
+    const detail = [e?.name, e?.status, e?.message].filter(Boolean).join(' · ').slice(0, 90);
+    return detail ? `${texte}\n\n(${detail})` : texte;
   }
 
   private attente(texte: string): void {
@@ -374,4 +377,14 @@ export class EnLigneScene extends Phaser.Scene {
     };
     this.scene.start('partie', donnees);
   }
+}
+
+/** Range une erreur dans une des familles de messages (`TEXTES.enLigne.erreurs`). */
+export function codeErreur(err: unknown): string {
+  if (err instanceof Refus) return err.code;
+  const e = err as { name?: string; message?: string } | null;
+  const tout = `${e?.name ?? ''} ${e?.message ?? ''}`;
+  if (/Timeout|Abort|signal timed out/i.test(tout)) return 'delai';
+  if (err instanceof TypeError || /Fetch|network|Failed to fetch/i.test(tout)) return 'reseau';
+  return 'autre';
 }
