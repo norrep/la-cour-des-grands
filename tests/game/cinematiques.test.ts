@@ -102,4 +102,19 @@ describe('Cinématiques', () => {
       expect(dureeBruitage(id)).toBeLessThan(0.6);
     }
   });
+
+  it('pouvoir appliqué tout seul (DF.40) : la Rapporteuse et le 2e élève du Chouchou ont leur moment', () => {
+    expect(
+      brut([
+        { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'a', role: 'rapporteuse', cible: 'L' },
+        { type: 'cpe', tour: 1, bande: 'bleu', eleveId: 'c', role: 'grand', ilot: 'Q' },
+      ]),
+    ).toEqual([{ id: 'cpe', pouvoir: 'rapporteuse' }]);
+    expect(
+      cinematiquesPour([
+        { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'a', role: 'chouchou', cible: 'P' },
+        { type: 'pose', tour: 1, bande: 'rouge', eleveId: 'b', role: 'grand', cible: 'Q' },
+      ]),
+    ).toEqual(['grandsFreres']);
+  });
 });

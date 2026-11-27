@@ -86,6 +86,7 @@ export function creerPartie(cour: Cour, options: OptionsPartie): EtatPartie {
   return {
     cour,
     equipements: options.equipements ?? true,
+    pouvoirsAuto: options.pouvoirsAuto ?? false,
     rng,
     joueurs,
     piles,
@@ -658,11 +659,49 @@ function verifierRegions(e: EtatPartie): void {
   }
 }
 
+/** Clé d'une option : deux élèves du même rôle envoyés au même endroit reviennent au même. */
+function cleOption(e: EtatPartie, o: Option): string {
+  const moi = e.joueurs[e.courant];
+  const role = (id: string) =>
+    (moi.rang.find((el) => el.id === id) ?? moi.cpe.find((el) => el.id === id))?.role ?? id;
+  switch (o.type) {
+    case 'poser':
+      return `poser:${role(o.eleveId)}:${o.cible}`;
+    case 'repecher':
+      return `repecher:${role(o.eleveId)}`;
+    case 'cpe':
+    case 'rappeler':
+      return `${o.type}:${o.ilot}`;
+    case 'glisser':
+      return `glisser:${o.depart}:${o.arrivee}`;
+    default:
+      return o.type;
+  }
+}
+
+/**
+ * Le joueur n'a rien à décider : toutes les options reviennent au même. Seul le mot d'excuse
+ * du Délégué reste un vrai choix, car on peut le garder (« Passer », DF.8).
+ */
+export function choixUnique(e: EtatPartie, effet: Effet, options: readonly Option[]): boolean {
+  if (effet.type === 'pouvoir' && effet.role === 'delegue') return false;
+  const premiere = options[0];
+  if (!premiere) return false;
+  const cle = cleOption(e, premiere);
+  return options.every((o) => cleOption(e, o) === cle);
+}
+
 /** Résout les effets en attente jusqu'à ce qu'un choix soit nécessaire, puis termine le tour. */
 function resoudre(e: EtatPartie): void {
   while (!e.fin && e.effets.length > 0) {
     const effet = e.effets[e.effets.length - 1] as Effet;
     const options = optionsEffet(e, effet);
+    if (e.pouvoirsAuto && options.length > 0 && choixUnique(e, effet, options)) {
+      // Rien à choisir : le pouvoir s'applique tout seul (demande de Clément, DF.40).
+      e.effets.pop();
+      appliquerOption(e, effet, options[0] as Option);
+      continue;
+    }
     if (options.length > 0) {
       e.attente = { effet, options };
       return;
