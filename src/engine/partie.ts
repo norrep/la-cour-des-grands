@@ -3,6 +3,7 @@ import { graineVersEtat, melanger, tirerEntier } from './rng';
 import {
   ABSENTS_A_L_APPEL,
   EXEMPLAIRES_PAR_ROLE,
+  PIOCHE_POPULAIRE,
   RANG_DEPART_PREMIER,
   RANG_DEPART_SECOND,
   ROLES,
@@ -178,7 +179,9 @@ export function noeudsConnectes(e: EtatPartie, bande: Bande): Set<string> {
       if (
         !traverses.has(v.noeud) &&
         e.cour.noeuds[v.noeud]?.type === 'ilot' &&
-        sommet(e, v.noeud)?.bande === bande
+        sommet(e, v.noeud)?.bande === bande &&
+        // Le Petit est trop petit pour faire passer les copains : il ne prolonge pas le chemin.
+        sommet(e, v.noeud)?.role !== 'petit'
       ) {
         traverses.add(v.noeud);
         file.push(v.noeud);
@@ -245,6 +248,8 @@ export function posePossible(
   const dessus = sommet(e, cible);
   if (dessus && dessus.bande !== bande) {
     if (estPlanque(e, cible)) return false;
+    // Le Petit est intouchable : personne ne peut le recouvrir.
+    if (dessus.role === 'petit') return false;
     if (!peutRecouvrir(eleve, dessus)) return false;
   }
   if (eleve.role === 'fouine') return true;
@@ -295,7 +300,7 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
   if (effet.type === 'pouvoir') {
     switch (effet.role) {
       case 'populaire':
-        return nombreAPiocher(moi, 2) > 0 ? [{ type: 'piocher' }] : [];
+        return nombreAPiocher(moi, PIOCHE_POPULAIRE) > 0 ? [{ type: 'piocher' }] : [];
       case 'chouchou': {
         const options: Option[] = [];
         const connectes = noeudsConnectes(e, bande);
@@ -318,8 +323,21 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
         const j = e.joueurs[adv];
         return j.rang.some((el) => !j.infirmerie.includes(el.id)) ? [{ type: 'infirmerie' }] : [];
       }
-      case 'delegue':
-        return e.cour.ronde.length > 1 ? [{ type: 'surveillante' }] : [];
+      case 'delegue': {
+        // Le joueur choisit le goûter où va la surveillante (une option par goûter de sa ronde).
+        if (e.cour.ronde.length <= 1) return [];
+        const vus = new Set<number>([e.cour.ronde[e.surveillante] as number]);
+        const opts: Option[] = [];
+        e.cour.ronde.forEach((region, position) => {
+          if (vus.has(region)) return;
+          vus.add(region);
+          opts.push({ type: 'surveillante', position });
+        });
+        return opts;
+      }
+      case 'fouine':
+        // Passée par les buissons (hors du chemin), la Fouine ramène un copain.
+        return effet.horsChemin && nombreAPiocher(moi, 1) > 0 ? [{ type: 'piocher' }] : [];
       default:
         // Petit de maternelle, Fouine (pouvoir appliqué à la pose), Grand de CM2.
         return [];
@@ -405,7 +423,7 @@ function memeOption(a: Option, b: Option): boolean {
     case 'cpe':
       return b.type === 'cpe' && a.ilot === b.ilot;
     case 'surveillante':
-      return b.type === 'surveillante';
+      return b.type === 'surveillante' && a.position === b.position;
     case 'rappeler':
       return b.type === 'rappeler' && a.ilot === b.ilot;
     case 'repecher':
@@ -494,6 +512,8 @@ function terminer(e: EtatPartie, gagnant: Bande, raison: RaisonFin): void {
 
 /** Pose un élève (règles déjà vérifiées) et empile ses effets. */
 function poser(e: EtatPartie, bande: Bande, eleve: Eleve, cible: string): void {
+  // Avant la pose : la Fouine est-elle passée par les buissons (hors du chemin) ?
+  const horsChemin = eleve.role === 'fouine' && !noeudsConnectes(e, bande).has(cible);
   const j = e.joueurs[bande];
   j.rang = j.rang.filter((el) => el.id !== eleve.id);
   const noeud = e.cour.noeuds[cible];
@@ -526,7 +546,13 @@ function poser(e: EtatPartie, bande: Bande, eleve: Eleve, cible: string): void {
     e.effets.push({ type: 'equipement', equipement, ilot: cible, eleveId: eleve.id });
   }
   if (equipement !== 'bancMaitresses') {
-    e.effets.push({ type: 'pouvoir', role: eleve.role, ilot: cible, eleveId: eleve.id });
+    e.effets.push({
+      type: 'pouvoir',
+      role: eleve.role,
+      ilot: cible,
+      eleveId: eleve.id,
+      ...(horsChemin ? { horsChemin } : {}),
+    });
   }
 }
 
@@ -550,7 +576,7 @@ function appliquerOption(e: EtatPartie, effet: Effet, option: Option): void {
   const source = sourceEffet(effet);
   switch (option.type) {
     case 'piocher': {
-      const n = nombreAPiocher(moi, source === 'populaire' ? 2 : 1);
+      const n = nombreAPiocher(moi, source === 'populaire' ? PIOCHE_POPULAIRE : 1);
       piocher(e, bande, n);
       noter(e, { type: 'pioche', tour: e.tour, bande, nombre: n, source });
       break;
@@ -575,9 +601,8 @@ function appliquerOption(e: EtatPartie, effet: Effet, option: Option): void {
       break;
     }
     case 'surveillante': {
-      const [i, suivant] = tirerEntier(e.rng, 2);
-      e.rng = suivant;
-      deplacerSurveillante(e, i + 1, true);
+      const n = e.cour.ronde.length;
+      deplacerSurveillante(e, (((option.position - e.surveillante) % n) + n) % n, true);
       break;
     }
     case 'rappeler': {
@@ -732,7 +757,12 @@ function finirTour(e: EtatPartie): void {
     const autre = adversaire(suivant);
     const ptsSuivant = e.joueurs[suivant].bonsPoints;
     const ptsAutre = e.joueurs[autre].bonsPoints;
-    // À égalité, celui qui a bloqué la partie (le joueur bloqué) perd.
-    terminer(e, ptsSuivant > ptsAutre ? suivant : autre, 'sonnerie');
+    if (ptsSuivant !== ptsAutre) {
+      terminer(e, ptsSuivant > ptsAutre ? suivant : autre, 'sonnerie');
+      return;
+    }
+    // À égalité de goûters, gagne celui qui tient le plus d'îlots ; sinon, le joueur bloqué perd.
+    const tenus = (b: Bande) => e.cour.ilots.filter((i) => sommet(e, i)?.bande === b).length;
+    terminer(e, tenus(suivant) > tenus(autre) ? suivant : autre, 'sonnerie');
   }
 }

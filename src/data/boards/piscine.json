@@ -2,18 +2,76 @@
   "id": "piscine",
   "nom": "La piscine",
   "cabanes": [
-    { "id": "CabBleue", "bande": "bleu", "x": 0.5, "y": 0.05 },
-    { "id": "CabRouge", "bande": "rouge", "x": 0.5, "y": 0.88 }
+    {
+      "id": "CabBleue",
+      "bande": "bleu",
+      "x": 0.5,
+      "y": 0.05
+    },
+    {
+      "id": "CabRouge",
+      "bande": "rouge",
+      "x": 0.5,
+      "y": 0.88
+    }
   ],
   "ilots": [
-    { "id": "H1", "nom": "Les douches", "x": 0.2, "y": 0.22, "decor": "douches" },
-    { "id": "H2", "nom": "Le plongeoir", "x": 0.8, "y": 0.22, "decor": "plongeoir" },
-    { "id": "F1", "nom": "Le beignet", "x": 0.27, "y": 0.4, "decor": "beignet" },
-    { "id": "F2", "nom": "Le matelas", "x": 0.73, "y": 0.4, "decor": "matelas" },
-    { "id": "F3", "nom": "La bouée", "x": 0.73, "y": 0.58, "decor": "bouee" },
-    { "id": "F4", "nom": "Le canard", "x": 0.27, "y": 0.58, "decor": "canard" },
-    { "id": "B1", "nom": "L’échelle", "x": 0.2, "y": 0.74, "decor": "echelle" },
-    { "id": "B2", "nom": "Le bord", "x": 0.8, "y": 0.74, "decor": "bord" }
+    {
+      "id": "H1",
+      "nom": "Les douches",
+      "x": 0.2,
+      "y": 0.22,
+      "decor": "douches"
+    },
+    {
+      "id": "H2",
+      "nom": "Le plongeoir",
+      "x": 0.8,
+      "y": 0.22,
+      "decor": "plongeoir"
+    },
+    {
+      "id": "F1",
+      "nom": "Le beignet",
+      "x": 0.27,
+      "y": 0.4,
+      "decor": "beignet"
+    },
+    {
+      "id": "F2",
+      "nom": "Le matelas",
+      "x": 0.73,
+      "y": 0.4,
+      "decor": "matelas"
+    },
+    {
+      "id": "F3",
+      "nom": "La bouée",
+      "x": 0.73,
+      "y": 0.58,
+      "decor": "bouee"
+    },
+    {
+      "id": "F4",
+      "nom": "Le canard",
+      "x": 0.27,
+      "y": 0.58,
+      "decor": "canard"
+    },
+    {
+      "id": "B1",
+      "nom": "L’échelle",
+      "x": 0.2,
+      "y": 0.74,
+      "decor": "echelle"
+    },
+    {
+      "id": "B2",
+      "nom": "Le bord",
+      "x": 0.8,
+      "y": 0.74,
+      "decor": "bord"
+    }
   ],
   "allees": [
     ["CabBleue", "H1"],
@@ -33,28 +91,38 @@
   ],
   "regions": [
     {
-      "id": "bordBleu",
-      "nom": "Le bord du haut",
-      "ilots": ["H1", "H2"],
-      "bonsPoints": 1,
-      "gouter": { "x": 0.5, "y": 0.155 }
+      "id": "nordOuest",
+      "nom": "Le coin des douches",
+      "ilots": ["H1", "F1"],
+      "bonsPoints": 1
+    },
+    {
+      "id": "nordEst",
+      "nom": "Le coin du plongeoir",
+      "ilots": ["H2", "F2"],
+      "bonsPoints": 1
     },
     {
       "id": "grandBain",
       "nom": "Le grand bain",
       "ilots": ["F1", "F2", "F3", "F4"],
-      "bonsPoints": 3
+      "bonsPoints": 2
     },
     {
-      "id": "bordRouge",
-      "nom": "Le bord du bas",
-      "ilots": ["B1", "B2"],
-      "bonsPoints": 1,
-      "gouter": { "x": 0.5, "y": 0.805 }
+      "id": "sudEst",
+      "nom": "Le coin du bord",
+      "ilots": ["B2", "F3"],
+      "bonsPoints": 1
+    },
+    {
+      "id": "sudOuest",
+      "nom": "Le coin de l’échelle",
+      "ilots": ["B1", "F4"],
+      "bonsPoints": 1
     }
   ],
-  "seuilBonsPoints": 4,
-  "ronde": ["bordBleu", "grandBain", "bordRouge", "grandBain"],
-  "departRonde": 1,
-  "courant": ["F1", "F2", "F3", "F4"]
+  "seuilBonsPoints": 3,
+  "ronde": ["nordOuest", "nordEst", "sudEst", "sudOuest"],
+  "departRonde": 0,
+  "courant": ["F1", "F4", "F3", "F2"]
 }

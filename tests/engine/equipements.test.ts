@@ -81,7 +81,7 @@ describe('2 — La cabane perchée (cour de l’arbre)', () => {
     e = jouer(e, { type: 'choisir', option: { type: 'piocher' } });
     expect(e.attente?.effet).toMatchObject({ type: 'equipement', equipement: 'cabanePerchee' });
     e = jouer(e, { type: 'choisir', option: { type: 'piocher' } });
-    expect(e.joueurs.rouge.rang).toHaveLength(3);
+    expect(e.joueurs.rouge.rang).toHaveLength(4);
     const sources = e.journal.filter((ev) => ev.type === 'pioche').map((ev) => ev.source);
     expect(sources).toEqual(['populaire', 'cabanePerchee']);
   });

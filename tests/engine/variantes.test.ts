@@ -57,7 +57,7 @@ describe('Camp scout : sentiers à sens unique', () => {
 });
 
 describe('Piscine : le courant', () => {
-  it('après un tour complet, les piles du grand bain tournent d’un cran', () => {
+  it('après un tour complet, les piles du grand bain tournent d’un cran (sens DR.7)', () => {
     const e = situation({
       cour: piscine(),
       premier: 'rouge',
@@ -67,8 +67,8 @@ describe('Piscine : le courant', () => {
     });
     const apres = jouer(e, { type: 'appeler' });
     expect(pile(apres, 'F1')).toEqual([]);
-    expect(pile(apres, 'F2')).toEqual(['bleu:populaire']);
-    expect(pile(apres, 'F4')).toEqual(['rouge:chouchou']);
+    expect(pile(apres, 'F4')).toEqual(['bleu:populaire']);
+    expect(pile(apres, 'F2')).toEqual(['rouge:chouchou']);
     expect(apres.journal.some((ev) => ev.type === 'courant')).toBe(true);
   });
 

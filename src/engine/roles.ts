@@ -21,8 +21,10 @@ export const ROLES: readonly DefinitionRole[] = [
 export const EXEMPLAIRES_PAR_ROLE = 3;
 export const TAILLE_RANG = 8;
 export const ABSENTS_A_L_APPEL = 4;
-export const RANG_DEPART_PREMIER = 3;
-export const RANG_DEPART_SECOND = 4;
+export const RANG_DEPART_PREMIER = 4;
+export const RANG_DEPART_SECOND = 5;
+/** Élèves piochés par le pouvoir du Populaire. */
+export const PIOCHE_POPULAIRE = 3;
 /** Valeur minimale de l'élève posé par le pouvoir du Chouchou. */
 export const VALEUR_MIN_CHOUCHOU = 5;
 

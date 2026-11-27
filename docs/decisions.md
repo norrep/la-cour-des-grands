@@ -387,3 +387,15 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.7 — Tour d'en face bien visible.** Pendant le tour de l'ordi (ou de l'ami en ligne), la main
   descend et pâlit, un bandeau à la couleur d'en face dit « L'ordi réfléchit… » et un cadre de sa
   couleur borde l'écran. Quand le tour revient : un tampon « À toi ! » et un petit son.
+
+## Règles finales de l'audit (27/11, version d'essai)
+
+Demande de Clément : prendre le meilleur des trois tests (v2, main 4/5, règles strictes du jeu d'origine), puis « si on doit modifier quelque chose c'est la map de piscine, pas les règles ». Testé par simulation (`scripts/audit.ts`) avant d'être codé ; version d'essai séparée, pas fusionnée sans son accord.
+
+- **DR.1 — Main de départ 4 et 5** (au lieu de 3 et 4), sur toutes les cartes.
+- **DR.2 — La Populaire pioche 3** (au lieu de 2).
+- **DR.3 — Le Petit est intouchable mais pas relais** : aucun adversaire ne peut le recouvrir ; il ne prolonge pas le chemin de sa bande vers la cabane adverse (sans cette 2e moitié, les raids devenaient imparables).
+- **DR.4 — La Fouine posée hors du chemin pioche 1** (« par les buissons, elle ramène un copain »). Le chemin est mesuré avant la pose.
+- **DR.5 — Le Délégué choisit le goûter** où va la surveillante (une option par autre goûter de sa ronde, toujours facultatif).
+- **DR.6 — Sonnerie** : à égalité de goûters, gagne celui qui tient le plus d'îlots ; sinon, comme avant, le joueur bloqué perd.
+- **DR.7 — Nouvelle piscine** : quatre coins (un bord + le flotteur voisin, 1 glace chacun) et le grand bain (2 glaces), objectif 3 ; Monsieur Yvon fait la ronde des quatre coins ; le courant tourne dans l'autre sens (F1 → F4 → F3 → F2), ce qui ramène le premier joueur de 42 % à 48 % entre IA difficiles avec la main 4/5.

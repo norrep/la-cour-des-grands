@@ -43,14 +43,15 @@ const EQUIPEMENTS: Record<EquipementId, string> = {
 /** Pouvoir de chaque élève, en une ou deux phrases. */
 const POUVOIRS: Record<RoleId, string> = {
   petit:
-    'Joker : plaque n’importe qui, mais tout le monde le plaque. Jamais dans la cabane adverse.',
-  populaire: 'Arrive avec des copains : pioche 2 élèves.',
+    'Joker : plaque n’importe qui, et personne ne peut le plaquer. Mais il est trop petit pour faire passer les copains : ton chemin s’arrête à lui. Jamais dans la cabane adverse.',
+  populaire: 'Arrive avec des copains : pioche 3 élèves.',
   chouchou: 'Appelle son grand frère : pose aussitôt un 2e élève de 5 ou plus.',
   rapporteuse: '« Madame, c’est lui ! » : un adversaire voisin est puni.',
-  fouine: 'Passe par les buissons : se pose même loin de ton chemin.',
+  fouine:
+    'Passe par les buissons : se pose même loin de ton chemin, et ramène alors un copain (pioche 1).',
   contagieux: 'Atchoum ! Un élève adverse au hasard rate son prochain tour.',
   get delegue(): string {
-    return `Mot d’excuse : ${surv.role} file 1 ou 2 goûters plus loin (au hasard).`;
+    return `Mot d’excuse : tu choisis le goûter où file ${surv.role}.`;
   },
   grand: 'Pas de pouvoir : c’est le plus fort.',
 };
@@ -199,13 +200,14 @@ export const TEXTES = {
     pret: (b: Bande) => `Je suis la ${BANDES[b]}`,
   },
   choix: {
-    populaire: 'Populaire : touche ta pioche pour faire venir 2 copains.',
+    populaire: 'Populaire : touche ta pioche pour faire venir 3 copains.',
+    fouine: 'Fouine : touche ta pioche pour ramener 1 copain.',
     chouchou: 'Chouchou : glisse un 2e élève de 5 ou plus (cartes claires).',
     rapporteuse: 'Rapporteuse : touche l’adversaire qui tremble pour le faire punir.',
     contagieux:
       'Contagieux : touche la pioche d’en face, un adversaire au hasard rate son prochain tour.',
     get delegue(): string {
-      return `Délégué : touche ${surv.nom} pour qu’${surv.il} file 1 ou 2 goûters plus loin, ou passe.`;
+      return `Délégué : touche le goûter où envoyer ${surv.nom}, ou passe.`;
     },
     banc: '★ Banc : ton élève est planqué, personne ne peut plus le toucher.',
     cabanePerchee: '★ Cabane perchée : touche ta pioche pour piocher 1 élève.',
@@ -257,7 +259,7 @@ export const TEXTES = {
     },
     fouine: { titre: 'Par les buissons !', sous: 'La Fouine se faufile où elle veut.' },
     petit: { titre: 'Prise de catch !', sous: 'Le Petit de maternelle plaque tout le monde.' },
-    populaire: { titre: 'Les copains arrivent !', sous: 'La Populaire fait venir 2 élèves.' },
+    populaire: { titre: 'Les copains arrivent !', sous: 'La Populaire fait venir 3 élèves.' },
     gouter: (b: Bande, nom: string, n: number) => ({
       titre: 'Miam !',
       sous: `La ${BANDES[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} (+${n}).`,
@@ -341,9 +343,9 @@ export const TEXTES = {
       },
       piscine: {
         contexte:
-          'Sortie piscine ! Deux bandes se disputent les goûters du bord et du grand bain sous l’œil de Monsieur Yvon.',
+          'Sortie piscine ! Deux bandes se disputent les quatre coins et le grand bain sous l’œil de Monsieur Yvon.',
         regle:
-          'Le courant : après chaque tour complet, les quatre bouées du grand bain tournent d’un cran, avec tout ce qu’il y a dessus.',
+          'Le courant : après chaque tour complet, les quatre bouées du grand bain tournent d’un cran, avec tout ce qu’il y a dessus. Chaque coin se fait et se défait avec elles.',
       },
       'camp-scout': {
         contexte:

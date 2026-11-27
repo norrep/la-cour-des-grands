@@ -20,7 +20,7 @@ describe('DF.40 — Pouvoirs appliqués sans demande', () => {
   it('la Populaire pioche tout de suite et le tour passe', () => {
     const e = envoyer(auto(situation({ rang: { rouge: ['populaire'] } })), 'populaire', 'P');
     expect(e.attente).toBeNull();
-    expect(e.joueurs.rouge.rang).toHaveLength(2);
+    expect(e.joueurs.rouge.rang).toHaveLength(3);
     expect(e.courant).toBe('bleu');
   });
 
@@ -66,7 +66,8 @@ describe('DF.40 — Pouvoirs appliqués sans demande', () => {
       'delegue',
       'P',
     );
-    expect(e.attente?.options).toEqual([{ type: 'surveillante' }]);
+    expect(e.attente?.options.every((o) => o.type === 'surveillante')).toBe(true);
+    expect(e.attente?.options.length).toBeGreaterThan(0);
   });
 
   it('le Chouchou demande quand il y a plusieurs poses possibles', () => {
