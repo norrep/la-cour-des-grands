@@ -1,43 +1,58 @@
 /**
- * Décor de la piscine en couches (DP.1). L'ancienne image plein écran plaçait le bassin selon la
- * forme du téléphone, jamais sous la zone de jeu, et ses douches, plongeoirs et échelles
- * ressemblaient à des pièces du jeu. Ici : un carrelage qui remplit l'écran, un bassin calé sur la
- * cour (les vestiaires, c'est-à-dire les cabanes, restent sur le carrelage en haut et en bas), et
- * des casiers sur les côtés quand l'écran est assez large pour en montrer.
+ * Décor de la piscine en couches (DP.1, revu en DP.5–DP.7). Un carrelage qui remplit l'écran ; un
+ * bassin aux bords ronds, resserré à la taille comme le réseau d'îlots, calé sur la cour ; des
+ * reflets qui bougent dans l'eau ; et, sur le carrelage autour, des affaires de baignade
+ * (serviettes, tongs, ballon, plantes) qui se balancent un peu. Rien n'est posé sur la cour : les
+ * accessoires restent au bord de l'écran pour ne pas passer pour des pièces du jeu.
  */
 import type Phaser from 'phaser';
 import { BAS, DROITE, GAUCHE, HAUT } from '../config';
-import { versEcran } from '../disposition';
+import { versEcran, type Point } from '../disposition';
+import { forme } from './style';
 
-/** Les textures sont dessinées à 3 × l'échelle du jeu (`scripts/couches-piscine.py`). */
+/** Le carrelage est dessiné à 3 × l'échelle du jeu (`scripts/couches-piscine.py`). */
 const K = 3;
 
 export const COUCHES_PISCINE = {
   sol: 'carte-piscine-sol',
-  bassin: 'carte-piscine-bassin',
-  vague: 'carte-piscine-vague',
-  casiers: 'carte-piscine-casiers',
+  servietteA: 'carte-piscine-serviette-a',
+  serviette: 'carte-piscine-serviette-b',
+  tongs: 'carte-piscine-tongs',
+  ballon: 'carte-piscine-ballon',
+  plante: 'carte-piscine-plante',
 } as const;
+
+/** Fichiers des couches, par nom de pièce (sous `public/cartes/piscine/`). */
+export const PIECES_PISCINE = ['sol', 'serviette-a', 'serviette-b', 'tongs', 'ballon', 'plante'];
 
 /** Bord extérieur du bassin, en coordonnées de la cour (0 à 1) : à mi-chemin cabane / îlots. */
 const BASSIN = { gauche: -0.03, droite: 1.03, haut: 0.13, bas: 0.815 } as const;
 
-/** Les couloirs de nage : deux lignes sombres au fond de l'eau, terminées en T. */
-function couloirs(scene: Phaser.Scene, x0: number, y0: number, x1: number, y1: number): void {
-  const g = scene.add.graphics();
-  g.fillStyle(0x3bb1b3, 0.75);
-  const haut = y0 + 70;
-  const bas = y1 - 50;
-  // Pas de ligne au milieu : les allées et la surveillante y passent déjà.
-  for (const f of [0.2, 0.8]) {
-    const x = x0 + (x1 - x0) * f;
-    g.fillRoundedRect(x - 4, haut, 8, bas - haut, 4);
-    g.fillRoundedRect(x - 26, haut - 4, 52, 10, 5);
-    g.fillRoundedRect(x - 26, bas - 6, 52, 10, 5);
+const CREME = 0xfef2d8;
+const EAU = 0x58c9cb;
+const EAU_CLAIRE = 0x8fdcd8;
+
+/**
+ * Contour du bassin : un carré aux coins très ronds (super-ellipse), resserré à mi-hauteur comme
+ * les îlots du grand bain, avec un léger tremblé de trait fait main.
+ */
+function contourBassin(cx: number, cy: number, rx: number, ry: number, pincement: number): Point[] {
+  const pts: Point[] = [];
+  const n = 96;
+  const e = 2 / 3.2;
+  for (let i = 0; i < n; i++) {
+    const t = (i / n) * Math.PI * 2;
+    const c = Math.cos(t);
+    const s = Math.sin(t);
+    const x = Math.sign(c) * Math.abs(c) ** e;
+    const y = Math.sign(s) * Math.abs(s) ** e;
+    const taille = 1 - pincement * (1 - y * y) ** 2;
+    const tremble = 1 + Math.sin(t * 7 + 1.3) * 0.004 + Math.sin(t * 13) * 0.003;
+    pts.push({ x: cx + x * rx * taille * tremble, y: cy + y * ry * tremble });
   }
+  return pts;
 }
 
-/** Vrai si les textures de la piscine en couches sont chargées. */
 export function couchesPiscinePretes(scene: Phaser.Scene): boolean {
   return Object.values(COUCHES_PISCINE).every((k) => scene.textures.exists(k));
 }
@@ -51,35 +66,99 @@ export function poserDecorPiscine(scene: Phaser.Scene): void {
 
   const a = versEcran(BASSIN.gauche, BASSIN.haut);
   const b = versEcran(BASSIN.droite, BASSIN.bas);
-  const l = b.x - a.x;
-  const h = b.y - a.y;
-  // Le bassin en 9 morceaux : les coins gardent leur trait, les bords s'étirent.
-  scene.add
-    .nineslice(a.x, a.y, COUCHES_PISCINE.bassin, undefined, l * K, h * K, 100, 100, 100, 100)
-    .setOrigin(0)
-    .setScale(1 / K);
-  // L'intérieur de l'eau : 25 px de jeu de margelle (trait compris), puis le trait intérieur.
-  const m = 27;
-  couloirs(scene, a.x + m, a.y + m, b.x - m, b.y - m);
-  scene.add
-    .tileSprite(a.x + m, a.y + m, (l - 2 * m) * K, 16 * K, COUCHES_PISCINE.vague)
-    .setOrigin(0)
-    .setScale(1 / K);
+  const cx = (a.x + b.x) / 2;
+  const cy = (a.y + b.y) / 2;
+  const rx = (b.x - a.x) / 2;
+  const ry = (b.y - a.y) / 2;
+  const g = scene.add.graphics();
+  // Margelle crème, puis l'eau, puis une bande d'eau claire le long du bord.
+  forme(g, contourBassin(cx, cy, rx, ry, 0.08), { remplissage: CREME, trait: 4, ombre: 5 });
+  forme(g, contourBassin(cx, cy, rx - 22, ry - 22, 0.085), { remplissage: EAU_CLAIRE, trait: 4 });
+  forme(g, contourBassin(cx, cy, rx - 34, ry - 34, 0.09), { remplissage: EAU, trait: 0 });
 
-  // Les casiers, sur les côtés, seulement s'il y a la place entre le bord de l'écran et le bassin.
-  const place = a.x - GAUCHE - 10;
-  if (place < 60) return;
-  const casiers = scene.textures.get(COUCHES_PISCINE.casiers).getSourceImage();
-  const largeur = Math.min(casiers.width / K, place);
-  const k = largeur / casiers.width;
-  const haut = casiers.height * k;
-  const milieu = (a.y + b.y) / 2;
-  for (const cote of [-1, 1]) {
-    for (const dy of [-0.52, 0.52]) {
-      scene.add
-        .image(cote < 0 ? GAUCHE : DROITE, milieu + dy * (haut + 24), COUCHES_PISCINE.casiers)
-        .setOrigin(0, 0.5)
-        .setScale(-cote * k, k);
+  const vivants: { objet: Phaser.GameObjects.Components.Transform; maj: (t: number) => void }[] =
+    [];
+
+  // Des reflets dans l'eau : de petites vagues blanches qui vont et viennent.
+  const reflets: [number, number][] = [
+    [-0.55, -0.62],
+    [0.12, -0.78],
+    [0.58, -0.3],
+    [-0.62, 0.1],
+    [0.05, 0.25],
+    [0.6, 0.62],
+    [-0.35, 0.72],
+    [0.3, -0.05],
+  ];
+  reflets.forEach(([fx, fy], i) => {
+    const r = scene.add.graphics();
+    r.lineStyle(3.5, 0xffffff, 0.85);
+    r.beginPath();
+    r.moveTo(-18, 0);
+    r.lineTo(-9, -5);
+    r.lineTo(0, 0);
+    r.lineTo(9, -5);
+    r.lineTo(18, 0);
+    r.strokePath();
+    const x0 = cx + fx * (rx - 70);
+    const y0 = cy + fy * (ry - 60);
+    r.setPosition(x0, y0);
+    vivants.push({
+      objet: r,
+      maj: (t) => {
+        const p = t / 1700 + i * 0.9;
+        r.x = x0 + Math.sin(p) * 8;
+        r.setAlpha(0.35 + 0.45 * (0.5 + 0.5 * Math.sin(p * 1.3 + i)));
+      },
+    });
+  });
+
+  // Les affaires de baignade, au bord de l'écran et autour du bassin.
+  const poser = (
+    cle: string,
+    x: number,
+    y: number,
+    taille: number,
+    angle: number,
+    balance = 0,
+  ): void => {
+    const im = scene.add.image(x, y, cle);
+    im.setScale(taille / im.width).setAngle(angle);
+    if (balance) {
+      const phase = x * 0.013 + y * 0.007;
+      vivants.push({
+        objet: im,
+        maj: (t) => im.setAngle(angle + Math.sin(t / 900 + phase) * balance),
+      });
     }
+  };
+  const gauche = a.x;
+  const droite = b.x;
+  const place = gauche - GAUCHE;
+  // Coins du bassin : toujours visibles, même sur un téléphone étroit (à moitié hors de l'écran
+  // s'il le faut). Plantes en haut, tongs et ballon en bas.
+  poser(COUCHES_PISCINE.plante, Math.max(GAUCHE + 26, gauche + 6), a.y + 18, 104, 0, 4);
+  poser(COUCHES_PISCINE.plante, Math.min(DROITE - 26, droite - 6), a.y + 18, 104, 40, 4);
+  poser(COUCHES_PISCINE.tongs, Math.max(GAUCHE + 30, gauche + 14), b.y - 6, 70, -18);
+  poser(COUCHES_PISCINE.ballon, Math.min(DROITE - 30, droite - 10), b.y - 14, 64, 0, 9);
+  // Écran plus large que 9:16 : des serviettes étendues sur les côtés.
+  if (place >= 70) {
+    const xg = GAUCHE + place / 2;
+    const xd = DROITE - place / 2;
+    // Serviette posée en long : sa longueur (largeur de l'image) suit la hauteur, sa largeur
+    // (un peu plus de la moitié de l'image) doit tenir dans la bande de carrelage.
+    const l = Math.min(230, (place - 20) / 0.55);
+    const petit = Math.min(84, place - 24);
+    poser(COUCHES_PISCINE.serviette, xg, cy - ry * 0.32, l, 94, 0);
+    poser(COUCHES_PISCINE.ballon, xg + 6, cy + ry * 0.2, petit, 0, 9);
+    poser(COUCHES_PISCINE.plante, xg - 4, cy + ry * 0.62, petit + 16, 20, 4);
+    poser(COUCHES_PISCINE.plante, xd + 4, cy - ry * 0.62, petit + 16, 60, 4);
+    poser(COUCHES_PISCINE.servietteA, xd, cy + ry * 0.02, l, 84, 0);
+    poser(COUCHES_PISCINE.tongs, xd + 4, cy + ry * 0.5, petit, 22);
   }
+
+  // L'animation ne passe pas par les tweens : l'écran de jeu les arrête à chaque rafraîchissement.
+  const animer = (t: number): void => vivants.forEach((v) => v.maj(t));
+  scene.events.on('update', animer);
+  scene.events.once('shutdown', () => scene.events.off('update', animer));
 }
