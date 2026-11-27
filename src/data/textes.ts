@@ -257,6 +257,7 @@ export const TEXTES = {
     },
     fouine: { titre: 'Par les buissons !', sous: 'La Fouine se faufile où elle veut.' },
     petit: { titre: 'Prise de catch !', sous: 'Le Petit de maternelle plaque tout le monde.' },
+    populaire: { titre: 'Les copains arrivent !', sous: 'La Populaire fait venir 2 élèves.' },
     gouter: (b: Bande, nom: string, n: number) => ({
       titre: 'Miam !',
       sous: `La ${BANDES[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} (+${n}).`,

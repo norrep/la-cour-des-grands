@@ -3864,6 +3864,7 @@ export class PartieScene extends Phaser.Scene {
       delegue: 'pioche',
       fouine: 'pose',
       petit: 'plaque',
+      populaire: 'pioche',
     };
     jouerSon(SONS[id]);
     const fond = this.add.rectangle(
@@ -3886,6 +3887,7 @@ export class PartieScene extends Phaser.Scene {
       delegue: 0xb8c2ff,
       fouine: 0xc8e6a0,
       petit: 0xffb3d1,
+      populaire: 0xffc8e6,
     };
     const couleur = COULEURS_PANNEAU[id];
     forme(bandeau, contourRect(-40, 470, LARGEUR + 80, 340, 30, 31, 3), {
