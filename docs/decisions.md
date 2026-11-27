@@ -200,3 +200,7 @@ Proposition validée par Clément le 27/11 : doc « La Cour des Grands : cartes 
 - Piscine : la planche de pièces n'a pas de frite ; F1 devient « Le beignet » (la bouée rose). Les îlots du bord (douches, plongeoir, échelle, bord) tombent sur le bord du grand bain dans le décor : à revoir si ça gêne.
 - Sentiers à sens unique : trois chevrons jaunes au milieu du sentier, dans le sens où l'on passe. Courant : tourbillon de flèches et « GLOUGLOU ! » autour du grand bain.
 - Populaire alien refaite fine avec une grosse coiffure (la ronde détonnait à côté des autres).
+
+## DF.39 — Incrustations en 2D, animées en code (27/11)
+
+Clément : « Les pictos animés qui arrivent dans le jeu doivent être en 2D. Réserver le réalisme aux actions plein écran. » Les trois incrustations de DF.38 (mégaphone, réveil, nuage de bagarre) sont redessinées dans le style du plateau (trait noir épais, aplats pastel ; Higgsfield nano_banana_2, référence plateau e0f020f3 : jobs 3eabd17f mégaphone, 4a92c4ea réveil, 532837d7 nuage), détourées, en PNG 512 px dans `public/incrust/`. Tout le mouvement est fait en code dans `src/game/ui/incrust.ts` : le mégaphone gonfle, recule et lance trois ondes ; le réveil sautille et se tortille avec des traits de vibration ; le nuage roule, crache cinq étoiles puis éclate. Les planches de sprites réalistes sont retirées.
