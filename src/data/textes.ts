@@ -55,8 +55,7 @@ const POUVOIRS: Record<RoleId, string> = {
 const EFFETS_EQUIPEMENTS: Record<EquipementId, string> = {
   banc: 'Une planque : l’élève assis ici ne peut plus être plaqué, ni envoyé au coin, ni déplacé.',
   cabanePerchee: 'Quand tu poses un élève ici, tu peux piocher 1 élève.',
-  porteVieScolaire:
-    'Quand tu poses un élève ici, tu peux faire sortir un de tes élèves du coin.',
+  porteVieScolaire: 'Quand tu poses un élève ici, tu peux faire sortir un de tes élèves du coin.',
   buts: 'Quand tu poses un élève ici, tu peux envoyer au coin un adversaire de valeur 1 ou 2 situé à 2 allées.',
   toboggan:
     'Quand tu poses un élève ici, tu peux faire glisser un adversaire voisin vers un autre îlot.',
