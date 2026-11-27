@@ -15,8 +15,7 @@ export const PLATEAU = {
   ilotSpecial: 'plateau-ilot-special',
   cabaneRouge: 'plateau-cabane-rouge',
   cabaneBleue: 'plateau-cabane-bleue',
-  portail: 'plateau-portail',
-  cpe: 'plateau-cpe',
+  coin: 'plateau-coin',
 } as const;
 /** Goûters illustrés (DF.21), dans l'ordre des régions de la cour : chocolat, biscuits, bonbon, sucette. */
 export const GOUTERS = [
@@ -55,8 +54,7 @@ export class ChargementScene extends Phaser.Scene {
       ilotSpecial: 'ilot-special',
       cabaneRouge: 'cabane-rouge',
       cabaneBleue: 'cabane-bleue',
-      portail: 'portail',
-      cpe: 'cpe',
+      coin: 'coin',
     };
     for (const [piece, cle] of Object.entries(PLATEAU)) {
       this.load.image(cle, avecVersion(`plateau/${fichiers[piece as keyof typeof PLATEAU]}.png`));

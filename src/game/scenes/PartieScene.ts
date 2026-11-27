@@ -622,7 +622,7 @@ export class PartieScene extends Phaser.Scene {
     const c = this.add.container(p.x, p.y);
     const g = this.add.graphics();
     const graine = graineDe(p.x, p.y);
-    const illustre = this.textures.exists(lieu === 'portail' ? PLATEAU.portail : PLATEAU.cpe);
+    const illustre = true;
     // Lieu illustré (DF.25) : l'image seule, en grand, sans carte de papier autour.
     if (!illustre) {
       forme(g, contourRect(-62, -34, 124, 76, 14, graine), {
@@ -705,7 +705,10 @@ export class PartieScene extends Phaser.Scene {
     c.add([m, tm]);
   }
 
-  /** Le portail : les copains du couloir y attendent qu'on les appelle. */
+  /**
+   * La pioche (DF.27) : les copains pas encore appelés, en paquet de cartes face cachée, comme
+   * les cartes du rang. Le nombre est dans une pastille ; le paquet maigrit quand il se vide.
+   */
   private dessinerPortail(bande: Bande): void {
     const j = this.etat.joueurs[bande];
     const n = j.couloir.length;
@@ -716,66 +719,66 @@ export class PartieScene extends Phaser.Scene {
         positionLieu(this.cour, bande, 'portail'),
       ),
     );
+    const couleur = bande === 'rouge' ? COULEURS.rouge : COULEURS.bleu;
     const g = this.add.graphics();
-    if (this.textures.exists(PLATEAU.portail)) {
-      c.addAt(this.add.image(0, 4, PLATEAU.portail).setScale(112 / 512), 0);
-      c.add(this.compteurLieu(40, 34, `×${n}`, bande));
-      this.dessinerMalades(c, j.infirmerie.length);
-      return;
+    const epaisseur = n === 0 ? 0 : Math.min(4, Math.ceil(n / 4));
+    const L = 56;
+    const H = 80;
+    if (n === 0) {
+      // Pioche vide : juste l'emplacement en pointillés.
+      g.lineStyle(3, COULEURS.encre, 0.5);
+      for (let k = 0; k < 12; k += 2) {
+        const t0 = k / 12;
+        const t1 = (k + 1) / 12;
+        const per = (t: number): [number, number] => {
+          const d = t * 2 * (L + H);
+          if (d < L) return [-L / 2 + d, -H / 2];
+          if (d < L + H) return [L / 2, -H / 2 + d - L];
+          if (d < 2 * L + H) return [L / 2 - (d - L - H), H / 2];
+          return [-L / 2, H / 2 - (d - 2 * L - H)];
+        };
+        const [x0, y0] = per(t0);
+        const [x1, y1] = per(t1);
+        g.lineBetween(x0, y0, x1, y1);
+      }
     }
-    // Grille du portail : deux piliers et des barreaux.
-    g.fillStyle(0xbfb3a0, 1);
-    g.lineStyle(3, COULEURS.encre, 1);
-    g.fillRect(-52, -16, 10, 50);
-    g.strokeRect(-52, -16, 10, 50);
-    g.fillRect(-10, -16, 10, 50);
-    g.strokeRect(-10, -16, 10, 50);
-    g.lineStyle(3, COULEURS.encre, 1);
-    for (let x = -38; x <= -14; x += 8) g.lineBetween(x, -10, x, 32);
-    g.lineBetween(-42, -6, -10, -6);
-    g.lineBetween(-42, 24, -10, 24);
-    c.add(g);
-    // Les têtes des copains qui attendent derrière la grille (jusqu'à 3).
-    for (let k = 0; k < Math.min(3, n); k++) {
-      const t = this.add.graphics();
-      forme(t, contourRond(-36 + k * 11, 6 - (k % 2) * 4, 9, graineDe(k, n)), {
-        remplissage: bande === 'rouge' ? 0xffc2b6 : 0xc3ccff,
-        trait: 2,
+    for (let k = epaisseur - 1; k >= 0; k--) {
+      const dx = -k * 4;
+      const dy = k * 4;
+      const graine = graineDe(k, bande.length);
+      forme(g, contourRect(dx - L / 2, dy - H / 2, L, H, 9, graine, 0.5), {
+        remplissage: couleur,
+        trait: 3,
+        ombre: k === epaisseur - 1 ? 4 : 0,
       });
-      c.addAt(t, 3);
+      if (k === 0) {
+        // Dos de carte : un cadre clair et le goûter de la cour au centre.
+        forme(g, contourRect(dx - L / 2 + 7, dy - H / 2 + 7, L - 14, H - 14, 6, graine + 1, 0.4), {
+          remplissage: bande === 'rouge' ? 0xf4a29b : 0xa9bdf0,
+          trait: 2,
+        });
+        g.fillStyle(0xffffff, 0.9);
+        g.fillCircle(dx, dy - 4, 12);
+        g.lineStyle(2.5, COULEURS.encre, 1);
+        g.strokeCircle(dx, dy - 4, 12);
+        g.fillStyle(COULEURS.encre, 1);
+        g.fillCircle(dx - 4, dy - 6, 2);
+        g.fillCircle(dx + 4, dy - 6, 2);
+        g.lineStyle(2, COULEURS.encre, 1);
+        g.beginPath();
+        g.arc(dx, dy - 3, 5, 0.2, Math.PI - 0.2);
+        g.strokePath();
+      }
     }
-    const nombre = this.add
-      .text(30, 10, `×${n}`, {
-        fontFamily: POLICE,
-        fontSize: '26px',
-        color: COULEURS.texteSombre,
-        fontStyle: '700',
-      })
-      .setOrigin(0.5);
-    c.add(nombre);
-    // Les enrhumés du rang : un mouchoir avec leur nombre, au coin du portail.
-    const malades = j.infirmerie.length;
-    if (malades > 0) {
-      const m = this.add.graphics();
-      forme(m, contourRond(52, -28, 17, graineDe(malades, 9)), { remplissage: 0xffffff, trait: 3 });
-      m.fillStyle(0xe0503f, 1);
-      m.fillRect(48, -39, 8, 22);
-      m.fillRect(41, -32, 22, 8);
-      const tm = this.add
-        .text(68, -12, `${malades}`, {
-          fontFamily: POLICE,
-          fontSize: '16px',
-          color: COULEURS.texteSombre,
-          fontStyle: '700',
-          backgroundColor: '#ffffff',
-          padding: { x: 3, y: 0 },
-        })
-        .setOrigin(0.5);
-      c.add([m, tm]);
-    }
+    c.addAt(g, 0);
+    c.add(this.compteurLieu(36, 34, `×${n}`, bande));
+    this.dessinerMalades(c, j.infirmerie.length);
   }
 
-  /** Le bureau de la CPE : les élèves punis y sont assis, bras croisés. */
+  /**
+   * Le coin (DF.27) : les punis sont face au mur, avec un bonnet d'âne. Les 3 derniers arrivés sont
+   * dessinés de dos ; leur nombre est dans une pastille.
+   */
   private dessinerBureauCpe(bande: Bande): void {
     const punis = this.etat.joueurs[bande].cpe;
     const c = this.panneauLieu(bande, 'cpe', TEXTES.lieux.cpe, () =>
@@ -786,47 +789,57 @@ export class PartieScene extends Phaser.Scene {
       ),
     );
     const g = this.add.graphics();
-    if (this.textures.exists(PLATEAU.cpe)) {
-      c.addAt(this.add.image(0, 2, PLATEAU.cpe).setScale(108 / 512), 0);
-      // Les punis assis devant le bureau (les 3 derniers), et leur nombre dans une pastille.
-      punis.slice(-3).forEach((el, k, liste) => {
-        const b = creerBadge(this, el.bande, el.role, 26);
-        b.setPosition((k - (liste.length - 1) / 2) * 24 - 8, 40);
-        c.add(b);
-      });
-      c.add(this.compteurLieu(40, 34, punis.length === 0 ? '0' : `×${punis.length}`, bande));
-      return;
+    if (this.textures.exists(PLATEAU.coin)) {
+      c.addAt(this.add.image(0, 0, PLATEAU.coin).setScale(110 / 512), 0);
+    } else {
+      // Un coin de mur en brique : deux pans qui se rejoignent, vus d'en haut.
+      forme(
+        g,
+        [
+          { x: -50, y: -30 },
+          { x: 0, y: -46 },
+          { x: 0, y: 20 },
+          { x: -50, y: 34 },
+        ],
+        { remplissage: 0xf1c9a5, trait: 3 },
+      );
+      forme(
+        g,
+        [
+          { x: 0, y: -46 },
+          { x: 50, y: -30 },
+          { x: 50, y: 34 },
+          { x: 0, y: 20 },
+        ],
+        { remplissage: 0xe5b48c, trait: 3 },
+      );
+      g.lineStyle(2, 0xb98863, 1);
+      for (let r = 0; r < 4; r++) {
+        const y = -26 + r * 14;
+        g.lineBetween(-46, y + 4 - r * 0.5, -4, y - 10);
+        g.lineBetween(4, y - 10, 46, y + 4 - r * 0.5);
+      }
+      // Le bonnet d'âne accroché au mur.
+      forme(
+        g,
+        [
+          { x: 30, y: -40 },
+          { x: 22, y: -8 },
+          { x: 40, y: -8 },
+        ],
+        { remplissage: 0xfff4d6, trait: 3 },
+      );
+      g.fillStyle(COULEURS.encre, 1);
+      g.fillCircle(31, -18, 3);
     }
-    // Porte vitrée du bureau.
-    forme(g, contourRect(-54, -18, 34, 52, 4, graineDe(bande.length, 3), 0.5), {
-      remplissage: 0x8a5a3b,
-      trait: 3,
-    });
-    forme(g, contourRect(-48, -12, 22, 16, 3, graineDe(bande.length, 4), 0.5), {
-      remplissage: 0xbfe4ff,
-      trait: 2,
-    });
-    g.fillStyle(COULEURS.jaune, 1);
-    g.fillCircle(-26, 12, 3);
-    c.add(g);
-    // Les punis, en petits badges (les 4 derniers arrivés), et leur nombre s'ils sont plus.
-    punis.slice(-4).forEach((el, k) => {
-      const b = creerBadge(this, el.bande, el.role, 24);
-      b.setPosition(-2 + (k % 2) * 26, -4 + Math.floor(k / 2) * 26);
+    c.addAt(g, 0);
+    // Les punis de dos, face au mur (les 3 derniers), et leur nombre.
+    punis.slice(-3).forEach((el, k, liste) => {
+      const b = creerBadge(this, el.bande, el.role, 26);
+      b.setPosition((k - (liste.length - 1) / 2) * 24 - 6, 26);
       c.add(b);
     });
-    if (punis.length > 4 || punis.length === 0) {
-      c.add(
-        this.add
-          .text(40, 10, punis.length === 0 ? '0' : `×${punis.length}`, {
-            fontFamily: POLICE,
-            fontSize: '22px',
-            color: COULEURS.texteSombre,
-            fontStyle: '700',
-          })
-          .setOrigin(0.5),
-      );
-    }
+    c.add(this.compteurLieu(40, 34, punis.length === 0 ? '0' : `×${punis.length}`, bande));
   }
 
   /** Centre d'une zone, légèrement décalé pour ne pas gêner les allées. */
