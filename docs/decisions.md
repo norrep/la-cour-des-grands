@@ -157,3 +157,10 @@ Le prompt de Clément fait foi ; le document de conception sert de complément.
 Clément : « Et le bonnet d'âne tout seul ? ». L'illustration du coin de mur (DF.27) ne se lisait pas à la taille du lieu. Le coin est maintenant un bonnet d'âne dessiné en code (cône crème, bandeau bleu, pompon jaune, oreilles d'âne pour qu'on reconnaisse l'objet), avec les 3 derniers punis empilés à sa gauche et leur nombre. Même bonnet, en grand, dans la cinématique « Au coin ! ». `public/plateau/coin.png` est retiré.
 
 Mise à jour : Clément ne reconnaissait pas le bonnet dessiné en code (« On ne reconnaît pas le bonnet d'âne. Généré le ? »). Bonnet illustré généré (Higgsfield, 2 versions, 4 cr., `lot6/`), version B retenue par défaut (« ÂNE » à l'horizontale, plus lisible en petit) : `public/plateau/bonnet.png`, clé `PLATEAU.bonnet`. Le dessin en code reste en secours si l'image manque.
+
+## DF.29 — La punition = un carton rouge (27/11)
+
+Le bonnet d'âne, dessiné puis illustré, ne se reconnaissait pas (« Ça ne fonctionne pas »). Clément a fait générer 10 idées de punition (`lot7/planche-punitions.jpg` : heure de colle, lignes, carton rouge, confisqués, chaise, tableau, corvée, sablier, piquet, mot aux parents, plus 2 carnets de correspondance) et a choisi le **carton rouge** (job 1905e5c9). Châtiments corporels (règle sur les doigts, fessée) écartés : ton du jeu et classement d'âge.
+
+- Image : `public/plateau/carton.png`, clé `PLATEAU.carton` ; le bonnet d'âne dessiné en code reste en secours. `bonnet.png` est retiré.
+- Vocabulaire affiché : « Au coin » → « Carton rouge » (lieu, fiche « Cartons rouges », annonce « Carton rouge ! », consignes « prend un carton rouge », « faire revenir un élève exclu »). Nom interne `cpe` inchangé.

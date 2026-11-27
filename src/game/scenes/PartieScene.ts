@@ -819,8 +819,8 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * Le coin (DF.27) : les punis sont face au mur, avec un bonnet d'âne. Les 3 derniers arrivés sont
-   * dessinés de dos ; leur nombre est dans une pastille.
+   * Les cartons rouges (DF.29) : les exclus, sous un carton rouge brandi. Les 3 derniers arrivés sont
+   * en badges ; leur nombre est dans une pastille.
    */
   private dessinerBureauCpe(bande: Bande): void {
     const punis = this.etat.joueurs[bande].cpe;
@@ -831,15 +831,15 @@ export class PartieScene extends Phaser.Scene {
         positionLieu(this.cour, bande, 'cpe'),
       ),
     );
-    // Le bonnet d'âne seul (DF.28) : illustré, ou à défaut dessiné en code.
-    if (this.textures.exists(PLATEAU.bonnet)) {
-      c.addAt(this.add.image(0, -6, PLATEAU.bonnet).setScale(82 / 512), 0);
+    // Le carton rouge (DF.29) : illustré, ou à défaut un bonnet d'âne dessiné en code.
+    if (this.textures.exists(PLATEAU.carton)) {
+      c.addAt(this.add.image(0, -6, PLATEAU.carton).setScale(82 / 512), 0);
     } else {
       const g = this.add.graphics();
       this.dessinerBonnetAne(g, -6, 4, 0.82);
       c.addAt(g, 0);
     }
-    // Les punis de dos, face au mur (les 3 derniers), et leur nombre.
+    // Les exclus (les 3 derniers) et leur nombre.
     punis.slice(-3).forEach((el, k) => {
       const b = creerBadge(this, el.bande, el.role, 22);
       b.setPosition(-56 + k * 6, 8 + k * 14);
@@ -3064,8 +3064,8 @@ export class PartieScene extends Phaser.Scene {
     g.setPosition(x, y);
     g.lineStyle(5, COULEURS.encre, 1);
     switch (id) {
-      case 'cpe': // Le coin (DF.27), ou à défaut la porte du bureau
-        if (this.textures.exists(PLATEAU.bonnet)) g.setData('image', PLATEAU.bonnet);
+      case 'cpe': // Le carton rouge (DF.29), ou à défaut le bonnet d'âne
+        if (this.textures.exists(PLATEAU.carton)) g.setData('image', PLATEAU.carton);
         else this.dessinerBonnetAne(g, 0, -10, 1.9);
         break;
         g.fillStyle(0x8a5a2b, 1);
