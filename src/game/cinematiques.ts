@@ -16,6 +16,43 @@ export type CinematiqueId =
   | 'fouine'
   | 'petit';
 
+/** Le rôle dont le pouvoir fait ce moment (sa vidéo montre cet élève), s'il y en a un. */
+export function roleDuPouvoir(cin: Cinematique): RoleId | undefined {
+  switch (cin.id) {
+    case 'infirmerie':
+      return 'contagieux';
+    case 'grandsFreres':
+      return 'chouchou';
+    case 'delegue':
+    case 'fouine':
+    case 'petit':
+      return cin.id;
+    case 'cpe':
+      return cin.pouvoir;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Le moment du pouvoir de ce rôle, joué par cette bande, quand l'élève vient d'être posé et que
+ * son pouvoir attend encore un choix (DV.7). Seulement pour les pouvoirs qui ont un choix.
+ */
+export function cinematiqueDuPouvoir(role: RoleId, bande: Bande): Cinematique | undefined {
+  switch (role) {
+    case 'contagieux':
+      return { id: 'infirmerie', bande };
+    case 'chouchou':
+      return { id: 'grandsFreres', bande };
+    case 'delegue':
+      return { id: 'delegue', bande };
+    case 'rapporteuse':
+      return { id: 'cpe', pouvoir: 'rapporteuse', bande };
+    default:
+      return undefined;
+  }
+}
+
 /** Moments qui n'existent qu'en vidéo : sans vidéo dans le skin, on n'affiche rien. */
 export const CINEMATIQUES_VIDEO_SEULE: readonly CinematiqueId[] = ['fouine', 'petit'];
 

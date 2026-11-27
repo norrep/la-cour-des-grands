@@ -39,6 +39,8 @@ import { alleesDuChemin } from '../chemins';
 import {
   CINEMATIQUES_VIDEO_SEULE,
   cinematiquesPour,
+  cinematiqueDuPouvoir,
+  roleDuPouvoir,
   type Cinematique,
   type CinematiqueId,
 } from '../cinematiques';
@@ -96,6 +98,8 @@ const Y_ACTIONS = 1064 + DESCENTE;
 const DUREE_FIN_DE_TOUR = 900;
 /** Annonce d'une arrivée : l'élève se ramasse en l'air avant de tomber (ms). */
 const ANNONCE = 130;
+/** La vidéo du pouvoir part une fois l'élève atterri (annonce + chute + écrasement, DV.7). */
+const DELAI_VIDEO_POSE = 650;
 /** Vol d'une carte du portail jusqu'au rang (ms). */
 const DUREE_ARRIVEE_CARTE = 650;
 
@@ -150,6 +154,9 @@ export class PartieScene extends Phaser.Scene {
   private cinematiques: Cinematique[] = [];
   private cinematiqueEnCours: Phaser.GameObjects.Container | null = null;
   private tweensCinematique = new Set<Phaser.Tweens.Tween>();
+  /** Pouvoir dont la vidéo est passée à la pose : sa résolution, au coup suivant, ne la remontre
+   * pas (DV.7). */
+  private pouvoirDejaMontre: RoleId | null = null;
   /** Cases des cartables (pour y faire voler les goûters ramassés). */
   private cartables: Record<Bande, Point[]> = { rouge: [], bleu: [] };
   /** Tour affiché par la pendule (pour faire avancer l'aiguille quand il change). */
@@ -2871,13 +2878,50 @@ export class PartieScene extends Phaser.Scene {
       });
     }
     if (!this.animations) return;
-    const suite = cinematiquesPour(nouveaux, grandsFreres, fouineLoin);
+    let suite = cinematiquesPour(nouveaux, grandsFreres, fouineLoin);
+    // La vidéo de ce pouvoir est déjà passée à la pose : le choix qui le résout ne la remontre pas.
+    const dejaMontre = this.pouvoirDejaMontre;
+    this.pouvoirDejaMontre = null;
+    if (dejaMontre) suite = suite.filter((c) => roleDuPouvoir(c) !== dejaMontre);
+    // Vidéo du pouvoir dès que l'élève est posé, puis le pouvoir se résout (DV.7).
+    const aLaPose = this.videoALaPose(nouveaux, suite);
+    if (aLaPose) {
+      suite = suite.filter((c) => c !== aLaPose);
+      this.time.delayedCall(DELAI_VIDEO_POSE, () => {
+        // Un panneau du coup d'avant est encore là : la vidéo passe juste après lui.
+        if (this.cinematiqueEnCours) this.cinematiques.unshift(aLaPose);
+        else this.cinematiqueVideo(aLaPose, true);
+      });
+    }
     if (suite.length === 0) return;
     // Les panneaux attendent que la cour ait montré le coup.
     this.time.delayedCall(duree, () => {
       this.cinematiques.push(...suite);
       if (!this.cinematiqueEnCours) this.cinematiqueSuivante();
     });
+  }
+
+  /**
+   * Le moment de pouvoir à montrer dès la pose (DV.7) : celui de l'élève qui vient d'être posé,
+   * que son pouvoir se soit appliqué tout seul (il est dans `suite`) ou qu'il attende un choix
+   * (le joueur choisit après la vidéo). Seulement si le skin a la vidéo.
+   */
+  private videoALaPose(nouveaux: Evenement[], suite: Cinematique[]): Cinematique | undefined {
+    const pose = nouveaux.find((ev) => ev.type === 'pose');
+    if (pose?.type !== 'pose') return undefined;
+    const skin = skinActif();
+    const aUneVideo = (c: Cinematique): boolean => {
+      const role = roleDuPouvoir(c);
+      return !!role && !!c.bande && !!skin.videoPouvoir?.(c.bande, role);
+    };
+    const direct = suite.find((c) => roleDuPouvoir(c) === pose.role && aUneVideo(c));
+    if (direct) return direct;
+    const attente = this.etat.attente?.effet;
+    if (attente?.type !== 'pouvoir' || attente.eleveId !== pose.eleveId) return undefined;
+    const cin = cinematiqueDuPouvoir(attente.role, pose.bande);
+    if (!cin || !aUneVideo(cin)) return undefined;
+    this.pouvoirDejaMontre = attente.role;
+    return cin;
   }
 
   private animerEvenement(ev: Evenement, origine: Point): void {
@@ -3492,17 +3536,10 @@ export class PartieScene extends Phaser.Scene {
    * Si la vidéo ne démarre pas (réseau, navigateur), on retombe sur le panneau habituel.
    * Renvoie `false` quand il n'y a pas de vidéo à jouer.
    */
-  private cinematiqueVideo(cin: Cinematique): boolean {
-    const ROLE_DU_POUVOIR: Partial<Record<CinematiqueId, RoleId>> = {
-      infirmerie: 'contagieux',
-      grandsFreres: 'chouchou',
-      delegue: 'delegue',
-      fouine: 'fouine',
-      petit: 'petit',
-    };
+  private cinematiqueVideo(cin: Cinematique, figer = false): boolean {
     const skin = skinActif();
     const gouter = cin.id === 'gouter';
-    const role = cin.id === 'cpe' ? cin.pouvoir : ROLE_DU_POUVOIR[cin.id];
+    const role = roleDuPouvoir(cin);
     const creme = gouter
       ? skin.videoGouter?.(this.cour.regions.findIndex((r) => r.id === cin.region))
       : undefined;
@@ -3584,8 +3621,30 @@ export class PartieScene extends Phaser.Scene {
     const tout = this.add
       .container(0, 0, [fond, ...decor, titre, sous, passer])
       .setDepth(1000)
-      .setAlpha(0);
+      // À peine visible plutôt qu'invisible : elle capte déjà les touchers pendant que la vidéo
+      // se prépare (sinon, à la pose, on pourrait choisir la cible sous la vidéo).
+      .setAlpha(figer ? 0.001 : 0);
     this.cinematiqueEnCours = tout;
+
+    // Vidéo à la pose (DV.7) : la partie se fige derrière elle (conséquences du coup, tour de
+    // l'ordi, téléphone à passer) et reprend quand elle se termine. Ses propres délais passent
+    // donc par l'horloge du navigateur, pas par celle de la scène.
+    const figees = figer
+      ? this.tweens.getTweens().filter((tw) => !this.tweensCinematique.has(tw) && tw.isPlaying())
+      : [];
+    for (const tw of figees) tw.pause();
+    if (figer) this.time.paused = true;
+    const reprendre = (): void => {
+      if (!figer) return;
+      this.time.paused = false;
+      for (const tw of figees) tw.resume();
+    };
+    const attendre = (ms: number, fn: () => void): void => {
+      window.setTimeout(() => {
+        if (tout.scene) fn();
+      }, ms);
+    };
+    tout.once(Phaser.GameObjects.Events.DESTROY, reprendre);
 
     let fini = false;
     let demarree = false;
@@ -3599,6 +3658,7 @@ export class PartieScene extends Phaser.Scene {
         onComplete: () => {
           video.stop();
           tout.destroy();
+          reprendre();
           // La vidéo n'a pas pu démarrer : le panneau prend le relais.
           if (repli) this.cinematiques.unshift({ ...cin, sansVideo: true });
           this.cinematiqueSuivante();
@@ -3641,13 +3701,13 @@ export class PartieScene extends Phaser.Scene {
         this.events.off(Phaser.Scenes.Events.UPDATE, guetter),
       );
       // Filet de sécurité si la fin de la vidéo n'est jamais annoncée.
-      this.time.delayedCall(duree * 1000 + 2000, () => finir());
+      attendre(duree * 1000 + 2000, () => finir());
     };
 
     // Première image prête : on montre la vidéo.
     video.on(Phaser.GameObjects.Events.VIDEO_PLAY, demarrer);
     video.on(Phaser.GameObjects.Events.VIDEO_COMPLETE, () => {
-      if (!fini) this.time.delayedCall(700, () => finir());
+      if (!fini) attendre(700, () => finir());
     });
     video.on(Phaser.GameObjects.Events.VIDEO_ERROR, () => finir(!demarree));
     // Le navigateur refuse le son sans geste récent : on rejoue la vidéo en muet.
@@ -3660,7 +3720,7 @@ export class PartieScene extends Phaser.Scene {
     // prend sur le réseau et on lui laisse un peu plus de temps ; le coup reste visible pendant
     // l'attente. Rien après ce délai : le panneau prend le relais.
     const enMemoire = videoEnMemoire(url);
-    this.time.delayedCall(enMemoire ? 2500 : 5000, () => {
+    attendre(enMemoire ? 2500 : 5000, () => {
       if (!demarree) finir(true);
     });
     if (enMemoire) video.loadHandler(enMemoire, !lireSons());
