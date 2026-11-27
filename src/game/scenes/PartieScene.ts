@@ -47,7 +47,6 @@ import {
   MONTEE,
   positionLieu,
   type Lieu,
-  versEcran,
 } from '../disposition';
 import { nomGouter, phraseEvenement } from '../journal';
 import { aide, tonFun, tutoPasse } from '../ton';
@@ -73,14 +72,7 @@ const TAILLE_BADGE = 70;
 const DIAMETRE_PASTILLE = 92;
 const RAYON_DEPOT = 75;
 const Y_ACTIONS = 1064 + DESCENTE;
-/** Objets décoratifs de la cour n°1 (taille en px de jeu, image de 256 px). */
-const OBJETS_COUR = [
-  { cle: PLATEAU.basket, x: 0.92, y: 0.65, taille: 160, angle: -6 },
-  { cle: PLATEAU.ballon, x: 0.08, y: 0.31, taille: 62, angle: 0 },
-  { cle: PLATEAU.craies, x: 0.92, y: 0.33, taille: 70, angle: 12 },
-  { cle: PLATEAU.avion, x: 0.6, y: 0.33, taille: 64, angle: -20 },
-  { cle: PLATEAU.bonnet, x: 0.1, y: 0.7, taille: 66, angle: 10 },
-] as const;
+
 /** Temps laissé pour voir un coup avant de passer le téléphone (ms). */
 const DUREE_FIN_DE_TOUR = 900;
 /** Annonce d'une arrivée : l'élève se ramasse en l'air avant de tomber (ms). */
@@ -341,16 +333,6 @@ export class PartieScene extends Phaser.Scene {
     for (const b of ['rouge', 'bleu'] as const) {
       this.dessinerPortail(b);
       this.dessinerBureauCpe(b);
-    }
-
-    // Objets posés sur la cour (DF.19) : placés en coordonnées de cour, loin des îlots et des
-    // allées, pour ne rien chevaucher quel que soit le format d'écran.
-    for (const objet of OBJETS_COUR) {
-      if (!this.textures.exists(objet.cle)) continue;
-      const q = versEcran(objet.x, objet.y);
-      const im = this.add.image(q.x, q.y, objet.cle);
-      im.setScale(objet.taille / 256).setAngle(objet.angle);
-      this.ajouter(im);
     }
 
     // Îlots : des pastilles molles au trait noir, avec leur nom sur une étiquette.
