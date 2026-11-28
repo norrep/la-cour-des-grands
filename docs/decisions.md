@@ -497,3 +497,12 @@ Trois maquettes (carrousel, billets empilés, plein écran) ; Clément choisit l
 - **DH.2** — Mot d'excuse du Délégué : plus d'étiquette « Mot d'excuse ! » sur chaque goûter visé
   (la consigne le dit déjà, et elles se recouvraient). La bulle de consigne passe sous l'îlot quand,
   au-dessus, elle cacherait un goûter (sur toutes les cartes).
+
+## Aliens « grosse tête » (28/11)
+
+Demande de Clément : « Je commence à avoir un doute avec le design de mes aliens, je trouve leur qualité graphique en dessous des autres races ». Diagnostic (planche comparative, dossier du projet `equipes/diagnostic-aliens/`) : le trait n'était pas en cause (même épaisseur relative que les Écoliers et les Vers) ; la tête faisait 1/5 de la hauteur et les yeux étaient trois points noirs, d'où des bustes illisibles à 96 px ; les corps étaient ceux des Écoliers peints en vert, tous du même vert ; le Délégué avait une tête de robot.
+
+- **DT.1 — Les 8 Aliens sont redessinés en piste A « grosse tête »** (choisie par Clément parmi A « grosse tête » et B « gélatineux », toutes deux tirées sur le clan complet) : tête ronde d'un tiers de la hauteur, gros yeux blancs à paupières comme les Écoliers, antennes, un vert différent par rôle (pistache, turquoise, vert d'eau, citron, olive, sauge, émeraude, menthe), accessoires du rôle gardés (casquette, couettes, écharpe, capuche, cravate…). Le Délégué perd sa tête-boîte. Sources : `equipes/diagnostic-aliens/tests/A-<rôle>.png` (Higgsfield, nano_banana_2 2K, 2 cr l'image, 34 cr pour les tests et le clan A et B).
+- **DT.2 — Découpe des grosses têtes par le trait** (`scripts/decoupe.py --tete-encre`) : ces Aliens n'ont pas de cou, le menton descend entre les bras, et la coupe droite d'avant tranchait le visage. La tête est maintenant faite des zones de couleur fermées par l'encre qui commencent au-dessus des bras (visage, cheveux, antennes), avec leur contour ; le tronc et les bras perdent l'intérieur de la tête. Les autres bandes ne changent pas.
+- **DT.3 — Tenue miroir orange refaite** à partir des nouveaux dessins (`scripts/tenue-miroir.py aliens`).
+- À suivre : les vidéos de pouvoir des Aliens (`public/videos/cartoon/aliens*-*.mp4`) montrent encore l'ancien dessin ; à refaire avec le fil des vidéos.
