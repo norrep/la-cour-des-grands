@@ -5014,11 +5014,14 @@ export class PartieScene extends Phaser.Scene {
     groupe.add(rond);
     // L'élève fantôme : le même pantin que sous le doigt, tenu par le col, en transparence.
     let fantome: PantinVisuel | null = null;
-    if (avecFantome) {
+    // À chaque tour de boucle, un pantin neuf repart de la carte, immobile.
+    const nouveauFantome = (): void => {
+      fantome?.destroy();
       fantome = new PantinVisuel(this, eleve, de.x, de.y);
       fantome.conteneur.setAlpha(0);
       groupe.add(fantome.conteneur);
-    }
+    };
+    if (avecFantome) nouveauFantome();
     const doux = Phaser.Math.Easing.Sine.InOut;
     // Le doigt vise au-dessus de l'îlot : l'élève pend sous lui (comme au vrai glisser).
     const arrivee = { x: vers.x, y: vers.y + VISEE };
@@ -5026,8 +5029,11 @@ export class PartieScene extends Phaser.Scene {
     this.tweens.addCounter({
       from: 0,
       to: 1,
-      duration: 2600,
+      duration: 3200,
       repeat: -1,
+      onRepeat: () => {
+        if (avecFantome) nouveauFantome();
+      },
       onUpdate: (tw) => {
         const t = tw.getValue() ?? 0;
         const dt = Math.min(50, Math.max(1, this.time.now - avant)) / 1000;
@@ -5037,13 +5043,12 @@ export class PartieScene extends Phaser.Scene {
           fleche.setAlpha(t > 0.85 ? 1 - (t - 0.85) / 0.15 : 1);
         }
         if (fantome) {
-          const k = t < 0.12 ? 0 : t < 0.62 ? doux((t - 0.12) / 0.5) : 1;
-          const x = de.x + (arrivee.x - de.x) * k + Math.sin(k * Math.PI) * 50;
-          const y = de.y + (arrivee.y - de.y) * k - Math.sin(k * Math.PI) * 30;
-          if (t < 0.03) fantome.suivre(de.x, de.y, 1);
+          const k = t < 0.1 ? 0 : t < 0.64 ? doux((t - 0.1) / 0.54) : 1;
+          const x = de.x + (arrivee.x - de.x) * k;
+          const y = de.y + (arrivee.y - de.y) * k;
           fantome.suivre(x, y, dt);
           const a = t < 0.12 ? t / 0.12 : t < 0.78 ? 1 : Math.max(0, 1 - (t - 0.78) / 0.14);
-          fantome.conteneur.setAlpha(a * 0.8);
+          fantome.conteneur.setAlpha(a * 0.85);
         }
         const o = (t - 0.62) / 0.25;
         rond.setScale(1 + Math.max(0, o) * 3).setAlpha(o > 0 && o < 1 ? 1 - o : 0);
