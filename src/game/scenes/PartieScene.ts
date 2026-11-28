@@ -300,10 +300,13 @@ export class PartieScene extends Phaser.Scene {
     this.finMontree = false;
     this.surveillanteVue = null;
     this.marchesEnCours = 0;
-    this.presentation = true;
+    // En ligne, pas de fiche de la cour : la partie commence tout de suite (phase « jeu »), et le
+    // surveillant doit être à sa place sur la cour dès le départ, sinon on ne voit que le rond
+    // pointillé de son goûter (DR.12).
+    this.presentation = !this.enLigne;
     this.enPied = null;
     this.placesMedaillon = new Map();
-    this.medaillonArrive = false;
+    this.medaillonArrive = this.enLigne !== null;
     this.rangement = false;
     this.attenteAdversaire = false;
     this.tourHorloge = 0;
