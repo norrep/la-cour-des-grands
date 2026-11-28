@@ -403,6 +403,22 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.11 — Rond « +2 copains » redessiné** : jeton jaune au trait épais avec reflet, deux cartes
   de la pioche en éventail qui se dandinent, « +2 » en autocollant blanc cerclé de noir, « copains »
   sur un ruban à la couleur de l'équipe, halo qui respire, et le rond s'enfonce sous le pouce.
+- **DL.12 — La pioche du bas en miroir du rond « +2 copains »** (choix A de Clément parmi trois
+  maquettes : miroir, duo à droite, pioche-bouton). Elle se range au-dessus du coin gauche de la
+  main, à la hauteur du rond et un peu agrandie (×1,22), son étiquette « Pioche » en ruban dessous
+  comme « copains », les punis au-dessus. La pioche du haut ne bouge pas.
+- **DL.13 — On voit l'élève partir à la punition** (demande de Clément) : un carton rouge jaillit
+  au-dessus de lui, il sursaute bras en l'air, puis traîne les pieds tête basse jusqu'à la pioche
+  (ou au bureau des punis s'il existe), petits nuages de poussière à chaque pas, et disparaît
+  dedans (≈ 1,5 s, `DUREE_PUNITION`). La conséquence suivante attend 0,7 s pour qu'on voie le
+  carton. Le panneau « Puni ! » (carton et sifflet) est retiré : il ne reste que la vidéo du
+  pouvoir quand le skin en a une.
+- **DL.14 — Les cartes de la main deviennent des cases de bande dessinée** (Clément trouvait la
+  main « un peu pauvre » ; choix C parmi trois maquettes : cartes de collection, pupitre, cases de
+  BD). Fond à la couleur de l'équipe avec lignes de vitesse, trame de points qui grossit vers les
+  bords, étoile « pop » derrière la tête et gros trait noir ; la tête de l'élève sort du haut de
+  la case, le visage garde sa taille. La loupe montre la même case en grand. Pour laisser passer
+  les têtes, la pioche du bas et le rond « +2 copains » remontent de 22 px.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 

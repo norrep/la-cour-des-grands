@@ -60,6 +60,8 @@ import {
   DESCENTE,
   MONTEE,
   avecZonePunis,
+  CENTRE_APPEL,
+  PIOCHE_MIROIR,
   positionLieu,
   type Lieu,
   versEcran,
@@ -69,6 +71,7 @@ import { aide, tonFun, tutoPasse } from '../ton';
 import { FUN } from '../../data/textesFun';
 import { creerBadge } from '../ui/badge';
 import { skinActif } from '../skins/index';
+import { poseRepos } from '../ui/marionnette';
 import { creerBouton } from '../ui/bouton';
 import { contourRect, contourRond, forme, graineDe, panneau } from '../ui/style';
 import { ecrireConseils, lireSons } from '../preferences';
@@ -980,7 +983,9 @@ export class PartieScene extends Phaser.Scene {
         trait: 4,
       });
     }
-    const yTitre = illustre ? -58 : -36;
+    // Pioche du bas en miroir du rond « +2 copains » : étiquette en ruban dessous (DL.12).
+    const miroir = bande === 'rouge' && lieu === 'portail';
+    const yTitre = miroir ? 66 : illustre ? -58 : -36;
     const t = this.add
       .text(0, yTitre, titre, {
         fontFamily: POLICE,
@@ -999,6 +1004,7 @@ export class PartieScene extends Phaser.Scene {
       illustre ? 0 : (bande === 'rouge' ? 1 : -1) * (lieu === 'portail' ? -0.04 : 0.04),
     );
     c.setSize(124, illustre ? 120 : 90);
+    if (miroir) c.setScale(PIOCHE_MIROIR.echelle);
     if (this.ctrl.phase === 'jeu') {
       c.setInteractive({ useHandCursor: true });
       c.on('pointerup', fiche);
@@ -1217,7 +1223,10 @@ export class PartieScene extends Phaser.Scene {
     c.addAt(g, 0);
     c.add(this.compteurLieu(36, 34, `×${n}`, bande));
     this.dessinerMalades(c, j.infirmerie.length);
-    if (punisIci > 0) c.add(this.pastillePunis(punisIci));
+    if (punisIci > 0) {
+      // En bas, le ruban « Pioche » est dessous : les punis passent au-dessus (DL.12).
+      c.add(this.pastillePunis(punisIci).setY(bande === 'rouge' ? -60 : 66));
+    }
   }
 
   /** Les punis comptés sous la pioche (DL.10) : une pastille rouge « N punis ». */
@@ -1236,7 +1245,7 @@ export class PartieScene extends Phaser.Scene {
       remplissage: 0xe8463c,
       trait: 3,
     });
-    return this.add.container(0, 66, [g, t]);
+    return this.add.container(0, 0, [g, t]);
   }
 
   /**
@@ -2433,7 +2442,7 @@ export class PartieScene extends Phaser.Scene {
       trait: 3,
       ombre: 3,
     });
-    const c = this.add.container(DROITE - 82, RANG.y - RANG.hauteurCarte / 2 - 70, [
+    const c = this.add.container(CENTRE_APPEL.x, CENTRE_APPEL.y, [
       halo,
       g,
       ...dos,
@@ -2574,6 +2583,54 @@ export class PartieScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Le fond d'une carte de la main (DL.14) : une case de bande dessinée à la couleur de l'équipe,
+   * avec ses lignes de vitesse, sa trame de points qui grossit vers les bords, une étoile « pop »
+   * derrière la tête, et un gros trait noir.
+   */
+  private caseBD(bande: Bande, contour: { x: number; y: number }[]): Phaser.GameObjects.Graphics {
+    const { largeurCarte: l, hauteurCarte: h } = RANG;
+    const couleur = equipeDe(bande).couleur;
+    const k = Phaser.Display.Color.IntegerToColor(couleur);
+    const pale = (v: number): number => Math.round(v + (255 - v) * 0.35);
+    const g = this.add.graphics();
+    forme(g, contour, {
+      remplissage: Phaser.Display.Color.GetColor(pale(k.red), pale(k.green), pale(k.blue)),
+      ombre: 7,
+      trait: 5,
+    });
+    const cy = -h / 2 + 64;
+    g.lineStyle(2, 0xffffff, 0.55);
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2 + 0.1;
+      const r0 = 40;
+      const r1 = 120;
+      const x0 = Phaser.Math.Clamp(Math.cos(a) * r0, -l / 2 + 4, l / 2 - 4);
+      const x1 = Phaser.Math.Clamp(Math.cos(a) * r1, -l / 2 + 4, l / 2 - 4);
+      const y1 = Phaser.Math.Clamp(cy + Math.sin(a) * r1, -h / 2 + 4, h / 2 - 4);
+      g.lineBetween(x0, cy + Math.sin(a) * r0, x1, y1);
+    }
+    g.fillStyle(couleur, 0.35);
+    for (let yy = -h / 2 + 8; yy < h / 2 - 4; yy += 11) {
+      const decale = Math.round((yy + h / 2) / 11) % 2 ? 5 : 0;
+      for (let xx = -l / 2 + 8 + decale; xx < l / 2 - 4; xx += 11) {
+        const d = Math.hypot(xx, yy - cy);
+        if (d > 52) g.fillCircle(xx, yy, Math.min(3.2, (d - 52) / 16));
+      }
+    }
+    const etoile: { x: number; y: number }[] = [];
+    for (let i = 0; i < 20; i++) {
+      const r = i % 2 ? 30 : 46;
+      const a = (i / 20) * Math.PI * 2;
+      etoile.push({ x: Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    }
+    g.fillStyle(0xffffff, 0.95);
+    g.fillPoints(etoile, true);
+    g.lineStyle(3, COULEURS.encre, 1);
+    g.strokePoints(etoile, true);
+    return g;
+  }
+
   private carte(
     el: Eleve,
     x: number,
@@ -2582,26 +2639,35 @@ export class PartieScene extends Phaser.Scene {
     jouable: boolean,
   ): Phaser.GameObjects.Container {
     const { largeurCarte: l, hauteurCarte: h } = RANG;
-    const g = this.add.graphics();
     const graine = graineDe(x, y) + el.role.length;
-    forme(g, contourRect(-l / 2, -h / 2, l, h, 12, graine, 1), {
-      remplissage: equipeDe(el.bande).clair,
-      ombre: 5,
-      trait: 3,
-    });
-    // Tête et débardeur seulement : la carte montre la chasuble de l'élève.
+    const contour = contourRect(-l / 2, -h / 2, l, h, 6, graine, 0.6);
+    const g = this.caseBD(el.bande, contour);
+    // Tête et débardeur seulement : la carte montre la chasuble de l'élève. La tête sort du haut
+    // de la case (DL.14) ; seuls les côtés sont coupés.
     const skin = skinActif();
     // Plus de nom écrit sous le portrait (DL.1) : le visage et le chiffre suffisent, la loupe
     // montre le nom et le pouvoir en grand.
     const badge = skin.buste
-      ? skin.buste(this, el.bande, el.role, l - 8, h - 14)
+      ? skin.buste(this, el.bande, el.role, l - 4, h + 10)
       : skin.eleve(this, el.bande, el.role, 84);
-    badge.setPosition(0, skin.buste ? -2 : -10);
-    const enfants: Phaser.GameObjects.GameObject[] = [g, badge];
+    badge.setPosition(0, skin.buste ? -16 : -10);
+    // Le gros trait noir de la case passe sur le buste, sauf en haut où la tête dépasse.
+    const trait = this.add.graphics();
+    trait.lineStyle(5, COULEURS.encre, 1);
+    trait.strokePoints(
+      [
+        { x: -l / 2, y: -h / 2 + 20 },
+        { x: -l / 2, y: h / 2 },
+        { x: l / 2, y: h / 2 },
+        { x: l / 2, y: -h / 2 + 20 },
+      ],
+      false,
+    );
+    const enfants: Phaser.GameObjects.GameObject[] = [g, badge, trait];
     if (malade) {
       const voile = this.add.graphics();
       voile.fillStyle(0xbfe3b0, 0.8);
-      voile.fillPoints(contourRect(-l / 2, -h / 2, l, h, 12, graine, 1), true);
+      voile.fillPoints(contour, true);
       const t = this.add
         .text(0, 0, TEXTES.hud.infirmerie, {
           fontFamily: POLICE,
@@ -3518,7 +3584,7 @@ export class PartieScene extends Phaser.Scene {
         this.copainsArrivent(ev.bande);
         break;
       case 'cpe':
-        this.volerVersLieu(this.pos(ev.ilot), ev.bande, ev.role, ev.bande, 'cpe');
+        this.partirPunition(this.pos(ev.ilot), ev.bande, ev.role);
         this.reactionSurveillant('colere');
         break;
       case 'infirmerie':
@@ -3792,6 +3858,144 @@ export class PartieScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Un élève part à la punition (DL.13) : il sursaute sous un carton rouge brandi au-dessus de
+   * lui, puis traîne les pieds, tête basse et bras ballants, jusqu'à la pioche (ou au bureau des
+   * punis) où il disparaît. Petits nuages de poussière à chaque pas.
+   */
+  private partirPunition(depuis: Point, bande: Bande, role: RoleId): void {
+    jouerSon('cpe');
+    const arrivee = positionLieu(this.cour, bande, 'cpe');
+    const acteur = skinActif().acteur(this, bande, role, 100);
+    const corps = acteur.objet;
+    const h = acteur.hauteur;
+    // L'acteur a son origine aux pieds : on le pose pour que son milieu soit sur l'îlot.
+    const sol = { x: depuis.x, y: depuis.y + h * 0.45 };
+    const fin = { x: arrivee.x, y: arrivee.y + h * 0.3 };
+    const c = this.ajouter(this.add.container(sol.x, sol.y, [corps]));
+    c.setDepth(30);
+    // Le carton rouge brandi au-dessus de sa tête.
+    const carton = this.add.graphics();
+    forme(carton, contourRect(-20, -28, 40, 56, 6, graineDe(sol.x, 3), 0.5), {
+      remplissage: 0xe8463c,
+      trait: 4,
+      ombre: 3,
+    });
+    carton.fillStyle(0xffffff, 0.5);
+    carton.fillRoundedRect(-14, -22, 6, 34, 3);
+    carton
+      .setPosition(0, -h - 44)
+      .setScale(0)
+      .setRotation(-0.2);
+    c.add(carton);
+    const regard = fin.x < sol.x ? -1 : 1;
+    const pose = poseRepos();
+    pose.regard = regard;
+    acteur.poser(pose);
+
+    // 1. Le sursaut et le carton (0 → 0,5 s).
+    this.tweens.add({ targets: carton, scale: 1, duration: 220, ease: 'Back.easeOut' });
+    this.tweens.add({
+      targets: carton,
+      rotation: 0.2,
+      duration: 90,
+      yoyo: true,
+      repeat: 2,
+      delay: 220,
+    });
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 420,
+      onUpdate: (tw) => {
+        const v = tw.getValue() ?? 0;
+        const p = poseRepos();
+        p.regard = regard;
+        // Bras en l'air et petit saut de surprise, puis il retombe, tout penaud.
+        const choc = Math.sin(Math.min(1, v * 2) * Math.PI);
+        p.saut = -choc * 0.12;
+        p.brasG = choc * 1.2;
+        p.brasD = -choc * 1.2;
+        p.tete = v * 0.18;
+        acteur.poser(p);
+      },
+    });
+
+    // 2. La marche de la honte jusqu'à la pioche (0,5 → 1,4 s).
+    const pas = 4;
+    let dernierPas = -1;
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      delay: 480,
+      duration: 900,
+      ease: 'Sine.easeIn',
+      onStart: () => {
+        this.tweens.add({ targets: carton, alpha: 0, y: carton.y - 30, duration: 260 });
+      },
+      onUpdate: (tw) => {
+        const v = tw.getValue() ?? 0;
+        const phase = v * pas * Math.PI * 2;
+        const p = poseRepos();
+        p.regard = regard;
+        p.jambeG = Math.sin(phase) * 0.45;
+        p.jambeD = -Math.sin(phase) * 0.45;
+        p.brasG = -Math.sin(phase) * 0.12;
+        p.brasD = -Math.sin(phase) * 0.12;
+        p.tete = 0.22;
+        p.tronc = regard * 0.08;
+        p.rebond = -Math.abs(Math.sin(phase)) * 0.04;
+        acteur.poser(p);
+        c.setPosition(sol.x + (fin.x - sol.x) * v, sol.y + (fin.y - sol.y) * v);
+        c.setScale(1 - v * 0.45);
+        const k = Math.floor(v * pas * 2);
+        if (k !== dernierPas) {
+          dernierPas = k;
+          this.poussiere(c.x - regard * 14, c.y);
+        }
+      },
+      onComplete: () => {
+        // 3. Il rentre dans la pioche, qui rebondit.
+        this.tweens.add({
+          targets: c,
+          scale: 0,
+          alpha: 0,
+          duration: 160,
+          ease: 'Back.easeIn',
+          onComplete: () => {
+            c.destroy();
+            this.rebondLieu(bande, 'cpe');
+          },
+        });
+      },
+    });
+  }
+
+  /** Un petit nuage de poussière sous un pas, qui s'efface. */
+  private poussiere(x: number, y: number): void {
+    const g = this.ajouter(this.add.graphics());
+    g.fillStyle(0xffffff, 0.85);
+    g.lineStyle(2.5, COULEURS.encre, 0.7);
+    for (const [dx, dy, r] of [
+      [-8, 0, 7],
+      [4, -3, 9],
+      [13, 1, 6],
+    ] as const) {
+      g.fillCircle(dx, dy, r);
+      g.strokeCircle(dx, dy, r);
+    }
+    g.setPosition(x, y).setDepth(29).setScale(0.6);
+    this.tweens.add({
+      targets: g,
+      scale: 1.1,
+      alpha: 0,
+      y: y - 10,
+      duration: 380,
+      ease: 'Quad.easeOut',
+      onComplete: () => g.destroy(),
+    });
+  }
+
   /** Le panneau d'un lieu fait un petit bond : quelqu'un vient d'y arriver ou d'en partir. */
   private rebondLieu(bande: Bande, lieu: Lieu): void {
     const c =
@@ -3805,21 +4009,6 @@ export class PartieScene extends Phaser.Scene {
       yoyo: true,
       ease: 'Quad.easeOut',
     });
-  }
-
-  /** Un élève quitte la cour pour un lieu (CPE) : il vole jusqu'au panneau, qui rebondit. */
-  private volerVersLieu(
-    depuis: Point,
-    bandeEleve: Bande,
-    role: RoleId,
-    bandeLieu: Bande,
-    lieu: Lieu,
-  ): void {
-    jouerSon('cpe');
-    const badge = this.ajouter(creerBadge(this, bandeEleve, role, 44));
-    this.volerEnCloche(badge, depuis, positionLieu(this.cour, bandeLieu, lieu), 560, () =>
-      this.rebondLieu(bandeLieu, lieu),
-    );
   }
 
   /**

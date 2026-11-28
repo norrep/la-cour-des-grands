@@ -55,8 +55,16 @@ export function cinematiqueDuPouvoir(role: RoleId, bande: Bande): Cinematique | 
   }
 }
 
-/** Moments qui n'existent qu'en vidéo : sans vidéo dans le skin, on n'affiche rien. */
-export const CINEMATIQUES_VIDEO_SEULE: readonly CinematiqueId[] = ['fouine', 'petit', 'populaire'];
+/**
+ * Moments qui n'existent qu'en vidéo : sans vidéo dans le skin, on n'affiche rien. La mise à la
+ * CPE n'a plus de panneau « Puni ! » : on voit l'élève partir à la punition sur la cour (DL.13).
+ */
+export const CINEMATIQUES_VIDEO_SEULE: readonly CinematiqueId[] = [
+  'fouine',
+  'petit',
+  'populaire',
+  'cpe',
+];
 
 export interface Cinematique {
   id: CinematiqueId;
