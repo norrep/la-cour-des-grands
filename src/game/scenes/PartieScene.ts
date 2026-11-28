@@ -15,6 +15,7 @@ import {
   type Cour,
   type CourData,
   type Eleve,
+  type EtatPartie,
   type Evenement,
   estPlanque,
   type Action,
@@ -55,7 +56,9 @@ import { NB_CONSEILS, prochainConseil, type ConseilId } from '../conseils';
 import { Controleur } from '../controleur';
 import { Ordi } from '../ordi';
 import { ControleurEnLigne } from '../enLigne/controleurEnLigne';
-import { ecrirePartieEnCours, serveurPret } from '../enLigne/session';
+import { ecrirePartieEnCours, serveurParties, serveurPret } from '../enLigne/session';
+import type { EtapeEnLigne } from '../enLigne/etapes';
+import { oublierPartie, sauverPartie } from '../reprise';
 import {
   centreRegion,
   noeudSous,
@@ -268,13 +271,14 @@ export class PartieScene extends Phaser.Scene {
     const videosPartie = (['rouge', 'bleu'] as const).flatMap((b) =>
       ROLES.map(({ id }) => skin.videoPouvoir?.(b, id)),
     );
-    // Les vidéos de victoire viennent après celles des pouvoirs (DW.4).
+    // Puis celles des goûters, et enfin celles de victoire (DW.4). Rien n'est plus téléchargé
+    // au lancement du jeu : seulement les vidéos des équipes de la partie.
+    for (let i = 0; i < 4; i++) videosPartie.push(skin.videoGouter?.(i)?.url);
     for (const b of ['rouge', 'bleu'] as const)
       for (const r of ['cabane', 'bonsPoints'] as const)
         videosPartie.push(skin.videoVictoire?.(b, r));
     prechargerVideos(videosPartie);
     // Leurs bandes son, jouées à part pour ne pas être coupées par le téléphone (DV.9).
-    for (let i = 0; i < 4; i++) videosPartie.push(skin.videoGouter?.(i)?.url);
     for (const url of videosPartie) if (url) chargerBandeSon(url);
     this.visuel = visuelCarte(carte);
     this.cour = chargerCour(COURS[carte] as CourData);
@@ -288,6 +292,10 @@ export class PartieScene extends Phaser.Scene {
         graine: donnees.graine,
         equipements: donnees.equipements,
       });
+    // Une partie reprise là où on l'avait laissée (`reprise.ts`).
+    if (!this.enLigne && donnees.reprise) {
+      this.ctrl.etat = { ...donnees.reprise, cour: this.cour } as EtatPartie;
+    }
     this.texteTemps = null;
     this.reclameLe = 0;
     this.departToboggan = null;
@@ -308,10 +316,11 @@ export class PartieScene extends Phaser.Scene {
     // En ligne, pas de fiche de la cour : la partie commence tout de suite (phase « jeu »), et le
     // surveillant doit être à sa place sur la cour dès le départ, sinon on ne voit que le rond
     // pointillé de son goûter (DR.12).
-    this.presentation = !this.enLigne;
+    // Une revanche (même carte, mêmes bandes) saute aussi la fiche : on la connaît déjà.
+    this.presentation = !this.enLigne && !donnees.revanche && !donnees.reprise;
     this.enPied = null;
     this.placesMedaillon = new Map();
-    this.medaillonArrive = this.enLigne !== null;
+    this.medaillonArrive = !this.presentation;
     this.rangement = false;
     this.attenteAdversaire = false;
     this.tourHorloge = 0;
@@ -409,6 +418,11 @@ export class PartieScene extends Phaser.Scene {
   /** Redessine tout l'écran à partir de l'état. La fiche ouverte est fermée, sauf demande. */
   rafraichir(garderFiche = false): void {
     if (!garderFiche) this.fiche = null;
+    // Sur ce téléphone, la partie est gardée à chaque coup pour pouvoir la reprendre.
+    if (!this.enLigne) {
+      if (this.ctrl.phase === 'fin') oublierPartie();
+      else if (!this.presentation) sauverPartie(this.donnees, this.ctrl.etat);
+    }
     // En solo, pas de « Passe le téléphone » : le téléphone reste dans les mêmes mains.
     if (
       (this.ordi || this.enLigne) &&
@@ -540,7 +554,7 @@ export class PartieScene extends Phaser.Scene {
     bord.lineStyle(8, equipeDe(bande).couleur, 1);
     bord.strokeRoundedRect(-l / 2 + 10, -46, l - 20, 92, 22);
     const c = this.add
-      .container(LARGEUR / 2, RANG.y - RANG.hauteurCarte / 2 - 120, [fond, bord, t])
+      .container(LARGEUR / 2, RANG.y - RANG.hauteurCarte / 2 - 40, [fond, bord, t])
       .setDepth(900)
       .setRotation(-0.06);
     if (!this.animations) {
@@ -548,7 +562,13 @@ export class PartieScene extends Phaser.Scene {
       return;
     }
     c.setScale(0.2).setAlpha(0);
-    this.tweenCinematique({ targets: c, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
+    this.tweenCinematique({
+      targets: c,
+      scale: 0.85,
+      alpha: 1,
+      duration: 260,
+      ease: 'Back.easeOut',
+    });
     this.tweenCinematique({
       targets: c,
       alpha: 0,
@@ -1200,6 +1220,9 @@ export class PartieScene extends Phaser.Scene {
    * les cartes du rang. Le nombre est dans une pastille ; le paquet maigrit quand il se vide.
    */
   private dessinerPortail(bande: Bande): void {
+    // Sur la fiche de la cour, les pioches n'ont rien à expliquer et le surveillant en pied
+    // recouvrait celle du bas sur les petits écrans.
+    if (this.presentation && this.ctrl.phase === 'passe') return;
     const j = this.etat.joueurs[bande];
     const n = j.couloir.length;
     const punisIci = avecZonePunis(this.cour) ? 0 : j.cpe.length;
@@ -1899,7 +1922,11 @@ export class PartieScene extends Phaser.Scene {
         ? b === this.enLigne.bande
           ? TEXTES.enLigne.aToi
           : TEXTES.enLigne.auTourAmi(this.enLigne.vue.adversaire)
-        : TEXTES.hud.tourDe(b);
+        : this.ordi
+          ? b === this.ordi.humain
+            ? TEXTES.hud.tonTour
+            : TEXTES.hud.tourOrdi
+          : TEXTES.hud.tourDe(b);
       const t = this.texte(LARGEUR / 2, Y_PASTILLE_TOUR, qui, 21, COULEURS.texteSombre, {
         fontStyle: '700',
       }).setOrigin(0.5);
@@ -3049,7 +3076,13 @@ export class PartieScene extends Phaser.Scene {
     // La bande qui vient de jouer voit encore son rang (le téléphone est toujours dans ses mains) :
     // les copains appelés y arrivent.
     this.dessinerRang(this.bandeVue, false, true);
-    this.bandeauTour(TEXTES.passe.bientot(this.etat.courant), this.etat.courant, false);
+    const suivante = this.etat.courant;
+    const annonce = this.ordi
+      ? suivante === this.ordi.humain
+        ? TEXTES.passe.bientotToi
+        : TEXTES.passe.bientotOrdi
+      : TEXTES.passe.bientot(suivante);
+    this.bandeauTour(annonce, suivante, false);
     const bloc = this.ajouter(
       this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 0.001),
     );
@@ -4764,18 +4797,43 @@ export class PartieScene extends Phaser.Scene {
           cabane: this.visuel.cabane ?? { image: PLATEAU.cabaneBleue, murs: PLATEAU.mursBleue },
         },
         {
-          libelleRejouer: TEXTES.boutons.rejouer,
+          libelleRejouer: TEXTES.boutons.revanche,
           libelleAccueil: TEXTES.boutons.accueil,
-          rejouer: () =>
-            this.enLigne
-              ? this.scene.start('enLigne', { ...this.donnees, enLigne: { etape: 'menu' } })
-              : this.scene.restart({ ...this.donnees, graine: Date.now() }),
+          // Revanche : même carte, mêmes bandes, sans repasser par la fiche. En ligne, on
+          // rouvre une partie et on la propose au même ami (choix de la carte et de la bande).
+          rejouer: () => (this.enLigne ? void this.revancheEnLigne() : this.revanche()),
           accueil: () => this.scene.start('accueil'),
           bouton: (x, y, t, f, st) => creerBouton(this, x, y, t, f, st),
         },
         entree,
       ),
     );
+  }
+
+  /** Revanche en solo ou à deux : la même partie, nouvelle donne, tout de suite. */
+  private revanche(): void {
+    const donnees: DonneesPartie = { ...this.donnees, graine: Date.now(), revanche: true };
+    delete donnees.reprise;
+    this.scene.restart(donnees);
+  }
+
+  /**
+   * Revanche en ligne : l'adversaire est devenu un ami en jouant ensemble (DR.12). On retrouve
+   * son nom dans la liste d'amis et on lui propose une nouvelle partie ; s'il est introuvable
+   * (ou deux amis portent ce nom), on retombe sur le menu en ligne.
+   */
+  private async revancheEnLigne(): Promise<void> {
+    const pseudo = this.enLigne?.vue.adversaire ?? null;
+    let ami: { id: string; pseudo: string } | undefined;
+    try {
+      const serveur = await serveurParties();
+      const amis = (await serveur.amis()).filter((a) => a.pseudo === pseudo);
+      if (amis.length === 1 && amis[0]) ami = { id: amis[0].id, pseudo: amis[0].pseudo };
+    } catch {
+      ami = undefined;
+    }
+    const enLigne: EtapeEnLigne = ami ? { etape: 'hote', ami } : { etape: 'menu' };
+    this.scene.start(ami ? 'choix' : 'enLigne', { ...this.donnees, enLigne });
   }
 
   /**

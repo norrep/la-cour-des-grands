@@ -117,4 +117,15 @@ describe('Temps limite (DR.12)', () => {
     expect(fin.issue?.raison).toBe('temps');
     expect(fin.issue?.gagnant).not.toBe(fin.bande);
   });
+
+  it('retirer un ami le retire des deux listes', async () => {
+    const { alice, bob } = salle();
+    await alice.nommer('Alice');
+    const b = await bob.nommer('Bob');
+    await alice.ajouterAmi(b.codeAmi);
+    expect((await bob.amis()).map((a) => a.pseudo)).toEqual(['Alice']);
+    await bob.retirerAmi((await bob.amis())[0]?.id ?? '');
+    expect(await alice.amis()).toEqual([]);
+    expect(await bob.amis()).toEqual([]);
+  });
 });
