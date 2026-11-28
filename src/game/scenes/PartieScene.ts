@@ -79,6 +79,7 @@ import { cleGouter, DECOR, ILLUSTRATIONS, PLATEAU } from './ChargementScene';
 import { cadrer, decorPlein } from '../ui/ecran';
 import {
   COULEURS_SURVEILLANT,
+  empriseMedaillon,
   MedaillonSurveillant,
   SurveillantEnPied,
   type Reaction,
@@ -114,6 +115,9 @@ const DUREE_ARRIVEE_CARTE = 650;
 type Texte = Phaser.GameObjects.Text;
 
 /** La partie à deux sur un même téléphone (étape 2 : formes simples). */
+/** Piscine : décalage des goûters des coins vers l'eau libre, loin des élèves posés (DH.1). */
+const DECALAGE_GOUTER_PISCINE = 105;
+
 export class PartieScene extends Phaser.Scene {
   private ctrl!: Controleur;
   private cour!: Cour;
@@ -1280,45 +1284,77 @@ export class PartieScene extends Phaser.Scene {
     // Goûter placé par le plan (piscine : sur le carrelage, entre la cabane et les deux îlots).
     if (r.gouter) return versEcran(r.gouter.x, r.gouter.y);
     const c = centreRegion(this.cour, r.ilots);
+    // Piscine : entre deux îlots du bord, le goûter tombait sous les élèves posés (tête, pile
+    // « ×2 », « Mot d'excuse ! », cible) ; il se pose dans l'eau libre vers le milieu (DH.1).
+    if (this.cour.id === 'piscine' && r.ilots.length === 2) {
+      const milieu = ZONE_COUR.x + ZONE_COUR.largeur / 2;
+      return { x: c.x + Math.sign(milieu - c.x) * DECALAGE_GOUTER_PISCINE, y: c.y };
+    }
     const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? -22 : 0;
     return { x: c.x, y: c.y + decalage };
   }
 
   /**
-   * Où se tient la surveillante quand elle garde ce goûter : son médaillon juste au-dessus, sans
-   * le cacher (DS.1) ; le dessin au trait de secours, juste à côté.
+   * Où se tient la surveillante quand elle garde ce goûter : son médaillon (tête
+   * comprise) tout près, mais jamais par-dessus le goûter ni son « +N » ; le dessin au
+   * trait de secours, juste à côté.
    */
   private positionSurveillante(regionId: string): Point {
     const c = this.positionGouter(regionId);
     if (!this.textures.exists(this.visuel.surveillant.texture)) return { x: c.x + 42, y: c.y + 4 };
     const deja = this.placesMedaillon.get(regionId);
     if (deja) return deja;
-    // Au-dessus du goûter de préférence ; sinon sur le côté ou dessous, là où il y a le plus de
-    // place entre les îlots, les cabanes, les lieux et les autres goûters.
-    const obstacles: Point[] = [
-      ...Object.keys(this.cour.noeuds).map((id) => this.pos(id)),
-      ...this.cour.regions.filter((r) => r.id !== regionId).map((r) => this.positionGouter(r.id)),
+    const em = empriseMedaillon();
+    // Le goûter gardé : son rond pointillé (36) et sa pastille « +N » en haut à gauche, plus un
+    // peu d'air pour qu'on le voie bien détaché.
+    const air = 6;
+    const gouter = { gauche: -50 - air, droite: 39 + air, haut: -48 - air, bas: 39 + air };
+    const chevauche = (dx: number, dy: number): boolean =>
+      dx + em.droite > gouter.gauche &&
+      dx + em.gauche < gouter.droite &&
+      dy + em.bas > gouter.haut &&
+      dy + em.haut < gouter.bas;
+    // Ce qu'il vaut mieux ne pas couvrir non plus : îlots et élèves, autres goûters, lieux.
+    const obstacles: { p: Point; r: number }[] = [
+      ...Object.keys(this.cour.noeuds).map((id) => ({ p: this.pos(id), r: 52 })),
+      ...this.cour.regions
+        .filter((r) => r.id !== regionId)
+        .map((r) => ({ p: this.positionGouter(r.id), r: 40 })),
       ...(['rouge', 'bleu'] as const).flatMap((b) =>
-        (['portail', 'cpe'] as const).map((l) => positionLieu(this.cour, b, l)),
+        (['portail', 'cpe'] as const).map((l) => ({ p: positionLieu(this.cour, b, l), r: 40 })),
       ),
     ];
-    const essais: [number, number, number][] = [
-      [0, -96, 14],
-      [96, -22, 6],
-      [-96, -22, 6],
-      [72, -76, 8],
-      [-72, -76, 8],
-      [0, 100, 0],
-    ];
-    let meilleur: Point = { x: c.x, y: c.y - 96 };
+    const haut = HAUT + 120;
+    const bas = ZONE_COUR.y + ZONE_COUR.hauteur;
+    let meilleur: Point = { x: c.x, y: c.y + gouter.haut - em.bas };
     let score = -Infinity;
-    for (const [dx, dy, bonus] of essais) {
-      const p = { x: c.x + dx, y: c.y + dy };
-      if (p.x < 70 || p.x > LARGEUR - 70) continue;
-      const libre = Math.min(...obstacles.map((o) => Math.hypot(o.x - p.x, (o.y - p.y) * 1.1)));
-      if (libre + bonus > score) {
-        score = libre + bonus;
-        meilleur = p;
+    // Dans 24 directions, on l'écarte juste assez pour dégager le goûter, puis un peu plus.
+    for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * Math.PI * 2;
+      const ux = Math.cos(a);
+      const uy = Math.sin(a);
+      let d = 0;
+      while (d < 260 && chevauche(ux * d, uy * d)) d += 2;
+      for (const plus of [0, 16, 32]) {
+        const dist = d + plus;
+        const p = { x: c.x + ux * dist, y: c.y + uy * dist };
+        if (p.x + em.gauche < 6 || p.x + em.droite > LARGEUR - 6) continue;
+        if (p.y + em.haut < haut || p.y + em.bas > bas) continue;
+        // Distance de chaque obstacle au rectangle du médaillon, moins sa taille.
+        const libre = Math.min(
+          ...obstacles.map(({ p: o, r }) => {
+            const ex = Math.max(p.x + em.gauche - o.x, 0, o.x - (p.x + em.droite));
+            const ey = Math.max(p.y + em.haut - o.y, 0, o.y - (p.y + em.bas));
+            return Math.hypot(ex, ey) - r;
+          }),
+        );
+        // D'abord ne rien couvrir, ensuite rester près de son goûter ; au-dessus, c'est mieux.
+        const s =
+          Math.min(libre, 10) * 4 + Math.min(libre, 40) * 0.5 - dist * 0.6 + (uy < -0.5 ? 12 : 0);
+        if (s > score) {
+          score = s;
+          meilleur = p;
+        }
       }
     }
     this.placesMedaillon.set(regionId, meilleur);
@@ -1327,13 +1363,13 @@ export class PartieScene extends Phaser.Scene {
 
   /**
    * Le surveillant sur la cour : son médaillon (DS.1), tête et épaules dans une rosette, ou à
-   * défaut un dessin au trait (robe lilas, chignon). Renvoie true pour le médaillon (il porte
-   * son nom sur sa banderole).
+   * défaut un dessin au trait (robe lilas, chignon). Renvoie true pour le médaillon (alors
+   * pas d'étiquette de nom : la cour est assez chargée).
    */
   private silhouette(x: number, y: number, alpha: number): boolean {
     const { texture, rig, id } = this.visuel.surveillant;
     if (this.textures.exists(texture)) {
-      const m = new MedaillonSurveillant(this, texture, rig, id, TEXTES.surveillante);
+      const m = new MedaillonSurveillant(this, texture, rig, id);
       m.racine.setPosition(x, y).setAlpha(alpha);
       this.ajouter(m.racine);
       this.medaillon = m;
@@ -1569,7 +1605,9 @@ export class PartieScene extends Phaser.Scene {
         const region = this.cour.regions.at(this.cour.ronde[o.position] as number);
         if (region) {
           const g = this.positionGouter(region.id);
-          this.cibleLieu(source, g, 54, T.motExcuse, () => this.choisir(o));
+          // Sans étiquette : la consigne le dit déjà, et une étiquette par goûter les recouvrait
+          // les uns les autres sur la piscine (DH.2).
+          this.cibleLieu(source, g, 54, null, () => this.choisir(o));
         }
       } else if (o.type === 'repecher') {
         repeches.push(o);
@@ -1610,14 +1648,14 @@ export class PartieScene extends Phaser.Scene {
     depuis: Point,
     p: Point,
     rayon: number,
-    verbe: string,
+    verbe: string | null,
     action: () => void,
   ): void {
     this.flecheCraie(depuis, p, rayon);
     this.anneauCible(p, rayon);
     // Sous la cible quand elle est tout en haut de la cour (le bandeau la cacherait).
     const dessus = p.y - rayon - 22 > 150 + MONTEE;
-    this.etiquetteVerbe(p.x, dessus ? p.y - rayon - 22 : p.y + rayon + 22, verbe);
+    if (verbe) this.etiquetteVerbe(p.x, dessus ? p.y - rayon - 22 : p.y + rayon + 22, verbe);
     const zone = this.ajouter(this.add.circle(p.x, p.y, rayon + 8, 0xffffff, 0.001));
     zone.setInteractive({ useHandCursor: true });
     zone.on('pointerup', action);
@@ -2184,7 +2222,15 @@ export class PartieScene extends Phaser.Scene {
     const a = this.etat.attente;
     if (!a || this.fiche) return;
     const p = this.pos(a.effet.ilot);
-    const c = this.bulle(null, this.consigne(), { x: p.x, y: p.y - RAYON_ILOT }, COULEURS.jaune);
+    // Au-dessus de l'îlot, sauf si elle y cacherait un goûter et que le dessous est libre : sur la
+    // piscine, les goûters du bas sont juste au-dessus des îlots du bord (DH.2).
+    const gouters = this.cour.regions.map((r) => this.positionGouter(r.id));
+    const couvre = (haut: number, bas: number) =>
+      gouters.some((g) => Math.abs(g.x - p.x) < 260 && g.y > haut && g.y < bas);
+    const dessous =
+      couvre(p.y - RAYON_ILOT - 150, p.y - RAYON_ILOT) && !couvre(p.y, p.y + RAYON_ILOT + 150);
+    const ancre = dessous ? { x: p.x, y: p.y + RAYON_ILOT } : { x: p.x, y: p.y - RAYON_ILOT };
+    const c = this.bulle(null, this.consigne(), ancre, COULEURS.jaune, 470, dessous);
     this.tweens.add({
       targets: c,
       y: -5,
