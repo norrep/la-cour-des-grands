@@ -1,12 +1,13 @@
 /**
- * Les équipes (DB.1, DE.1) : un look, jamais une règle. Le moteur ne connaît que deux camps,
- * `rouge` (en bas) et `bleu` (en haut) ; avant chaque partie, chaque camp reçoit une équipe.
+ * Les équipes (DB.1, DE.1) : un look, et un rôle signature (DS.1) qui remplace un des 8 rôles.
+ * Le moteur ne connaît que deux camps, `rouge` (en bas) et `bleu` (en haut) ; avant chaque
+ * partie, chaque camp reçoit une équipe.
  *
  * Une équipe n'a qu'UNE couleur à l'écran (sa tenue). Elle garde une seconde tenue, jamais
  * montrée au choix, qui ne sert que si les deux camps prennent la même équipe (match miroir) :
  * le camp du haut l'enfile alors pour qu'on distingue les deux bandes.
  */
-import type { Bande } from '../engine/index';
+import type { Bande, RoleId } from '../engine/index';
 
 /** Une tenue : la couleur et les dessins d'une équipe sur la cour. */
 export type TenueId = 'rouges' | 'bleus' | 'vers' | 'vers2' | 'aliens' | 'aliens2';
@@ -103,13 +104,38 @@ export interface Equipe {
   tenue: TenueId;
   /** Seconde tenue, cachée : seulement si l'autre camp a pris la même équipe. */
   miroir: TenueId;
+  /** Rôle signature du clan (DS.1), à la place d'un des 8 rôles ; aucun : les 8 rôles d'origine. */
+  signature?: RoleId;
 }
 
 export const EQUIPES: Record<EquipeId, Equipe> = {
-  ecoliers: { id: 'ecoliers', nom: 'Les Écoliers', tenue: 'rouges', miroir: 'bleus' },
+  ecoliers: {
+    id: 'ecoliers',
+    nom: 'Les Écoliers',
+    tenue: 'rouges',
+    miroir: 'bleus',
+    signature: 'bagarreur',
+  },
+  // Les Vers gardent leurs 8 rôles : le Fouisseur n'a pas pu être équilibré (DS.4).
   vers: { id: 'vers', nom: 'Les Vers de terre', tenue: 'vers', miroir: 'vers2' },
-  aliens: { id: 'aliens', nom: 'Les Aliens', tenue: 'aliens', miroir: 'aliens2' },
+  aliens: {
+    id: 'aliens',
+    nom: 'Les Aliens',
+    tenue: 'aliens',
+    miroir: 'aliens2',
+    signature: 'teleporteur',
+  },
 };
+
+/** Le rôle signature de chaque camp, pour le moteur (`OptionsPartie.signatures`). */
+export function signaturesPour(c: Record<Bande, EquipeId>): Partial<Record<Bande, RoleId>> {
+  const s: Partial<Record<Bande, RoleId>> = {};
+  for (const b of ['rouge', 'bleu'] as const) {
+    const r = EQUIPES[c[b]]?.signature;
+    if (r) s[b] = r;
+  }
+  return s;
+}
 
 export const ORDRE_EQUIPES: readonly EquipeId[] = ['ecoliers', 'vers', 'aliens'];
 

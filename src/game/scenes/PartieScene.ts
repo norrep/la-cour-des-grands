@@ -1,4 +1,4 @@
-import { choisirEquipes, equipeDe } from '../../data/equipes';
+import { choisirEquipes, equipeDe, signaturesPour } from '../../data/equipes';
 import Phaser from 'phaser';
 import { COURS } from '../../data/boards/index';
 import { TEXTES } from '../../data/textes';
@@ -6,6 +6,7 @@ import {
   actionsLegales,
   chargerCour,
   noeudsConnectes,
+  pouvoirFacultatif,
   ciblesPossibles,
   gouterSurveille,
   ROLES,
@@ -302,6 +303,7 @@ export class PartieScene extends Phaser.Scene {
       new Controleur(this.cour, {
         graine: donnees.graine,
         equipements: donnees.equipements,
+        signatures: signaturesPour(donnees.equipes ?? { rouge: 'ecoliers', bleu: 'ecoliers' }),
       });
     // Une partie reprise là où on l'avait laissée (`reprise.ts`).
     if (!this.enLigne && donnees.reprise) {
@@ -2525,6 +2527,8 @@ export class PartieScene extends Phaser.Scene {
           return c.fouine;
         case 'delegue':
           return c.delegue;
+        case 'bagarreur':
+          return this.departToboggan ? c.bagarreurArrivee : c.bagarreurDepart;
         default:
           return '';
       }
@@ -2586,8 +2590,8 @@ export class PartieScene extends Phaser.Scene {
     const sansCible = attente.options.length === 0;
     // Le mot d'excuse du Délégué peut aussi se garder (demande de Clément) : éloigner Mme Josiane
     // n'arrange pas toujours.
-    const passerUtile =
-      (attente.effet.type === 'pouvoir' && attente.effet.role === 'delegue') || sansCible;
+    // Même chose pour la bousculade du Bagarreur, facultative (DS.2).
+    const passerUtile = pouvoirFacultatif(attente.effet) || sansCible;
     const fin = passerUtile
       ? [
           {

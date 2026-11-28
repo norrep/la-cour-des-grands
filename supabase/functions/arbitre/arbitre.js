@@ -30,7 +30,14 @@ var VALEUR_MIN_CHOUCHOU = 5;
 var PAR_ID = Object.fromEntries(
   ROLES.map((r) => [r.id, r])
 );
+var SIGNATURES = {
+  bagarreur: { valeur: 5, remplace: "contagieux" },
+  teleporteur: { valeur: 5, remplace: "contagieux" }
+};
+var VALEUR_MAX_BOUSCULE = 4;
 function valeur(role) {
+  const signature = SIGNATURES[role];
+  if (signature) return signature.valeur;
   return PAR_ID[role].valeur;
 }
 function estJoker(role) {
@@ -211,11 +218,13 @@ var BANDES = ["rouge", "bleu"];
 function adversaire(bande) {
   return bande === "rouge" ? "bleu" : "rouge";
 }
-function creerBande(bande) {
+function creerBande(bande, signature) {
+  const remplace = signature ? SIGNATURES[signature]?.remplace : void 0;
   const eleves = [];
   for (const r of ROLES) {
+    const role = signature && r.id === remplace ? signature : r.id;
     for (let n = 1; n <= EXEMPLAIRES_PAR_ROLE; n++) {
-      eleves.push({ id: `${bande}-${r.id}-${n}`, bande, role: r.id });
+      eleves.push({ id: `${bande}-${role}-${n}`, bande, role });
     }
   }
   return eleves;
@@ -224,7 +233,7 @@ function creerPartie(cour, options) {
   let rng = graineVersEtat(options.graine);
   const joueurs = {};
   for (const bande of BANDES) {
-    const [melange, suivant] = melanger(creerBande(bande), rng);
+    const [melange, suivant] = melanger(creerBande(bande, options.signatures?.[bande]), rng);
     rng = suivant;
     joueurs[bande] = {
       absents: melange.slice(0, ABSENTS_A_L_APPEL),
@@ -359,6 +368,7 @@ function posePossible(e, bande, eleve2, cible, connectes) {
     if (!peutRecouvrir(eleve2, dessus)) return false;
   }
   if (eleve2.role === "fouine") return true;
+  if (eleve2.role === "teleporteur" && dessus?.bande === bande) return true;
   return relie();
 }
 function nombreAPiocher(j, voulu) {
@@ -414,6 +424,19 @@ function optionsEffet(e, effet2) {
           vus.add(region);
           opts.push({ type: "surveillante", position });
         });
+        return opts;
+      }
+      case "bagarreur": {
+        const opts = [];
+        for (const depart of ilotsVoisins(cour, effet2.ilot)) {
+          if (!adverseVisible(depart)) continue;
+          const v = valeur(sommet(e, depart).role);
+          if (v === null || v > VALEUR_MAX_BOUSCULE) continue;
+          for (const arrivee of ilotsVoisins(cour, depart)) {
+            if (arrivee === effet2.ilot || (e.piles[arrivee]?.length ?? 0) > 0) continue;
+            opts.push({ type: "glisser", depart, arrivee });
+          }
+        }
         return opts;
       }
       case "fouine":
@@ -547,6 +570,11 @@ function poser(e, bande, eleve2, cible) {
     return;
   }
   const dessous = sommet(e, cible);
+  if (eleve2.role === "teleporteur" && dessous?.bande === bande) {
+    e.piles[cible].pop();
+    j.rang.push(dessous);
+    noter(e, { type: "rappel", tour: e.tour, bande, eleveId: dessous.id, ilot: cible });
+  }
   e.piles[cible].push(eleve2);
   noter(e, {
     type: "pose",
@@ -643,7 +671,8 @@ function appliquerOption(e, effet2, option) {
         eleveId: eleve2.id,
         role: eleve2.role,
         depart: option.depart,
-        arrivee: option.arrivee
+        arrivee: option.arrivee,
+        ...source === "bagarreur" ? { par: "bagarreur" } : {}
       });
       verifierRegions(e);
       break;
@@ -709,8 +738,11 @@ function cleOption(e, o) {
       return o.type;
   }
 }
+function pouvoirFacultatif(effet2) {
+  return effet2.type === "pouvoir" && (effet2.role === "delegue" || effet2.role === "bagarreur");
+}
 function choixUnique(e, effet2, options) {
-  if (effet2.type === "pouvoir" && effet2.role === "delegue") return false;
+  if (pouvoirFacultatif(effet2)) return false;
   const premiere = options[0];
   if (!premiere) return false;
   const cle = cleOption(e, premiere);
@@ -1064,10 +1096,31 @@ var COURS = {
 
 // src/data/equipes.ts
 var EQUIPES = {
-  ecoliers: { id: "ecoliers", nom: "Les \xC9coliers", tenue: "rouges", miroir: "bleus" },
+  ecoliers: {
+    id: "ecoliers",
+    nom: "Les \xC9coliers",
+    tenue: "rouges",
+    miroir: "bleus",
+    signature: "bagarreur"
+  },
+  // Les Vers gardent leurs 8 rôles : le Fouisseur n'a pas pu être équilibré (DS.4).
   vers: { id: "vers", nom: "Les Vers de terre", tenue: "vers", miroir: "vers2" },
-  aliens: { id: "aliens", nom: "Les Aliens", tenue: "aliens", miroir: "aliens2" }
+  aliens: {
+    id: "aliens",
+    nom: "Les Aliens",
+    tenue: "aliens",
+    miroir: "aliens2",
+    signature: "teleporteur"
+  }
 };
+function signaturesPour(c) {
+  const s = {};
+  for (const b of ["rouge", "bleu"]) {
+    const r = EQUIPES[c[b]]?.signature;
+    if (r) s[b] = r;
+  }
+  return s;
+}
 
 // src/reseau/arbitre.ts
 var DELAI_TOUR_DEFAUT = 120;
@@ -1134,13 +1187,15 @@ function rejoindrePartie(p, invite, graine, maintenant, equipe, nom) {
     throw new Refus("deja_dedans", "Tu es d\xE9j\xE0 dans cette partie.");
   }
   if (p.statut !== "attente" || p.joueurs.bleu) throw new Refus("partie_pleine");
+  const reglages = equipe ? { ...p.reglages, equipes: { ...p.reglages.equipes, bleu: equipe } } : p.reglages;
   const etat = creerPartie(courDe(p.reglages.carte), {
     graine,
     equipements: p.reglages.equipements,
     // Comme à l'écran : un pouvoir sans vrai choix s'applique tout seul (DF.40).
-    pouvoirsAuto: true
+    pouvoirsAuto: true,
+    // Chaque clan joue avec son rôle signature (DS.1).
+    signatures: signaturesPour(reglages.equipes)
   });
-  const reglages = equipe ? { ...p.reglages, equipes: { ...p.reglages.equipes, bleu: equipe } } : p.reglages;
   return {
     ...p,
     reglages,

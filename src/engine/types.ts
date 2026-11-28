@@ -15,7 +15,10 @@ export type RoleId =
   | 'fouine'
   | 'contagieux'
   | 'delegue'
-  | 'grand';
+  | 'grand'
+  /** Rôles signature des clans (DS.1) : chacun remplace un rôle, au même chiffre. */
+  | 'bagarreur'
+  | 'teleporteur';
 
 /** Les équipements spéciaux, un par cour. */
 export type EquipementId =
@@ -220,6 +223,7 @@ export type Evenement =
   | { type: 'surveillante'; tour: number; position: number; pas: number; parDelegue: boolean }
   /** Le courant a fait tourner les piles de l'anneau d'un cran (piscine). */
   | { type: 'courant'; tour: number; anneau: string[] }
+  /** Élève repris de la cour dans le rang (le Téléporteur prend sa place, DS.3). */
   | { type: 'rappel'; tour: number; bande: Bande; eleveId: string; ilot: string }
   | { type: 'repechage'; tour: number; bande: Bande; eleveId: string }
   | {
@@ -229,6 +233,8 @@ export type Evenement =
       role: RoleId;
       depart: string;
       arrivee: string;
+      /** Déplacé par la bousculade du Bagarreur plutôt que par le toboggan. */
+      par?: 'bagarreur';
     }
   | { type: 'passe'; tour: number; bande: Bande; effet: RoleId | EquipementId }
   | { type: 'region'; tour: number; bande: Bande; region: string; bonsPoints: number }
@@ -246,6 +252,11 @@ export interface OptionsPartie {
    * seul, sans demande (DF.40). Le jeu l'active ; par défaut la règle stricte (facultatif).
    */
   pouvoirsAuto?: boolean;
+  /**
+   * Rôle signature de chaque bande (DS.1), selon son clan : il prend la place, dans le couloir,
+   * des 3 exemplaires du rôle qu'il remplace. Absent : les 8 rôles d'origine.
+   */
+  signatures?: Partial<Record<Bande, RoleId>>;
 }
 
 export interface EtatPartie {

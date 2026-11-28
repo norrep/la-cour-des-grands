@@ -1,6 +1,6 @@
 import { equipeDe } from '../../data/equipes';
 import Phaser from 'phaser';
-import { valeur, type Bande, type RoleId } from '../../engine/index';
+import { estSignature, valeur, type Bande, type RoleId } from '../../engine/index';
 import { COULEURS, POLICE } from '../config';
 
 /**
@@ -33,7 +33,8 @@ export function creerBadge(
     .text(0, 1, v === null ? 'J' : String(v), {
       fontFamily: POLICE,
       fontSize: `${Math.round(taille * 0.62)}px`,
-      color: COULEURS.texteClair,
+      // Le rôle signature d'un clan a son numéro doré (demande de Clément, DS.5).
+      color: estSignature(role) ? OR_TEXTE : COULEURS.texteClair,
       fontStyle: 'bold',
       stroke: COULEURS.texteSombre,
       strokeThickness: Math.max(3, Math.round(taille * 0.08)),
@@ -41,3 +42,6 @@ export function creerBadge(
     .setOrigin(0.5);
   return scene.add.container(0, 0, [g, texte]);
 }
+
+/** Or du numéro du rôle signature (DS.5). */
+const OR_TEXTE = '#f5c13b';

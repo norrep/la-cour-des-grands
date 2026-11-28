@@ -4,7 +4,7 @@
  * ou lève un `Refus`. Le stockage (Supabase) et les tests s'en servent de la même façon.
  */
 import { COURS } from '../data/boards/index';
-import { EQUIPES, type EquipeId } from '../data/equipes';
+import { EQUIPES, signaturesPour, type EquipeId } from '../data/equipes';
 import {
   ActionIllegale,
   adversaire,
@@ -122,16 +122,18 @@ export function rejoindrePartie(
     throw new Refus('deja_dedans', 'Tu es déjà dans cette partie.');
   }
   if (p.statut !== 'attente' || p.joueurs.bleu) throw new Refus('partie_pleine');
+  // L'invité choisit sa bande en arrivant (l'hôte n'a choisi que la sienne).
+  const reglages = equipe
+    ? { ...p.reglages, equipes: { ...p.reglages.equipes, bleu: equipe } }
+    : p.reglages;
   const etat = creerPartie(courDe(p.reglages.carte), {
     graine,
     equipements: p.reglages.equipements,
     // Comme à l'écran : un pouvoir sans vrai choix s'applique tout seul (DF.40).
     pouvoirsAuto: true,
+    // Chaque clan joue avec son rôle signature (DS.1).
+    signatures: signaturesPour(reglages.equipes),
   });
-  // L'invité choisit sa bande en arrivant (l'hôte n'a choisi que la sienne).
-  const reglages = equipe
-    ? { ...p.reglages, equipes: { ...p.reglages.equipes, bleu: equipe } }
-    : p.reglages;
   return {
     ...p,
     reglages,

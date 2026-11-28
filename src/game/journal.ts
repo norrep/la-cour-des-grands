@@ -33,7 +33,7 @@ export function phraseEvenement(ev: Evenement, cour: Cour, fun = false, graine =
     case 'repechage':
       return J.repechage(ev.bande);
     case 'glissade':
-      return J.glissade(ev.role);
+      return ev.par === 'bagarreur' ? J.bousculade(ev.role) : J.glissade(ev.role);
     case 'passe':
       return J.passe(ev.bande);
     case 'region': {
@@ -70,7 +70,7 @@ function phraseDrole(ev: Evenement, cour: Cour, g: number): string | null {
     case 'repechage':
       return v(F.repechage(ev.bande));
     case 'glissade':
-      return v(F.glissade(ev.role));
+      return v(ev.par === 'bagarreur' ? F.bousculade(ev.role) : F.glissade(ev.role));
     case 'passe':
       return v(F.passe(ev.bande));
     case 'region':

@@ -1,4 +1,4 @@
-import { actionsLegales, jouer } from '../engine/partie';
+import { actionsLegales, jouer, pouvoirFacultatif } from '../engine/partie';
 import type { Action, EtatPartie, Option } from '../engine/types';
 
 /** Un tour complet : les actions jouées à la suite et l'état obtenu (au tour adverse, ou fini). */
@@ -14,7 +14,7 @@ export interface Coup {
 export function passerPermis(e: EtatPartie): boolean {
   const a = e.attente;
   if (!a) return false;
-  if (a.effet.type === 'pouvoir' && a.effet.role === 'delegue') return true;
+  if (pouvoirFacultatif(a.effet)) return true;
   // Filet de sécurité de l'écran : aucun choix possible sauf passer.
   return a.options.length === 0;
 }

@@ -9,14 +9,14 @@
  */
 import { equipeDe } from '../../../data/equipes';
 import Phaser from 'phaser';
-import { ROLES, type Bande, type RoleId } from '../../../engine/index';
+import { roleRemplace, ROLES, type Bande, type RoleId } from '../../../engine/index';
 import { COULEURS } from '../../config';
 import { animerMarionnette, Marionnette, type Rig } from '../../ui/marionnette';
 import { animerVer, Ver } from '../../ui/ver';
 import type { Acteur, P, RenduPantin, Skin, TextureSkin } from '../types';
 import { RIGS } from './rig';
 import { RIGS_EQUIPES } from './rigEquipes';
-import { TENUES, type TenueId } from '../../../data/equipes';
+import { EQUIPES, TENUES, type TenueId } from '../../../data/equipes';
 
 /** Hauteur de l'élève le plus grand, en multiples de `taille`. */
 const HAUTEUR_REF = 2.5;
@@ -32,6 +32,12 @@ const HAUTEUR_PANTIN = 170;
 const RAYON_BUSTE = 150;
 /** Tenu par la main gauche, le corps penche vers la droite : la grosse tête ne cache pas le bras. */
 const PENCHE = 0.45;
+/**
+ * Pose et attaches d'un rôle : un rôle signature (DS.1) reprend, en attendant son propre dessin,
+ * celui du rôle qu'il remplace, avec son chiffre repeint en or sur le débardeur (DS.5) :
+ * `<préfixe>-<rôle signature>.png`, mêmes pièces aux mêmes places.
+ */
+const dessin = roleRemplace;
 /** Nom de l'image d'un élève : préfixe de l'équipe qui joue ce camp (DB.1), puis le rôle. */
 const nom = (bande: Bande, role: RoleId) => `${equipeDe(bande).prefixe}-${role}`;
 const cle = (bande: Bande, role: RoleId) => `dodu-${nom(bande, role)}`;
@@ -42,7 +48,7 @@ const cleCorps = (bande: Bande, role: RoleId) => `${cle(bande, role)}-corps`;
 function rig(bande: Bande, role: RoleId): Rig {
   // Une tenue miroir reprend les attaches de la tenue dont elle est recolorée (DE.1).
   const t = equipeDe(bande);
-  const n = `${t.rig ?? t.prefixe}-${role}`;
+  const n = `${t.rig ?? t.prefixe}-${dessin(role)}`;
   const r = RIGS[n] ?? RIGS_EQUIPES[n];
   if (!r) throw new Error(`Élève sans marionnette : ${n}`);
   return r;
@@ -53,7 +59,10 @@ export function texturesEquipe(tenue: TenueId): TextureSkin[] {
   const prefixe = TENUES[tenue].prefixe;
   // Un ver n'a que son corps entier ; les autres, leur planche de pièces.
   const suffixe = TENUES[tenue].sansBras ? '-corps' : '';
-  return ROLES.map(({ id }) => ({
+  // Le rôle signature du clan qui porte cette tenue (DS.1), au numéro doré (DS.5).
+  const clan = Object.values(EQUIPES).find((e) => e.tenue === tenue || e.miroir === tenue);
+  const roles: RoleId[] = [...ROLES.map((r) => r.id), ...(clan?.signature ? [clan.signature] : [])];
+  return roles.map((id) => ({
     cle: `dodu-${prefixe}-${id}${suffixe}`,
     url: `skins/dodu/${prefixe}-${id}${suffixe}.png`,
   }));
@@ -166,8 +175,8 @@ export const SKIN_CARTOON: Skin = {
     m.racine.setY(pieds);
     // Pas de pastille de valeur : le numéro est déjà sur la chasuble (DP.1).
     const eleve = scene.add.container(0, 0, [m.racine]);
-    if (ver) animerVer(scene, ver, eleve, { caractere: role });
-    else animerMarionnette(scene, m as Marionnette, eleve, { caractere: role });
+    if (ver) animerVer(scene, ver, eleve, { caractere: dessin(role) });
+    else animerMarionnette(scene, m as Marionnette, eleve, { caractere: dessin(role) });
     return eleve;
   },
   acteur(scene, bande, role, taille): Acteur {
@@ -214,8 +223,9 @@ export const SKIN_CARTOON: Skin = {
       ),
     );
     m.racine.setMask(masque);
-    if (ver) animerVer(scene, ver, buste, { caractere: role, calme: true });
-    else animerMarionnette(scene, m as Marionnette, buste, { caractere: role, calme: true });
+    if (ver) animerVer(scene, ver, buste, { caractere: dessin(role), calme: true });
+    else
+      animerMarionnette(scene, m as Marionnette, buste, { caractere: dessin(role), calme: true });
     return buste;
   },
   pastille(scene, bande, role, diametre) {
@@ -252,11 +262,11 @@ export const SKIN_CARTOON: Skin = {
     });
     if (ver) {
       ver.corps.setMask(masque);
-      animerVer(scene, ver, pastille, { caractere: role, calme: true });
+      animerVer(scene, ver, pastille, { caractere: dessin(role), calme: true });
     } else {
       const mm = m as Marionnette;
       for (const p of ['jambeG', 'jambeD', 'tronc', 'tete'] as const) mm.pieces[p].setMask(masque);
-      animerMarionnette(scene, mm, pastille, { caractere: role, calme: true });
+      animerMarionnette(scene, mm, pastille, { caractere: dessin(role), calme: true });
     }
     return pastille;
   },
