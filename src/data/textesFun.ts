@@ -32,12 +32,15 @@ export const FUN = {
     toucherCarte: ['Touche un élève : il se vante', 'Touche un élève : il raconte tout'],
   },
   choix: {
-    populaire: ['La Populaire claque des doigts : touche ta pioche, 2 copains rappliquent.'],
+    populaire: ['La Populaire claque des doigts : touche ta pioche, 3 copains rappliquent.'],
+    fouine: ['La Fouine sort des buissons avec un pote : touche ta pioche.'],
     chouchou: ['« Mon grand frère va venir ! » Glisse un 5 ou plus (cartes claires).'],
     rapporteuse: ['« Madaaame ! » Touche l’adversaire qui tremble : puni !'],
     contagieux: ['Atchoum ! Touche la pioche d’en face pour refiler le rhume.'],
     get delegue(): string[] {
-      return [`Mot d’excuse en main : touche ${surv.nom} pour l’éloigner, ou garde-le pour toi.`];
+      return [
+        `Mot d’excuse en main : touche le goûter où expédier ${surv.nom}, ou garde-le pour toi.`,
+      ];
     },
     banc: ['★ Banc : planqué sur le banc, il ne bouge plus d’un poil.'],
     cabanePerchee: ['★ Cabane perchée : touche ta pioche, un copain grimpe.'],

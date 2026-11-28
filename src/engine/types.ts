@@ -161,7 +161,14 @@ export interface Joueur {
 
 /** Effet en attente de résolution (pouvoir d'un élève ou effet d'un îlot). */
 export type Effet =
-  | { type: 'pouvoir'; role: RoleId; ilot: string; eleveId: string }
+  | {
+      type: 'pouvoir';
+      role: RoleId;
+      ilot: string;
+      eleveId: string;
+      /** Fouine posée hors du chemin (par les buissons) : elle pioche 1. */
+      horsChemin?: boolean;
+    }
   | { type: 'equipement'; equipement: EquipementId; ilot: string; eleveId: string };
 
 /** Ce qu'un joueur peut choisir pour un effet. */
@@ -170,8 +177,8 @@ export type Option =
   | { type: 'poser'; eleveId: string; cible: string }
   | { type: 'cpe'; ilot: string }
   | { type: 'infirmerie' }
-  /** Mot d'excuse du Délégué : la surveillante avance de 1 ou 2 goûters, au hasard (D2.19). */
-  | { type: 'surveillante' }
+  /** Mot d'excuse du Délégué : la surveillante va au goûter choisi (`position` dans sa ronde). */
+  | { type: 'surveillante'; position: number }
   | { type: 'rappeler'; ilot: string }
   | { type: 'repecher'; eleveId: string }
   | { type: 'glisser'; depart: string; arrivee: string };
