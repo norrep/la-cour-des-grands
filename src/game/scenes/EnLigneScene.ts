@@ -390,7 +390,7 @@ export class EnLigneScene extends Phaser.Scene {
   }
 
   /** La liste d'amis : son code ami, ses amis (à inviter d'un toucher), et en ajouter un. */
-  private async montrerAmis(message?: string): Promise<void> {
+  private async montrerAmis(message?: string, page = 0, confirmer?: string): Promise<void> {
     this.attente(TEXTES.enLigne.connexion);
     let amis: Ami[];
     let codeAmi: string;
@@ -430,25 +430,71 @@ export class EnLigneScene extends Phaser.Scene {
     if (amis.length === 0) {
       this.texte(c, 540, TEXTES.enLigne.aucunAmi, 24);
     }
-    // Au plus 5 amis à l'écran (les premiers par ordre alphabétique) : une carte par ami, son
-    // nom à gauche et « Inviter » à droite.
-    amis.slice(0, 5).forEach((ami, i) => {
-      const y = 535 + i * 104;
+    // 4 amis par page (par ordre alphabétique), flèches dessous s'il y en a plus. Une carte par
+    // ami : son nom, une croix pour le retirer (en deux touchers), « Inviter » à droite.
+    const PAR_PAGE = 4;
+    const pages = Math.max(1, Math.ceil(amis.length / PAR_PAGE));
+    const p = Math.min(Math.max(0, page), pages - 1);
+    amis.slice(p * PAR_PAGE, (p + 1) * PAR_PAGE).forEach((ami, i) => {
+      const y = 520 + i * 100;
       const g = this.add.graphics();
-      forme(g, contourRect(LARGEUR / 2 - 280, y - 44, 560, 88, 22, 9, 2), {
-        remplissage: COULEURS.papier,
+      forme(g, contourRect(LARGEUR / 2 - 280, y - 42, 560, 84, 22, 9 + i, 2), {
+        remplissage: confirmer === ami.id ? 0xffd6d0 : COULEURS.papier,
         ombre: 5,
         trait: 4,
       });
+      c.add(g);
+      if (confirmer === ami.id) {
+        const q = this.add
+          .text(LARGEUR / 2 - 250, y, TEXTES.enLigne.retirerSur(ami.pseudo), {
+            fontFamily: POLICE,
+            fontSize: '24px',
+            color: COULEURS.texteSombre,
+            fontStyle: '700',
+          })
+          .setOrigin(0, 0.5);
+        if (q.width > 300) q.setScale(300 / q.width);
+        c.add(q);
+        this.bouton(
+          c,
+          y,
+          TEXTES.enLigne.oui,
+          () => void this.retirerAmi(ami, p),
+          0xff8a7a,
+          LARGEUR / 2 + 125,
+          110,
+        );
+        this.bouton(
+          c,
+          y,
+          TEXTES.enLigne.non,
+          () => void this.montrerAmis(undefined, p),
+          COULEURS.papier,
+          LARGEUR / 2 + 225,
+          90,
+        );
+        yAjout = y + 125;
+        return;
+      }
       const nom = this.add
         .text(LARGEUR / 2 - 250, y, ami.pseudo, {
           fontFamily: POLICE,
-          fontSize: '30px',
+          fontSize: '28px',
           color: COULEURS.texteSombre,
           fontStyle: '700',
         })
         .setOrigin(0, 0.5);
-      c.add([g, nom]);
+      if (nom.width > 230) nom.setScale(230 / nom.width);
+      c.add(nom);
+      this.bouton(
+        c,
+        y,
+        '×',
+        () => void this.montrerAmis(undefined, p, ami.id),
+        COULEURS.papier,
+        LARGEUR / 2 + 25,
+        60,
+      );
       this.bouton(
         c,
         y,
@@ -458,13 +504,49 @@ export class EnLigneScene extends Phaser.Scene {
           this.scene.start('choix', { ...this.donnees, enLigne: { etape: 'hote', ami: invite } });
         },
         COULEURS.jaune,
-        LARGEUR / 2 + 165,
-        200,
+        LARGEUR / 2 + 170,
+        190,
       );
-      yAjout = y + 130;
+      yAjout = y + 125;
     });
+    if (pages > 1) {
+      const yp = 520 + PAR_PAGE * 100 - 20;
+      this.texte(c, yp, `${p + 1} / ${pages}`, 24);
+      if (p > 0)
+        this.bouton(
+          c,
+          yp,
+          '‹',
+          () => void this.montrerAmis(undefined, p - 1),
+          COULEURS.papier,
+          LARGEUR / 2 - 110,
+          76,
+        );
+      if (p < pages - 1)
+        this.bouton(
+          c,
+          yp,
+          '›',
+          () => void this.montrerAmis(undefined, p + 1),
+          COULEURS.papier,
+          LARGEUR / 2 + 110,
+          76,
+        );
+      yAjout = yp + 115;
+    }
     this.bouton(c, yAjout, TEXTES.enLigne.ajouterAmi, () => this.montrerAjoutAmi(), 0xc9d3ff);
     this.bouton(c, 1150, TEXTES.enLigne.retour, () => this.montrerMenu());
+  }
+
+  /** Retire cet ami de la liste (dans les deux sens), puis réaffiche la même page. */
+  private async retirerAmi(ami: Ami, page: number): Promise<void> {
+    this.attente(TEXTES.enLigne.connexion);
+    try {
+      await (await serveurParties()).retirerAmi(ami.id);
+      await this.montrerAmis(TEXTES.enLigne.retire(ami.pseudo), page);
+    } catch (err) {
+      await this.montrerAmis(this.message(err), page);
+    }
   }
 
   /** Taper le code ami de quelqu'un pour l'ajouter. */

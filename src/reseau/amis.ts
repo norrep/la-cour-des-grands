@@ -4,6 +4,7 @@
  * dans les deux sens. On peut ensuite inviter un ami de la liste : il voit l'invitation dans son
  * menu et rejoint d'un toucher, sans code à recopier.
  */
+import { pseudoInterdit } from './moderation';
 import { Refus } from './protocole';
 
 export const PSEUDO_MIN = 2;
@@ -18,6 +19,9 @@ export function validerPseudo(saisie: string): string {
   const longueur = [...propre].length;
   if (longueur < PSEUDO_MIN || longueur > PSEUDO_MAX) {
     throw new Refus('pseudo_invalide', `Un pseudo de ${PSEUDO_MIN} à ${PSEUDO_MAX} lettres.`);
+  }
+  if (pseudoInterdit(propre)) {
+    throw new Refus('pseudo_invalide', 'Ce pseudo n’est pas permis. Choisis-en un autre !');
   }
   return propre;
 }

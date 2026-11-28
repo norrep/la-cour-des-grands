@@ -1,6 +1,16 @@
 import Phaser from 'phaser';
 import { TEXTES } from '../../data/textes';
-import { COULEURS, HAUT, HAUTEUR, LARGEUR, POLICE, POLICE_TITRE } from '../config';
+import {
+  BAS,
+  COULEURS,
+  DROITE,
+  GAUCHE,
+  HAUT,
+  HAUTEUR,
+  LARGEUR,
+  POLICE,
+  POLICE_TITRE,
+} from '../config';
 import { choisirSkin, preparerSkin, skinActif, skinSuivant } from '../skins/index';
 import {
   ecrireConseils,
@@ -20,7 +30,11 @@ import type { Niveau } from '../../ia/index';
 import { NIVEAUX_ORDI } from '../ordi';
 import { choisirCarte, type CarteId } from '../../data/cartes';
 import { choisirEquipes, type EquipeId } from '../../data/equipes';
-import type { Bande } from '../../engine/index';
+import type { Bande, EtatPartie } from '../../engine/index';
+import { lirePartieSauvee } from '../reprise';
+import { preparerCarte } from '../cartes';
+import { preparerEquipes } from '../skins/index';
+import { tenuesPour } from '../../data/equipes';
 import { DuoAccueil } from '../ui/duoAccueil';
 import { normaliserCode } from '../../reseau/codes';
 import type { EtapeEnLigne } from '../enLigne/etapes';
@@ -39,6 +53,10 @@ export interface DonneesPartie {
   equipes?: Record<Bande, EquipeId>;
   /** Jeu en ligne avec un ami : où on en est (voir `enLigne/etapes.ts`). */
   enLigne?: EtapeEnLigne;
+  /** Revanche : même carte et mêmes bandes, sans la fiche de la cour. */
+  revanche?: boolean;
+  /** Reprise d'une partie sauvée sur ce téléphone (`reprise.ts`) : l'état où on l'a laissée. */
+  reprise?: Omit<EtatPartie, 'cour'>;
 }
 
 /** Largeur commune du bloc des boutons. */
@@ -86,19 +104,33 @@ export class AccueilScene extends Phaser.Scene {
     this.dessinerTitre(cx);
     this.dessinerDuo(cx);
     this.dessinerBoutons(cx);
-    this.dessinerReglages(cx);
+    this.dessinerBoutonReglages(cx);
+    this.dessinerReprise(cx);
+  }
 
-    // Numéro de version, discret : pour savoir d'un coup d'œil si le téléphone a la dernière.
-    this.add
-      .text(cx, 1196, `v ${VERSION}`, {
-        fontFamily: POLICE,
-        fontSize: '15px',
-        color: COULEURS.texteSombre,
-        backgroundColor: '#fff4dccc',
-        padding: { x: 6, y: 2 },
-      })
-      .setOrigin(0.5)
-      .setAlpha(0.8);
+  /** Une partie solo ou à deux laissée en route : on peut la reprendre où on l'a laissée. */
+  private dessinerReprise(cx: number): void {
+    const sauvee = lirePartieSauvee();
+    if (!sauvee) return;
+    let enCours = false;
+    creerBouton(
+      this,
+      cx,
+      1128,
+      TEXTES.accueil.reprendre,
+      () => {
+        if (enCours) return;
+        enCours = true;
+        const d = sauvee.donnees;
+        const carte = d.carte ?? 'cour-premier-jour';
+        const equipes = d.equipes ?? { rouge: 'ecoliers', bleu: 'ecoliers' };
+        void Promise.all([
+          preparerEquipes(this, Object.values(tenuesPour(equipes))).catch(() => undefined),
+          preparerCarte(this, carte),
+        ]).then(() => this.scene.start('partie', { ...d, carte, equipes, reprise: sauvee.etat }));
+      },
+      { largeur: 360, hauteur: 60, taille: 24, couleur: COULEURS.ilot },
+    );
   }
 
   /** Le titre sur une pancarte jaune qui se balance, et le sous-titre en bandeau de papier. */
@@ -302,46 +334,117 @@ export class AccueilScene extends Phaser.Scene {
     };
   }
 
-  /** Réglages : quatre petites cases à cocher, en deux rangées, sous les boutons de jeu. */
-  private dessinerReglages(cx: number): void {
-    const l = (BLOC - 16) / 2;
-    const gauche = cx - l / 2 - 8;
-    const droite = cx + l / 2 + 8;
+  /** Un bouton « Réglages » avec sa roue dentée, sous les boutons de jeu. */
+  private dessinerBoutonReglages(cx: number): void {
+    const b = creerBouton(this, cx, 1040, TEXTES.accueil.reglages, () => this.ouvrirReglages(), {
+      largeur: 250,
+      hauteur: 60,
+      taille: 24,
+    });
+    const roue = this.add.graphics();
+    dessinerRoue(roue, 0, 0, 17);
+    const face = b.list.find((o) => o instanceof Phaser.GameObjects.Container) as
+      Phaser.GameObjects.Container | undefined;
+    const libelle = face?.list.find((o) => o instanceof Phaser.GameObjects.Text) as
+      Phaser.GameObjects.Text | undefined;
+    if (libelle) libelle.x += 20;
+    roue.setPosition(libelle ? libelle.x - libelle.width / 2 - 26 : -80, -1);
+    (face ?? b).add(roue);
+  }
 
-    this.caseACocher(
-      gauche,
-      1040,
-      l,
+  /**
+   * Les réglages, dans une feuille posée sur l'accueil : équipements, conseils, sons, et le numéro
+   * de version tout en bas (pour savoir d'un coup d'œil si le téléphone a la dernière). Le choix
+   * du style des élèves n'est montré qu'avec `?dev` dans l'adresse.
+   */
+  private ouvrirReglages(): void {
+    const cx = LARGEUR / 2;
+    const dev = new URLSearchParams(location.search).has('dev');
+    const l = BLOC + 40;
+    const lignes = dev ? 4 : 3;
+    const h = 200 + lignes * 76 + 110;
+    const y0 = HAUTEUR / 2 - h / 2;
+    const voile = this.add
+      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, COULEURS.encre, 0.55)
+      .setOrigin(0, 0)
+      .setInteractive();
+    const feuille = this.add.graphics();
+    forme(feuille, contourRect(cx - l / 2, y0, l, h, 30, graineDe(cx, y0)), {
+      remplissage: COULEURS.papier,
+      ombre: 10,
+      trait: 5,
+    });
+    const titre = this.add
+      .text(cx, y0 + 60, TEXTES.accueil.reglages, {
+        fontFamily: POLICE_TITRE,
+        fontSize: '40px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const objets: Phaser.GameObjects.GameObject[] = [voile, feuille, titre];
+    let y = y0 + 140;
+    const ligne = (nom: string, lire: () => boolean, ecrire: (v: boolean) => void): void => {
+      objets.push(this.caseACocher(cx, y, BLOC - 40, nom, lire, ecrire));
+      y += 76;
+    };
+    ligne(
       TEXTES.accueil.equipements,
       () => this.equipements,
       (v) => {
         this.equipements = v;
       },
     );
-    this.caseACocher(droite, 1040, l, TEXTES.accueil.conseils, lireConseils, ecrireConseils);
-    this.caseACocher(gauche, 1112, l, TEXTES.accueil.sons, lireSons, (v) => {
+    ligne(TEXTES.accueil.conseils, lireConseils, ecrireConseils);
+    ligne(TEXTES.accueil.sons, lireSons, (v) => {
       ecrireSons(v);
       activerSons(v);
     });
-
-    // Style des élèves : chaque appui passe au skin suivant et redessine l'accueil.
-    let changement = false;
-    creerBouton(
-      this,
-      droite,
-      1112,
-      TEXTES.accueil.style(TEXTES.skins[skinActif().id]),
-      () => {
-        if (changement) return;
-        changement = true;
-        const id = skinSuivant(skinActif().id);
-        preparerSkin(this, id)
-          .then(() => choisirSkin(id))
-          .catch(() => undefined)
-          .finally(() => this.scene.restart());
-      },
-      { largeur: l, hauteur: 56, taille: 22 },
+    if (dev) {
+      // Style des élèves : chaque appui passe au skin suivant et redessine l'accueil.
+      let changement = false;
+      objets.push(
+        creerBouton(
+          this,
+          cx,
+          y,
+          TEXTES.accueil.style(TEXTES.skins[skinActif().id]),
+          () => {
+            if (changement) return;
+            changement = true;
+            const id = skinSuivant(skinActif().id);
+            preparerSkin(this, id)
+              .then(() => choisirSkin(id))
+              .catch(() => undefined)
+              .finally(() => this.scene.restart());
+          },
+          { largeur: BLOC - 40, hauteur: 56, taille: 22 },
+        ),
+      );
+      y += 76;
+    }
+    const fermer = (): void => {
+      for (const o of objets) o.destroy();
+    };
+    objets.push(
+      creerBouton(this, cx, y + 30, TEXTES.accueil.fermer, fermer, {
+        largeur: 240,
+        hauteur: 64,
+        taille: 26,
+        couleur: COULEURS.jaune,
+      }),
     );
+    objets.push(
+      this.add
+        .text(cx, y0 + h - 26, `v ${VERSION}`, {
+          fontFamily: POLICE,
+          fontSize: '15px',
+          color: COULEURS.texteSombre,
+        })
+        .setOrigin(0.5)
+        .setAlpha(0.6),
+    );
+    for (const o of objets) (o as unknown as Phaser.GameObjects.Components.Depth).setDepth(50);
   }
 
   /** Une case à cocher cartoon : un rond vert coché ou vide, et son nom à côté. */
@@ -352,7 +455,7 @@ export class AccueilScene extends Phaser.Scene {
     nom: string,
     lire: () => boolean,
     ecrire: (v: boolean) => void,
-  ): void {
+  ): Phaser.GameObjects.Container {
     const hauteur = 56;
     const fond = this.add.graphics();
     const dessus = this.add.graphics();
@@ -412,5 +515,25 @@ export class AccueilScene extends Phaser.Scene {
         ease: 'Back.easeOut',
       });
     });
+    return bouton;
   }
+}
+
+/** Une petite roue dentée dessinée au trait, pour le bouton des réglages. */
+function dessinerRoue(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number): void {
+  const dents = 8;
+  const pts: Phaser.Types.Math.Vector2Like[] = [];
+  for (let i = 0; i < dents * 4; i++) {
+    const a = (i / (dents * 4)) * Math.PI * 2;
+    const dehors = i % 4 === 1 || i % 4 === 2;
+    const rr = dehors ? r : r * 0.74;
+    pts.push({ x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr });
+  }
+  g.fillStyle(0xb9c2cf, 1);
+  g.fillPoints(pts, true);
+  g.lineStyle(3.5, COULEURS.encre, 1);
+  g.strokePoints(pts, true);
+  g.fillStyle(COULEURS.papier, 1);
+  g.fillCircle(x, y, r * 0.32);
+  g.strokeCircle(x, y, r * 0.32);
 }
