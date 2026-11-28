@@ -441,6 +441,8 @@ Demande de Clément : prendre le meilleur des trois tests (v2, main 4/5, règles
 - **DG.3** — Plus de nom sous le médaillon sur la cour, pour les trois surveillants (demande de
   Clément : la carte est déjà chargée). Le nom reste à la présentation de la carte, en pied. Le
   médaillon, plus étroit sans sa banderole, se pose plus près de son goûter.
+- **DG.4** — Plus de rubans sous la rosette non plus (demande de Clément) : sur la cour, le
+  médaillon n'est plus que la rosette et la tête.
 - **DG.2** — Le médaillon passe de 100 à 84 px de diamètre sur la cour : à 100, il ne tenait pas
   près de son goûter sur la cour et le camp scout (trop serrés) et partait loin. Ambiguïté notée :
   s'il paraît trop petit, on peut revenir à 92 en acceptant qu'il s'éloigne un peu sur ces cartes.

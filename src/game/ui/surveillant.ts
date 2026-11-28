@@ -2,8 +2,8 @@
  * Le surveillant de la carte (Mme Josiane, Monsieur Yvon, Babette), en deux tenues (DS.1) :
  *
  * - **Sur la cour, un médaillon** : sa grosse tête et ses épaules dans une rosette festonnée
- *   jaune à cœur bleu nuit, avec deux rubans, sans son nom (la cour est assez chargée : on l'a
- *   présenté par son nom à l'arrivée sur la carte). Rien à voir avec les
+ *   jaune à cœur bleu nuit, sans rubans ni nom (la cour est assez chargée : on l'a présenté
+ *   par son nom à l'arrivée sur la carte). Rien à voir avec les
  *   pastilles des élèves (rondes ou carrées, fond clair, chiffre) : on le repère d'un coup d'œil.
  *   Sans corps, c'est la tête qui joue : elle ne tient pas en place (tics propres à chacun) et
  *   réagit au jeu (sifflet, colère, surprise, indignation, satisfaction), avec des accessoires
@@ -27,9 +27,6 @@ export const COULEURS_SURVEILLANT = {
   coeur: 0x34405c,
   coeurClair: 0x47577a,
   feston: 0xffd84d,
-  ruban: 0xff9f43,
-  rubanOmbre: 0xd97a22,
-  banderole: 0xfff4dc,
 } as const;
 
 /** Repères de chaque tête, en pixels de texture au-dessus du cou : yeux et bouche. */
@@ -660,8 +657,8 @@ function rosette(r: number, dx = 0, dy = 0): P[] {
 }
 
 /**
- * La place que prend le médaillon autour de son centre : la tête qui dépasse en haut, les rubans en
- * bas. Sert à le poser sur la cour sans cacher son goûter.
+ * La place que prend le médaillon autour de son centre : la rosette, et la tête qui dépasse en haut.
+ * Sert à le poser sur la cour sans cacher son goûter.
  */
 export function empriseMedaillon(diametre = DIAMETRE_MEDAILLON): {
   gauche: number;
@@ -670,7 +667,7 @@ export function empriseMedaillon(diametre = DIAMETRE_MEDAILLON): {
   bas: number;
 } {
   const r = diametre / 2;
-  return { gauche: -(r + 9), droite: r + 9, haut: -(r + 22), bas: r * 1.45 + 4 };
+  return { gauche: -(r + 9), droite: r + 9, haut: -(r + 22), bas: r + 15 };
 }
 
 export class MedaillonSurveillant {
@@ -687,24 +684,6 @@ export class MedaillonSurveillant {
     const r = diametre / 2;
     const C = COULEURS_SURVEILLANT;
     this.racine = scene.add.container(0, 0);
-    // Les deux rubans qui pendent sous la rosette, comme une médaille de concours.
-    const rubans = scene.add.graphics();
-    for (const s of [-1, 1]) {
-      const x0 = s * r * 0.2;
-      const x1 = s * r * 0.72;
-      const bas = r * 1.45;
-      forme(
-        rubans,
-        [
-          { x: x0 - s * 10, y: r * 0.3 },
-          { x: x0 + s * 14, y: r * 0.3 },
-          { x: x1 + s * 12, y: bas },
-          { x: x1, y: bas - 10 },
-          { x: x1 - s * 12, y: bas + 2 },
-        ],
-        { remplissage: s < 0 ? C.ruban : C.rubanOmbre, trait: 4 },
-      );
-    }
     const fond = scene.add.graphics();
     forme(fond, rosette(r), { remplissage: C.feston, trait: 4, ombre: 6 });
     forme(fond, contourRond(0, 0, r - 2, 41, 0.02), { remplissage: C.coeur, trait: 4 });
@@ -722,7 +701,7 @@ export class MedaillonSurveillant {
     m.racine.setY(r * 0.32 - tete.pos[1] * echelle);
     m.pieces.jambeG.setVisible(false);
     m.pieces.jambeD.setVisible(false);
-    this.racine.add([rubans, fond, m.racine]);
+    this.racine.add([fond, m.racine]);
     // Le corps est coupé au bord du cœur, libre au-dessus : la tête dépasse.
     const masque = masqueQuiSuit(scene, this.racine, (g) => {
       g.fillCircle(0, 0, r - 4);

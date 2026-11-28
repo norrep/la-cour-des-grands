@@ -1286,8 +1286,8 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * Où se tient la surveillante quand elle garde ce goûter : son médaillon (tête et rubans
-   * compris) tout près, mais jamais par-dessus le goûter ni son « +N » ; le dessin au
+   * Où se tient la surveillante quand elle garde ce goûter : son médaillon (tête
+   * comprise) tout près, mais jamais par-dessus le goûter ni son « +N » ; le dessin au
    * trait de secours, juste à côté.
    */
   private positionSurveillante(regionId: string): Point {
