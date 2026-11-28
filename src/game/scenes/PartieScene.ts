@@ -373,7 +373,7 @@ export class PartieScene extends Phaser.Scene {
     }
     // Les animations du plateau s'arrêtent ; celles d'une cinématique continuent.
     for (const t of this.tweens.getTweens()) if (!this.tweensCinematique.has(t)) t.stop();
-    // Leurs tweens arrêtés, les incrustations (nuage, mégaphone) resteraient figées (DB.7).
+    // Leurs tweens arrêtés, les incrustations (nuage, réveil) resteraient figées (DB.7).
     effacerIncrustations(this);
     this.dyn.removeAll(true);
     this.badges.clear();
@@ -3776,12 +3776,12 @@ export class PartieScene extends Phaser.Scene {
     );
   }
 
-  /** Les copains appelés : le portail s'ouvre (leurs cartes volent jusqu'au rang). */
+  /**
+   * Les copains appelés : la pioche rebondit (leurs cartes volent jusqu'au rang). Plus de
+   * mégaphone par-dessus, jugé superflu par Clément (DQ.9).
+   */
   private copainsArrivent(bande: Bande): void {
     this.rebondLieu(bande, 'portail');
-    // Le mégaphone qui appelle les copains, au-dessus du portail (DF.38).
-    const portail = positionLieu(this.cour, bande, 'portail');
-    jouerIncrust(this, 'appelCopains', portail.x, portail.y - 40, 230);
   }
 
   /** Atchoum : un nuage de microbes part de l'élève vers le portail de la bande adverse. */
