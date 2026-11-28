@@ -20,6 +20,10 @@ import {
   type Action,
   type Option,
   type RoleId,
+  ABSENTS_A_L_APPEL,
+  EXEMPLAIRES_PAR_ROLE,
+  RANG_DEPART_PREMIER,
+  RANG_DEPART_SECOND,
 } from '../../engine/index';
 import { apercu } from '../apercu';
 import { cadreManga, fondManga } from '../ui/fondManga';
@@ -104,6 +108,10 @@ const RAYON_ILOT = 48;
 /** Haut de la cour, à défaut de cabane en haut (fiche de la cour). */
 const ZONE_HAUT_COUR = 100;
 const TAILLE_BADGE = 70;
+/** La pendule du bandeau du haut (DL.17) et la pastille « Au tour de… » juste dessous. */
+const Y_HORLOGE = 44;
+const RAYON_HORLOGE = 34;
+const Y_PASTILLE_TOUR = 102;
 /** Épaisseur du cadre à la couleur de l'équipe autour des cartes de la main (DL.15). */
 const MARGE_CADRE = 8;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
@@ -1844,14 +1852,15 @@ export class PartieScene extends Phaser.Scene {
       this.dessinerCartable(b, x, 50, e.joueurs[b].bonsPoints - this.gouterEnVol[b]);
     }
 
-    // La pendule de l'école : elle avance à chaque tour (la règle de la sonnerie ne change pas).
-    this.dessinerHorloge(LARGEUR / 2, 24, e.tour);
+    // La pendule de l'école (DL.17) : elle avance à chaque tour et se remplit de rouge à mesure que
+    // les couloirs se vident, jusqu'à la sonnerie.
+    this.dessinerHorloge(LARGEUR / 2, Y_HORLOGE, e.tour);
     if (this.ctrl.phase === 'jeu') {
       this.ajouter(
         creerBouton(
           this,
-          LARGEUR / 2 + 52,
-          26,
+          LARGEUR / 2 + 72,
+          34,
           TEXTES.hud.aide,
           () => {
             this.aideOuverte = true;
@@ -1868,20 +1877,20 @@ export class PartieScene extends Phaser.Scene {
           ? TEXTES.enLigne.aToi
           : TEXTES.enLigne.auTourAmi
         : TEXTES.hud.tourDe(b);
-      const t = this.texte(LARGEUR / 2, 76, qui, 21, COULEURS.texteSombre, {
+      const t = this.texte(LARGEUR / 2, Y_PASTILLE_TOUR, qui, 21, COULEURS.texteSombre, {
         fontStyle: '700',
       }).setOrigin(0.5);
       const l = t.width + 28;
       const fond = this.add.graphics();
-      forme(fond, contourRect(LARGEUR / 2 - l / 2, 60, l, 33, 16, 11), {
+      forme(fond, contourRect(LARGEUR / 2 - l / 2, Y_PASTILLE_TOUR - 16, l, 33, 16, 11), {
         remplissage: equipeDe(b).couleur,
         trait: 3,
         ombre: 3,
       });
       this.dyn.addAt(fond, this.dyn.getIndex(t));
-      // En ligne : le temps qu'il reste pour jouer ce tour, sous la pastille.
+      // En ligne : le temps qu'il reste pour jouer ce tour, à gauche de la pendule.
       if (this.enLigne && this.enLigne.vue.echeance !== null) {
-        this.texteTemps = this.texte(LARGEUR / 2, 110, '', 20, COULEURS.texteSombre, {
+        this.texteTemps = this.texte(LARGEUR / 2 - 82, Y_HORLOGE, '', 20, COULEURS.texteSombre, {
           fontStyle: '700',
         }).setOrigin(0.5);
         this.horlogeEnLigne(this.enLigne);
@@ -1937,15 +1946,40 @@ export class PartieScene extends Phaser.Scene {
     g.fillCircle(x + r * 0.3, y + r * 0.3, r * 0.18);
   }
 
-  /** La pendule de l'école. Elle prend cinq minutes de plus à chaque tour, à partir de 10 h. */
+  /**
+   * La pendule de l'école (DL.17) : grande, cadre rouge, deux cloches dessus. Elle prend cinq
+   * minutes de plus à chaque tour, à partir de 10 h, et son cadran se remplit de rouge à mesure
+   * que les couloirs des deux bandes se vident : on voit venir la sonnerie.
+   */
   private dessinerHorloge(cx: number, cy: number, tour: number): void {
     const g = this.ajouter(this.add.graphics());
-    const r = 21;
-    forme(g, contourRond(cx, cy, r, 77), { remplissage: 0xffffff, trait: 4, ombre: 3 });
-    g.lineStyle(2, COULEURS.encre, 1);
+    const r = RAYON_HORLOGE;
+    // Les cloches de la sonnerie, derrière la pendule.
+    for (const dx of [-26, 26]) {
+      forme(g, contourRond(cx + dx * 1.15, cy - 30, 10, 5 + dx), {
+        remplissage: COULEURS.jaune,
+        trait: 3,
+      });
+    }
+    forme(g, contourRond(cx, cy, r + 6, 77), { remplissage: COULEURS.rouge, trait: 4, ombre: 4 });
+    forme(g, contourRond(cx, cy, r, 78), { remplissage: 0xffffff, trait: 3 });
+    const e = this.etat;
+    // Élèves dans les couloirs une fois les rangs de départ tirés : la pendule part de vide.
+    const depart =
+      2 * (ROLES.length * EXEMPLAIRES_PAR_ROLE - ABSENTS_A_L_APPEL) -
+      RANG_DEPART_PREMIER -
+      RANG_DEPART_SECOND;
+    const reste = e.joueurs.rouge.couloir.length + e.joueurs.bleu.couloir.length;
+    const f = Phaser.Math.Clamp(1 - reste / depart, 0, 1);
+    if (f > 0) {
+      g.fillStyle(0xffb3a7, 1);
+      g.slice(cx, cy, r - 2, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2, false);
+      g.fillPath();
+    }
+    g.lineStyle(3, COULEURS.encre, 1);
     for (let h = 0; h < 12; h++) {
       const a = (h / 12) * Math.PI * 2;
-      const r1 = h % 3 === 0 ? r - 7 : r - 4;
+      const r1 = h % 3 === 0 ? r - 10 : r - 7;
       g.lineBetween(
         cx + Math.sin(a) * r1,
         cy - Math.cos(a) * r1,
@@ -1965,10 +1999,11 @@ export class PartieScene extends Phaser.Scene {
       a.setOrigin(0.5, 1).setRotation(angle);
       return a;
     };
-    aiguille(angleHeure, r * 0.5, 4);
-    const grande = aiguille(angleMinute, r * 0.8, 3);
-    g.fillStyle(COULEURS.rouge, 1);
-    g.fillCircle(cx, cy, 3);
+    aiguille(angleHeure, r * 0.5, 6);
+    const grande = aiguille(angleMinute, r * 0.78, 4);
+    const centre = this.ajouter(this.add.graphics());
+    centre.fillStyle(COULEURS.rouge, 1);
+    centre.fillCircle(cx, cy, 4.5);
     // Quand le tour change, la grande aiguille avance d'un coup sec, comme une vraie pendule.
     if (this.animations && this.tourHorloge !== 0 && this.tourHorloge !== tour) {
       grande.setRotation(angleMinute - Math.PI / 6);

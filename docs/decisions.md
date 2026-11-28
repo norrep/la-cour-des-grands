@@ -432,6 +432,14 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   Sur un écran de forme 9:16 ou plus court (navigateur avec barres), les cartes du bord de
   l'éventail touchaient le bas de l'écran. Le rang se place au plus à 128 px du bas visible ;
   sur les écrans allongés rien ne change.
+- **DL.17 — La pendule montre la sonnerie qui approche** (Clément : l'horloge du haut n'était
+  pas lisible ; choix C parmi trois maquettes : grande pendule, pendule et heure écrite, sonnerie
+  qui approche). Pendule deux fois plus grande (rayon 34), cadre rouge, deux cloches jaunes
+  dessus, aiguilles épaisses ; elle avance toujours de 5 minutes par tour. Son cadran se remplit
+  de rouge à mesure que les couloirs des deux bandes se vident (vide quand les rangs de départ
+  sont tirés, plein quand plus personne ne peut appeler de copains) : la sonnerie ne vient
+  qu'ensuite, quand un joueur ne peut plus rien faire. La pastille « Au tour de… » passe sous la
+  pendule, le « ? » à sa droite, le temps restant du jeu en ligne à sa gauche.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 
