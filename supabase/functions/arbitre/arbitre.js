@@ -1013,7 +1013,9 @@ var piscine_default = {
     ["F3", "B2"],
     ["B1", "B2"],
     ["B1", "CabRouge"],
-    ["B2", "CabRouge"]
+    ["B2", "CabRouge"],
+    ["H1", "F4"],
+    ["B2", "F2"]
   ],
   regions: [
     {

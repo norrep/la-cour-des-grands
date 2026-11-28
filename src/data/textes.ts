@@ -382,7 +382,7 @@ export const TEXTES = {
         contexte:
           'Sortie piscine ! Deux bandes se disputent les quatre coins et le grand bain sous l’œil de Monsieur Yvon.',
         regle:
-          'Le courant : après chaque tour complet, les quatre bouées du grand bain tournent d’un cran, avec tout ce qu’il y a dessus. Chaque coin se fait et se défait avec elles.',
+          'Le courant : après chaque tour complet, les quatre bouées du grand bain tournent d’un cran, avec tout ce qu’il y a dessus. Chaque coin se fait et se défait avec elles. Deux lignes d’eau font raccourci : des douches au canard, et du bord au matelas.',
       },
       'camp-scout': {
         contexte:

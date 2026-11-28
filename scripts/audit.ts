@@ -9,7 +9,7 @@
  *            rondeCourte|deuxChemins|mainPlus2] \
  *           [--sortie audit.jsonl]
  */
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { COURS } from '../src/data/boards/index';
 import { chargerCour } from '../src/engine/index';
 import { adversaire, creerPartie, jouer, noeudsConnectes, sommet } from '../src/engine/partie';
@@ -39,7 +39,9 @@ const graine = Number(lireArg('graine', '1'));
 const variante = lireArg('variante', 'aucune');
 const sortie = lireArg('sortie', 'audit.jsonl');
 if (!(a in NIVEAUX) || !(b in NIVEAUX)) throw new Error('niveau inconnu');
-const data = COURS[idCour];
+// --plan fichier.json : essaie un plan de cour modifié (variante de carte), sans toucher au jeu.
+const plan = lireArg('plan', '');
+const data = plan ? JSON.parse(readFileSync(plan, 'utf8')) : COURS[idCour];
 if (!data) throw new Error(`Cour inconnue : ${idCour}`);
 
 const base = chargerCour(data);
@@ -182,7 +184,7 @@ for (let i = 0; i < parties; i++) {
   const perdant = e.fin ? adversaire(e.fin.gagnant) : null;
   const ligne = {
     carte: idCour,
-    variante,
+    variante: plan ? (plan.split('/').pop() as string).replace('.json', '') : variante,
     a,
     b,
     graine: g,
