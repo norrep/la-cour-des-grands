@@ -407,6 +407,12 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   maquettes : miroir, duo à droite, pioche-bouton). Elle se range au-dessus du coin gauche de la
   main, à la hauteur du rond et un peu agrandie (×1,22), son étiquette « Pioche » en ruban dessous
   comme « copains », les punis au-dessus. La pioche du haut ne bouge pas.
+- **DL.13 — On voit l'élève partir à la punition** (demande de Clément) : un carton rouge jaillit
+  au-dessus de lui, il sursaute bras en l'air, puis traîne les pieds tête basse jusqu'à la pioche
+  (ou au bureau des punis s'il existe), petits nuages de poussière à chaque pas, et disparaît
+  dedans (≈ 1,5 s, `DUREE_PUNITION`). La conséquence suivante attend 0,7 s pour qu'on voie le
+  carton. Le panneau « Puni ! » (carton et sifflet) est retiré : il ne reste que la vidéo du
+  pouvoir quand le skin en a une.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 

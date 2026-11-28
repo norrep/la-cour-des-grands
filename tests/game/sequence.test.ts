@@ -4,7 +4,9 @@ import {
   DUREE_ARRIVEE,
   DUREE_CONSEQUENCE,
   DUREE_PLAQUAGE,
+  DUREE_PUNITION,
   ECART_CONSEQUENCES,
+  ECART_PUNITION,
   dureeAnimations,
   planAnimations,
   rondeParcourue,
@@ -41,15 +43,21 @@ describe('Mise en scène d’un coup', () => {
   });
 
   it('joue l’arrivée, puis les conséquences l’une après l’autre', () => {
-    const plan = planAnimations([pose, cpe, region]);
+    const plan = planAnimations([pose, region, cpe]);
     expect(plan.map((e) => e.debut)).toEqual([
       0,
       DUREE_ARRIVEE,
       DUREE_ARRIVEE + ECART_CONSEQUENCES,
     ]);
-    expect(dureeAnimations([pose, cpe, region])).toBe(
-      DUREE_ARRIVEE + ECART_CONSEQUENCES + DUREE_CONSEQUENCE,
+    expect(dureeAnimations([pose, region, cpe])).toBe(
+      DUREE_ARRIVEE + ECART_CONSEQUENCES + DUREE_PUNITION,
     );
+  });
+
+  it('laisse voir le carton rouge avant la suite, et la marche du puni jusqu’au bout', () => {
+    const plan = planAnimations([pose, cpe, region]);
+    expect(plan.map((e) => e.debut)).toEqual([0, DUREE_ARRIVEE, DUREE_ARRIVEE + ECART_PUNITION]);
+    expect(dureeAnimations([pose, cpe, region])).toBe(DUREE_ARRIVEE + DUREE_PUNITION);
   });
 
   it('sans arrivée, la conséquence commence tout de suite', () => {

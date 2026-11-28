@@ -12,6 +12,14 @@ export const ECART_CONSEQUENCES = 320;
 /** Durée d'une conséquence (vol jusqu'à un lieu, marche de la surveillante…) (ms). */
 export const DUREE_CONSEQUENCE = 760;
 
+/**
+ * Un élève part à la punition (DL.13) : carton rouge brandi au-dessus de lui, puis marche tête
+ * basse jusqu'à la pioche (ms).
+ */
+export const DUREE_PUNITION = 1500;
+/** Ce qu'on laisse voir de la punition (le carton) avant la conséquence suivante (ms). */
+export const ECART_PUNITION = 700;
+
 /** Tourbillon du courant de la piscine (ms) : on le laisse finir avant de redessiner. */
 export const DUREE_COURANT = 1000;
 
@@ -40,6 +48,10 @@ function estConsequence(ev: Evenement): boolean {
   );
 }
 
+function dureeConsequence(ev: Evenement): number {
+  return ev.type === 'cpe' ? DUREE_PUNITION : DUREE_CONSEQUENCE;
+}
+
 export interface Etape {
   ev: Evenement;
   /** Moment où l'animation de l'événement commence, depuis le coup (ms). */
@@ -64,9 +76,14 @@ export function planAnimations(nouveaux: readonly Evenement[]): Etape[] {
       plan.push({ ev, debut: 0 });
     } else if (estConsequence(ev)) {
       plan.push({ ev, debut: t });
-      finConsequences = Math.max(finConsequences, t + DUREE_CONSEQUENCE);
+      finConsequences = Math.max(finConsequences, t + dureeConsequence(ev));
       // La surveillante finit sa marche avant qu'on ramasse le goûter qu'elle quitte.
-      t += ev.type === 'surveillante' ? DUREE_CONSEQUENCE + PAUSE_SURVEILLANTE : ECART_CONSEQUENCES;
+      t +=
+        ev.type === 'surveillante'
+          ? DUREE_CONSEQUENCE + PAUSE_SURVEILLANTE
+          : ev.type === 'cpe'
+            ? ECART_PUNITION
+            : ECART_CONSEQUENCES;
     } else if (ev.type === 'fin') {
       // La victoire n'arrive qu'une fois toute la cour jouée (marche de la surveillante comprise).
       plan.push({ ev, debut: finConsequences });
@@ -92,7 +109,7 @@ export function dureeAnimations(nouveaux: readonly Evenement[]): number {
           : ev.type === 'appel' || ev.type === 'pioche'
             ? DUREE_COPAINS
             : estConsequence(ev)
-              ? DUREE_CONSEQUENCE
+              ? dureeConsequence(ev)
               : 0;
     fin = Math.max(fin, debut + duree);
   }

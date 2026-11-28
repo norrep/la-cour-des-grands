@@ -71,6 +71,7 @@ import { aide, tonFun, tutoPasse } from '../ton';
 import { FUN } from '../../data/textesFun';
 import { creerBadge } from '../ui/badge';
 import { skinActif } from '../skins/index';
+import { poseRepos } from '../ui/marionnette';
 import { creerBouton } from '../ui/bouton';
 import { contourRect, contourRond, forme, graineDe, panneau } from '../ui/style';
 import { ecrireConseils, lireSons } from '../preferences';
@@ -3492,7 +3493,7 @@ export class PartieScene extends Phaser.Scene {
         this.copainsArrivent(ev.bande);
         break;
       case 'cpe':
-        this.volerVersLieu(this.pos(ev.ilot), ev.bande, ev.role, ev.bande, 'cpe');
+        this.partirPunition(this.pos(ev.ilot), ev.bande, ev.role);
         this.reactionSurveillant('colere');
         break;
       case 'infirmerie':
@@ -3766,6 +3767,144 @@ export class PartieScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Un élève part à la punition (DL.13) : il sursaute sous un carton rouge brandi au-dessus de
+   * lui, puis traîne les pieds, tête basse et bras ballants, jusqu'à la pioche (ou au bureau des
+   * punis) où il disparaît. Petits nuages de poussière à chaque pas.
+   */
+  private partirPunition(depuis: Point, bande: Bande, role: RoleId): void {
+    jouerSon('cpe');
+    const arrivee = positionLieu(this.cour, bande, 'cpe');
+    const acteur = skinActif().acteur(this, bande, role, 100);
+    const corps = acteur.objet;
+    const h = acteur.hauteur;
+    // L'acteur a son origine aux pieds : on le pose pour que son milieu soit sur l'îlot.
+    const sol = { x: depuis.x, y: depuis.y + h * 0.45 };
+    const fin = { x: arrivee.x, y: arrivee.y + h * 0.3 };
+    const c = this.ajouter(this.add.container(sol.x, sol.y, [corps]));
+    c.setDepth(30);
+    // Le carton rouge brandi au-dessus de sa tête.
+    const carton = this.add.graphics();
+    forme(carton, contourRect(-20, -28, 40, 56, 6, graineDe(sol.x, 3), 0.5), {
+      remplissage: 0xe8463c,
+      trait: 4,
+      ombre: 3,
+    });
+    carton.fillStyle(0xffffff, 0.5);
+    carton.fillRoundedRect(-14, -22, 6, 34, 3);
+    carton
+      .setPosition(0, -h - 44)
+      .setScale(0)
+      .setRotation(-0.2);
+    c.add(carton);
+    const regard = fin.x < sol.x ? -1 : 1;
+    const pose = poseRepos();
+    pose.regard = regard;
+    acteur.poser(pose);
+
+    // 1. Le sursaut et le carton (0 → 0,5 s).
+    this.tweens.add({ targets: carton, scale: 1, duration: 220, ease: 'Back.easeOut' });
+    this.tweens.add({
+      targets: carton,
+      rotation: 0.2,
+      duration: 90,
+      yoyo: true,
+      repeat: 2,
+      delay: 220,
+    });
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 420,
+      onUpdate: (tw) => {
+        const v = tw.getValue() ?? 0;
+        const p = poseRepos();
+        p.regard = regard;
+        // Bras en l'air et petit saut de surprise, puis il retombe, tout penaud.
+        const choc = Math.sin(Math.min(1, v * 2) * Math.PI);
+        p.saut = -choc * 0.12;
+        p.brasG = choc * 1.2;
+        p.brasD = -choc * 1.2;
+        p.tete = v * 0.18;
+        acteur.poser(p);
+      },
+    });
+
+    // 2. La marche de la honte jusqu'à la pioche (0,5 → 1,4 s).
+    const pas = 4;
+    let dernierPas = -1;
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      delay: 480,
+      duration: 900,
+      ease: 'Sine.easeIn',
+      onStart: () => {
+        this.tweens.add({ targets: carton, alpha: 0, y: carton.y - 30, duration: 260 });
+      },
+      onUpdate: (tw) => {
+        const v = tw.getValue() ?? 0;
+        const phase = v * pas * Math.PI * 2;
+        const p = poseRepos();
+        p.regard = regard;
+        p.jambeG = Math.sin(phase) * 0.45;
+        p.jambeD = -Math.sin(phase) * 0.45;
+        p.brasG = -Math.sin(phase) * 0.12;
+        p.brasD = -Math.sin(phase) * 0.12;
+        p.tete = 0.22;
+        p.tronc = regard * 0.08;
+        p.rebond = -Math.abs(Math.sin(phase)) * 0.04;
+        acteur.poser(p);
+        c.setPosition(sol.x + (fin.x - sol.x) * v, sol.y + (fin.y - sol.y) * v);
+        c.setScale(1 - v * 0.45);
+        const k = Math.floor(v * pas * 2);
+        if (k !== dernierPas) {
+          dernierPas = k;
+          this.poussiere(c.x - regard * 14, c.y);
+        }
+      },
+      onComplete: () => {
+        // 3. Il rentre dans la pioche, qui rebondit.
+        this.tweens.add({
+          targets: c,
+          scale: 0,
+          alpha: 0,
+          duration: 160,
+          ease: 'Back.easeIn',
+          onComplete: () => {
+            c.destroy();
+            this.rebondLieu(bande, 'cpe');
+          },
+        });
+      },
+    });
+  }
+
+  /** Un petit nuage de poussière sous un pas, qui s'efface. */
+  private poussiere(x: number, y: number): void {
+    const g = this.ajouter(this.add.graphics());
+    g.fillStyle(0xffffff, 0.85);
+    g.lineStyle(2.5, COULEURS.encre, 0.7);
+    for (const [dx, dy, r] of [
+      [-8, 0, 7],
+      [4, -3, 9],
+      [13, 1, 6],
+    ] as const) {
+      g.fillCircle(dx, dy, r);
+      g.strokeCircle(dx, dy, r);
+    }
+    g.setPosition(x, y).setDepth(29).setScale(0.6);
+    this.tweens.add({
+      targets: g,
+      scale: 1.1,
+      alpha: 0,
+      y: y - 10,
+      duration: 380,
+      ease: 'Quad.easeOut',
+      onComplete: () => g.destroy(),
+    });
+  }
+
   /** Le panneau d'un lieu fait un petit bond : quelqu'un vient d'y arriver ou d'en partir. */
   private rebondLieu(bande: Bande, lieu: Lieu): void {
     const c =
@@ -3779,21 +3918,6 @@ export class PartieScene extends Phaser.Scene {
       yoyo: true,
       ease: 'Quad.easeOut',
     });
-  }
-
-  /** Un élève quitte la cour pour un lieu (CPE) : il vole jusqu'au panneau, qui rebondit. */
-  private volerVersLieu(
-    depuis: Point,
-    bandeEleve: Bande,
-    role: RoleId,
-    bandeLieu: Bande,
-    lieu: Lieu,
-  ): void {
-    jouerSon('cpe');
-    const badge = this.ajouter(creerBadge(this, bandeEleve, role, 44));
-    this.volerEnCloche(badge, depuis, positionLieu(this.cour, bandeLieu, lieu), 560, () =>
-      this.rebondLieu(bandeLieu, lieu),
-    );
   }
 
   /** Les copains appelés : le portail s'ouvre (leurs cartes volent jusqu'au rang). */
