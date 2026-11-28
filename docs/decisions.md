@@ -427,6 +427,11 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   blanc derrière la tête, reflet sur le bord gauche. Plus de lignes de vitesse, de trame ni
   d'étoile. La tête sort toujours par le haut ; le cadre repasse sur le buste à gauche, à droite
   et en bas.
+  Retouche (Clément) : plus de rond blanc derrière la tête, seul l'éclat reste.
+- **DL.16 — Le rang remonte sur les écrans courts** (Clément : « les persos sont coupés en bas »).
+  Sur un écran de forme 9:16 ou plus court (navigateur avec barres), les cartes du bord de
+  l'éventail touchaient le bas de l'écran. Le rang se place au plus à 128 px du bas visible ;
+  sur les écrans allongés rien ne change.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 

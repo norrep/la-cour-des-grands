@@ -2596,7 +2596,7 @@ export class PartieScene extends Phaser.Scene {
 
   /**
    * Le fond d'une carte de la main (DL.15) : une carte de collection, cadre épais à la couleur de
-   * l'équipe, panneau clair avec un éclat et un rond blanc derrière la tête.
+   * l'équipe, panneau clair avec un éclat derrière la tête.
    */
   private fondCollection(
     bande: Bande,
@@ -2628,8 +2628,6 @@ export class PartieScene extends Phaser.Scene {
       ]);
       if (rayon.length > 2) g.fillPoints(rayon, true);
     }
-    g.fillStyle(0xffffff, 0.75);
-    g.fillCircle(0, cy, 34);
     return g;
   }
 
