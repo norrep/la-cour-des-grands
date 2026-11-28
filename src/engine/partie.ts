@@ -179,9 +179,7 @@ export function noeudsConnectes(e: EtatPartie, bande: Bande): Set<string> {
       if (
         !traverses.has(v.noeud) &&
         e.cour.noeuds[v.noeud]?.type === 'ilot' &&
-        sommet(e, v.noeud)?.bande === bande &&
-        // Le Petit est trop petit pour faire passer les copains : il ne prolonge pas le chemin.
-        sommet(e, v.noeud)?.role !== 'petit'
+        sommet(e, v.noeud)?.bande === bande
       ) {
         traverses.add(v.noeud);
         file.push(v.noeud);

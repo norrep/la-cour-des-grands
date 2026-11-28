@@ -6,7 +6,7 @@ import { idRang, situation } from './aide';
 const envoyer = (e: EtatPartie, role: RoleId, cible: string) =>
   jouer(e, { type: 'envoyer', eleveId: idRang(e, e.courant, role), cible });
 
-describe('DR.3 — Le Petit intouchable, mais pas relais', () => {
+describe('DR.3 — Le Petit intouchable', () => {
   it('aucun adversaire ne peut le recouvrir, même un Grand', () => {
     const e = situation({ rang: { rouge: ['grand'] }, piles: { P: [['bleu', 'petit']] } });
     expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).not.toContain('P');
@@ -17,11 +17,9 @@ describe('DR.3 — Le Petit intouchable, mais pas relais', () => {
     expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).toContain('P');
   });
 
-  it('il ne prolonge pas le chemin vers la cabane', () => {
-    const avecPetit = situation({ rang: { rouge: ['grand'] }, piles: { P: [['rouge', 'petit']] } });
-    expect(ciblesPossibles(avecPetit, idRang(avecPetit, 'rouge', 'grand'))).not.toContain('Q');
-    const avecGrand = situation({ rang: { rouge: ['grand'] }, piles: { P: [['rouge', 'grand']] } });
-    expect(ciblesPossibles(avecGrand, idRang(avecGrand, 'rouge', 'grand'))).toContain('Q');
+  it('il prolonge le chemin vers la cabane comme les autres', () => {
+    const e = situation({ rang: { rouge: ['grand'] }, piles: { P: [['rouge', 'petit']] } });
+    expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).toContain('Q');
   });
 });
 

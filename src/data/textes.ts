@@ -43,7 +43,7 @@ const EQUIPEMENTS: Record<EquipementId, string> = {
 /** Pouvoir de chaque élève, en une ou deux phrases. */
 const POUVOIRS: Record<RoleId, string> = {
   petit:
-    'Joker : plaque n’importe qui, et personne ne peut le plaquer. Mais il est trop petit pour faire passer les copains : ton chemin s’arrête à lui. Jamais dans la cabane adverse.',
+    'Joker : plaque n’importe qui, et personne ne peut le plaquer. Jamais dans la cabane adverse.',
   populaire: 'Arrive avec des copains : pioche 3 élèves.',
   chouchou: 'Appelle son grand frère : pose aussitôt un 2e élève de 5 ou plus.',
   rapporteuse: '« Madame, c’est lui ! » : un adversaire voisin est puni.',

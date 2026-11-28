@@ -394,7 +394,7 @@ Demande de Clément : prendre le meilleur des trois tests (v2, main 4/5, règles
 
 - **DR.1 — Main de départ 4 et 5** (au lieu de 3 et 4), sur toutes les cartes.
 - **DR.2 — La Populaire pioche 3** (au lieu de 2).
-- **DR.3 — Le Petit est intouchable mais pas relais** : aucun adversaire ne peut le recouvrir ; il ne prolonge pas le chemin de sa bande vers la cabane adverse (sans cette 2e moitié, les raids devenaient imparables).
+- **DR.3 — Le Petit est intouchable** : aucun adversaire ne peut le recouvrir, et il prolonge le chemin comme les autres (choix de Clément le 28/11 : avec la main 4/5, les victoires à la cabane montent à 74 % sur la cour et 68 % au camp, parties plus courtes, équité gardée).
 - **DR.4 — La Fouine posée hors du chemin pioche 1** (« par les buissons, elle ramène un copain »). Le chemin est mesuré avant la pose.
 - **DR.5 — Le Délégué choisit le goûter** où va la surveillante (une option par autre goûter de sa ronde, toujours facultatif).
 - **DR.6 — Sonnerie** : à égalité de goûters, gagne celui qui tient le plus d'îlots ; sinon, comme avant, le joueur bloqué perd.
