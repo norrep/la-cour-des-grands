@@ -381,6 +381,12 @@ export const TEXTES = {
       // Le nom de l'équipe sans « Les » : « Écoliers 4, Vers de terre 1 » (pas « ver 1 »).
       `Goûters : ${equipeDe('rouge').nom.replace(/^Les /, '')} ${rouge}, ${equipeDe('bleu').nom.replace(/^Les /, '')} ${bleu}`,
     tours: (n: number) => `Partie en ${n} tours`,
+    /** Le cri de manga de la transition de victoire (DW.1). */
+    cri: {
+      cabane: 'CABANE PRISE !',
+      bonsPoints: 'GOÛTERS DÉVALISÉS !',
+      sonnerie: 'DRIIIIING !',
+    } as Record<RaisonFin, string>,
   },
   get surveillante(): string {
     return surv.nom;

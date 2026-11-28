@@ -420,6 +420,26 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   bords, étoile « pop » derrière la tête et gros trait noir ; la tête de l'élève sort du haut de
   la case, le visage garde sa taille. La loupe montre la même case en grand. Pour laisser passer
   les têtes, la pioche du bas et le rond « +2 copains » remontent de 22 px.
+- **DL.15 — Cartes de la main : cadre de carte de collection, têtes qui débordent** (Clément :
+  « le pire des deux mondes », garder les têtes qui sortent, reprendre le contour et le fond de la
+  carte de collection, retirer les lignes blanches). Remplace le fond de DL.14 : cadre épais à la
+  couleur de l'équipe, panneau clair avec un éclat (rayons coupés au bord du panneau) et un rond
+  blanc derrière la tête, reflet sur le bord gauche. Plus de lignes de vitesse, de trame ni
+  d'étoile. La tête sort toujours par le haut ; le cadre repasse sur le buste à gauche, à droite
+  et en bas.
+  Retouche (Clément) : plus de rond blanc derrière la tête, seul l'éclat reste.
+- **DL.16 — Le rang remonte sur les écrans courts** (Clément : « les persos sont coupés en bas »).
+  Sur un écran de forme 9:16 ou plus court (navigateur avec barres), les cartes du bord de
+  l'éventail touchaient le bas de l'écran. Le rang se place au plus à 128 px du bas visible ;
+  sur les écrans allongés rien ne change.
+- **DL.17 — La pendule montre la sonnerie qui approche** (Clément : l'horloge du haut n'était
+  pas lisible ; choix C parmi trois maquettes : grande pendule, pendule et heure écrite, sonnerie
+  qui approche). Pendule deux fois plus grande (rayon 34), cadre rouge, deux cloches jaunes
+  dessus, aiguilles épaisses ; elle avance toujours de 5 minutes par tour. Son cadran se remplit
+  de rouge à mesure que les couloirs des deux bandes se vident (vide quand les rangs de départ
+  sont tirés, plein quand plus personne ne peut appeler de copains) : la sonnerie ne vient
+  qu'ensuite, quand un joueur ne peut plus rien faire. La pastille « Au tour de… » passe sous la
+  pendule, le « ? » à sa droite, le temps restant du jeu en ligne à sa gauche.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 
@@ -497,6 +517,40 @@ Trois maquettes (carrousel, billets empilés, plein écran) ; Clément choisit l
 - **DH.2** — Mot d'excuse du Délégué : plus d'étiquette « Mot d'excuse ! » sur chaque goûter visé
   (la consigne le dit déjà, et elles se recouvraient). La bulle de consigne passe sous l'îlot quand,
   au-dessus, elle cacherait un goûter (sur toutes les cartes).
+
+## Transition et écran de victoire (28/11, demande de Clément)
+
+- **DW.1 — Transition de victoire, en code** : quand la partie se gagne sur la cour, on voit
+  d'abord comment, environ 2 s. La cour s'assombrit sauf un rond de projecteur, et la caméra
+  s'approche : sur la cabane prise (le drapeau du gagnant s'y plante), sur la boîte à goûter
+  pleine (les goûters en débordent) ou sur la pendule (le réveil sonne). Un cri de manga claque
+  (« CABANE PRISE ! », « GOÛTERS DÉVALISÉS ! », « DRIIIIING ! »), puis un rond à la couleur de la
+  bande se referme sur l'écran de fin. Toucher l'écran passe. Rien pour un abandon ou un temps
+  écoulé en ligne (l'écran de fin vient directement). Ambiguïté notée : la vidéo du Grand
+  (cabane, goûters) choisie aussi par Clément viendra se loger dans ce cri, une fois validée.
+- **DW.2 — Écran de victoire « affiche manga »** (maquette A, choisie parmi trois) : fond manga à
+  la couleur de la bande gagnante, ruban « GAGNÉ ! », le Grand et le Petit qui sautent, une
+  étiquette qui dit comment (pictogramme + trois mots + la phrase), les deux boîtes à goûter
+  (un biscuit par goûter, un rond vide pour ceux qui manquaient), « Rejouer » en grand et
+  « Accueil » à côté. Les élèves sont les marionnettes de l'équipe (plus l'ancien dessin).
+- **DW.3 — Point de vue** : contre l'ordi ou en ligne, si on perd, le titre devient « PERDU… »
+  sur fond gris et c'est notre bande qui boude. À deux sur le même téléphone, le titre est le nom
+  de l'équipe gagnante (« ALIENS ! »). Les couleurs viennent de l'équipe (avant, rouge/bleu fixes,
+  faux pour les Vers et les Aliens).
+- **DW.4 — Vidéos de victoire** (choisies par Clément, images clés validées) : le Grand de la bande
+  gagnante, seul, plante le drapeau sur la cabane (« We took the hut! ») ou se goinfre de goûters
+  (« All the snacks are mine! »). MAGI-2 1080p 4 s sur fond cyan, chasuble et drapeau bleu roi
+  recolorés par tenue (la casquette pervenche, peu saturée, est épargnée), fond manga animé à la
+  couleur de la tenue. Elles passent plein écran juste après le rond de la transition, puis
+  l'écran de fin ; toucher passe. `public/videos/cartoon/victoire-<tenue>-<cabane|gouters>.mp4`
+  (+ .m4a), pour les six tenues. Les Aliens partent de leur nouveau dessin « grosse tête »
+  (PR #50) et sont tournés sur fond magenta : leur peau menthe est trop proche du cyan. Sans
+  vidéo (skin sans vidéo, réseau), la transition va droit à l'écran de fin.
+  Pas de vidéo pour la sonnerie : le réveil de la transition suffit.
+- **DW.5 — Cri en tampon** : la bulle d'explosion de manga du cri (DW.1) est jugée « très moche »
+  par Clément. Parmi trois styles (tampon, ruban, lettres seules), il choisit le tampon : le même
+  autocollant jaune que le « À toi ! » (DL.7), liseré intérieur à la couleur de la bande, un peu
+  plus grand qu'avant.
 
 ## Aliens « grosse tête » (28/11)
 

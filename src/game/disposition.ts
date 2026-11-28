@@ -1,5 +1,5 @@
 import type { Cour } from '../engine/index';
-import { DROITE, GAUCHE, HAUT, LARGEUR } from './config';
+import { BAS, DROITE, GAUCHE, HAUT, LARGEUR } from './config';
 
 /**
  * Sur un écran plus allongé que 9:16, la place gagnée en bas va surtout à la cour : le pupitre
@@ -66,10 +66,11 @@ export function noeudSous(
 
 /**
  * Le rang en bas de l'écran. Cartes grandes (DL.1) : sur un téléphone de 360 dp, une carte fait
- * 61 × 95 dp, assez pour reconnaître l'élève et le viser du doigt.
+ * 61 × 95 dp, assez pour reconnaître l'élève et le viser du doigt. Sur un écran court (9:16 ou
+ * moins), le rang remonte pour que les cartes du bord de l'éventail ne soient pas coupées (DL.16).
  */
 export const RANG = {
-  y: 1166 + DESCENTE,
+  y: Math.min(1166 + DESCENTE, BAS - 128),
   largeurCarte: 122,
   hauteurCarte: 190,
   ecart: 120,
