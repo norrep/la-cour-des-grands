@@ -1286,8 +1286,8 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * Où se tient la surveillante quand elle garde ce goûter : son médaillon (tête, rubans et
-   * banderole compris) tout près, mais jamais par-dessus le goûter ni son « +N » ; le dessin au
+   * Où se tient la surveillante quand elle garde ce goûter : son médaillon (tête et rubans
+   * compris) tout près, mais jamais par-dessus le goûter ni son « +N » ; le dessin au
    * trait de secours, juste à côté.
    */
   private positionSurveillante(regionId: string): Point {
@@ -1295,7 +1295,7 @@ export class PartieScene extends Phaser.Scene {
     if (!this.textures.exists(this.visuel.surveillant.texture)) return { x: c.x + 42, y: c.y + 4 };
     const deja = this.placesMedaillon.get(regionId);
     if (deja) return deja;
-    const em = empriseMedaillon(this, TEXTES.surveillante);
+    const em = empriseMedaillon();
     // Le goûter gardé : son rond pointillé (36) et sa pastille « +N » en haut à gauche, plus un
     // peu d'air pour qu'on le voie bien détaché.
     const air = 6;
@@ -1354,13 +1354,13 @@ export class PartieScene extends Phaser.Scene {
 
   /**
    * Le surveillant sur la cour : son médaillon (DS.1), tête et épaules dans une rosette, ou à
-   * défaut un dessin au trait (robe lilas, chignon). Renvoie true pour le médaillon (il porte
-   * son nom sur sa banderole).
+   * défaut un dessin au trait (robe lilas, chignon). Renvoie true pour le médaillon (alors
+   * pas d'étiquette de nom : la cour est assez chargée).
    */
   private silhouette(x: number, y: number, alpha: number): boolean {
     const { texture, rig, id } = this.visuel.surveillant;
     if (this.textures.exists(texture)) {
-      const m = new MedaillonSurveillant(this, texture, rig, id, TEXTES.surveillante);
+      const m = new MedaillonSurveillant(this, texture, rig, id);
       m.racine.setPosition(x, y).setAlpha(alpha);
       this.ajouter(m.racine);
       this.medaillon = m;
