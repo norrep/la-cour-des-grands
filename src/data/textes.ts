@@ -168,12 +168,20 @@ export const TEXTES = {
     pris: 'Aussi celle du joueur 1',
     retour: 'Retour',
     chargement: 'On prépare la cour…',
-    /** La variante de chaque carte en quelques mots, sous sa vignette. */
-    variante: {
-      'cour-premier-jour': 'Les bancs planques',
-      piscine: 'Le courant fait tourner le grand bain',
-      'camp-scout': 'Tyrolienne et échelle à sens unique',
+    /** La règle spéciale de chaque carte, en une phrase, sur sa carte de choix (DC.1). */
+    regle: {
+      'cour-premier-jour':
+        'Les deux bancs sont des planques : assis dessus, personne ne te touche.',
+      piscine: 'Le courant : à chaque tour, les bouées du grand bain tournent d’un cran.',
+      'camp-scout': 'Sens unique : la tyrolienne ne fait que descendre, l’échelle que monter.',
     } as Record<string, string>,
+    regleTitre: '★ Règle spéciale',
+    /** Sous le nom de la carte : qui surveille. */
+    avec: (nom: string) => `Surveillé par ${nom}`,
+    jouerIci: 'On joue ici !',
+    prendreBande: 'Je prends cette bande !',
+    /** Sous le nom de la bande : le Grand, le Petit… et toute la bande. */
+    toute: 'Toute la bande',
   },
   hud: {
     tourDe: (b: Bande) => `Au tour de la ${BANDES[b]}`,

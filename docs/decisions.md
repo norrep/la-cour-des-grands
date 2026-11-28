@@ -431,3 +431,25 @@ Demande de Clément : prendre le meilleur des trois tests (v2, main 4/5, règles
 - **DQ.5 — Le Délégué choisit le goûter** où va la surveillante (une option par autre goûter de sa ronde, toujours facultatif).
 - **DQ.6 — Sonnerie** : à égalité de goûters, gagne celui qui tient le plus d'îlots ; sinon, comme avant, le joueur bloqué perd.
 - **DQ.7 — Nouvelle piscine** : quatre coins (un bord + le flotteur voisin, 1 glace chacun) et le grand bain (2 glaces), objectif 3 ; Monsieur Yvon fait la ronde des quatre coins ; le courant tourne dans l'autre sens (F1 → F4 → F3 → F2), ce qui ramène le premier joueur de 42 % à 48 % entre IA difficiles avec la main 4/5.
+
+## Choix de la carte et de la bande en carrousel (28/11, demande de Clément)
+
+« UX/UI à revoir pour la présentation des maps », puis « l'adapter pour le choix des bandes ».
+Trois maquettes (carrousel, billets empilés, plein écran) ; Clément choisit le carrousel.
+
+- **DC.1 — Carrousel d'une grande carte à la fois** pour « Où on joue ? » et « Choisis ta bande » :
+  la carte du milieu en grand (540 × 860), les voisines qui dépassent sur les bords. On glisse du
+  doigt, on touche une voisine pour la ramener, ou les flèches de part et d'autre des points. Gros
+  bouton jaune « On joue ici ! » / « Je prends cette bande ! » ; toucher la carte du milieu choisit
+  aussi. « Retour » passe en petit bouton en haut à gauche. La carte et la bande en vue sont
+  gardées quand on revient en arrière.
+- **DC.2 — Carte de lieu** : aperçu de la vraie cour (îlots, goûters, cabanes, bancs, flèches),
+  médaillon du surveillant dans le coin, nom sur un ruban à la couleur du lieu, « Surveillé par… »,
+  et la règle spéciale en une phrase sur un autocollant jaune (`TEXTES.choixPartie.regle`, plus
+  courte que celle de la fiche de la cour). Les aperçus (`public/cartes/apercus/`) sont des
+  captures de l'écran de présentation de chaque carte, pioche et bulles masquées ; ils remplacent
+  les vignettes de décor vide. À refaire si un plan change.
+- **DC.3 — Carte de bande** : le Grand et le Petit en grand sur un halo de la couleur de l'équipe,
+  le nom sur un ruban, puis les six autres élèves en bustes (« Toute la bande »). L'ombre se pose
+  sous les pieds de la marionnette (et non plus sous le bas de son cadre), ce qui corrige les Vers
+  dont l'ombre flottait au milieu du corps.
