@@ -526,3 +526,7 @@ Trois maquettes (carrousel, billets empilés, plein écran) ; Clément choisit l
   (+ .m4a), tenues rouges, bleus, vers, vers2. Ambiguïté notée : les Aliens n'ont pas encore la
   leur (dessin refait en cours, PR #50) ; sans vidéo, la transition va droit à l'écran de fin.
   Pas de vidéo pour la sonnerie : le réveil de la transition suffit.
+- **DW.5 — Cri en tampon** : la bulle d'explosion de manga du cri (DW.1) est jugée « très moche »
+  par Clément. Parmi trois styles (tampon, ruban, lettres seules), il choisit le tampon : le même
+  autocollant jaune que le « À toi ! » (DL.7), liseré intérieur à la couleur de la bande, un peu
+  plus grand qu'avant.

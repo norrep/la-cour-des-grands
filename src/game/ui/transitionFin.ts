@@ -13,7 +13,7 @@ import {
   RESOLUTION,
 } from '../config';
 import { jouerIncrust } from './incrust';
-import { forme } from './style';
+import { contourRect, forme } from './style';
 
 /** Durée de la transition, du coup gagnant à l'écran de fin (ms). */
 export const DUREE_TRANSITION_FIN = 2300;
@@ -27,21 +27,34 @@ export interface MomentFin {
   cri: string;
 }
 
-/** Bulle d'explosion de manga : une étoile à pointes irrégulières. */
-function eclat(
-  rx: number,
-  ry: number,
-  pointes: number,
-  graine: number,
-): { x: number; y: number }[] {
-  const pts: { x: number; y: number }[] = [];
-  for (let i = 0; i < pointes * 2; i++) {
-    const a = (i / (pointes * 2)) * Math.PI * 2;
-    const bruit = 0.82 + 0.18 * Math.sin(i * 12.9898 + graine);
-    const k = i % 2 === 0 ? 1 : 0.72;
-    pts.push({ x: Math.cos(a) * rx * k * bruit, y: Math.sin(a) * ry * k * bruit });
-  }
-  return pts;
+/**
+ * Le cri de la transition (DW.5) : le tampon jaune du « À toi ! » (DL.7), avec un liseré
+ * intérieur à la couleur de la bande.
+ */
+function dessinerCri(
+  scene: Phaser.Scene,
+  texte: string,
+  couleur: number,
+): Phaser.GameObjects.GameObject[] {
+  const t = scene.add
+    .text(0, 0, texte, {
+      fontFamily: POLICE,
+      fontSize: `${texte.length > 14 ? 50 : 62}px`,
+      fontStyle: '700',
+      color: COULEURS.texteSombre,
+      align: 'center',
+    })
+    .setOrigin(0.5);
+  const l = t.width + 80;
+  const g = scene.add.graphics();
+  forme(g, contourRect(-l / 2, -58, l, 116, 30, 23, 0.9), {
+    remplissage: COULEURS.jaune,
+    trait: 6,
+    ombre: 9,
+  });
+  g.lineStyle(8, couleur, 1);
+  g.strokeRoundedRect(-l / 2 + 11, -47, l - 22, 94, 22);
+  return [g, t];
 }
 
 /** Le drapeau du gagnant qui se plante sur la cabane prise. */
@@ -185,30 +198,17 @@ export function jouerTransitionFin(
     }
   });
 
-  // 3. Le cri de manga.
-  const bulle = scene.add.graphics();
-  const pts = eclat(380, 150, 16, 3);
-  forme(bulle, pts, { remplissage: COULEURS.jaune, trait: 7, ombre: 12 });
-  const mot = scene.add
-    .text(0, 0, m.cri, {
-      fontFamily: POLICE,
-      fontSize: '54px',
-      fontStyle: '700',
-      color: COULEURS.texteSombre,
-      align: 'center',
-      wordWrap: { width: 420 },
-    })
-    .setOrigin(0.5);
+  // 3. Le cri : ce qui s'est passé, en trois mots.
   const yCri = m.lieu.y < HAUTEUR / 2 ? m.lieu.y + 250 : m.lieu.y - 250;
   const cri = scene.add
-    .container(cx, Phaser.Math.Clamp(yCri, cy - 330, cy + 330), [bulle, mot])
-    .setAngle(-6)
+    .container(cx, Phaser.Math.Clamp(yCri, cy - 330, cy + 330), dessinerCri(scene, m.cri, couleur))
+    .setAngle(-4)
     .setScale(0)
     .setDepth(870);
   objets.push(cri);
   scene.time.delayedCall(700, () => {
     if (fini) return;
-    scene.tweens.add({ targets: cri, scale: 1 / zoom, duration: 260, ease: 'Back.easeOut' });
+    scene.tweens.add({ targets: cri, scale: 1.25 / zoom, duration: 260, ease: 'Back.easeOut' });
     cam.shake(160, 0.008);
   });
 
