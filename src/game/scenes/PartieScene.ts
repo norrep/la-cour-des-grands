@@ -117,6 +117,8 @@ const RAYON_HORLOGE = 34;
 const Y_PASTILLE_TOUR = 102;
 /** Épaisseur du cadre à la couleur de l'équipe autour des cartes de la main (DL.15). */
 const MARGE_CADRE = 8;
+/** Hauteur du buste dans une carte de la main : la tête sort du haut de la carte. */
+const HAUTEUR_BUSTE = RANG.hauteurCarte + 10;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
 const DIAMETRE_PASTILLE = 112;
 const RAYON_DEPOT = 75;
@@ -2736,9 +2738,10 @@ export class PartieScene extends Phaser.Scene {
     // Plus de nom écrit sous le portrait (DL.1) : le visage et le chiffre suffisent, la loupe
     // montre le nom et le pouvoir en grand.
     const badge = skin.buste
-      ? skin.buste(this, el.bande, el.role, l - 8, h + 10)
+      ? skin.buste(this, el.bande, el.role, l - 8, HAUTEUR_BUSTE)
       : skin.eleve(this, el.bande, el.role, 84);
-    badge.setPosition(0, skin.buste ? -18 : -10);
+    // Le bas du débardeur glisse juste sous le cadre du bas : l'élève s'appuie dessus (DL.18).
+    badge.setPosition(0, skin.buste ? h / 2 - m + 3 - HAUTEUR_BUSTE / 2 : -10);
     const trait = this.cadreCollection(el.bande);
     const enfants: Phaser.GameObjects.GameObject[] = [g, badge, trait];
     if (malade) {

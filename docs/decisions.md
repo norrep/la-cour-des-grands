@@ -440,6 +440,10 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   sont tirés, plein quand plus personne ne peut appeler de copains) : la sonnerie ne vient
   qu'ensuite, quand un joueur ne peut plus rien faire. La pastille « Au tour de… » passe sous la
   pendule, le « ? » à sa droite, le temps restant du jeu en ligne à sa gauche.
+- **DL.18 — L'élève s'appuie sur le bas du cadre** (Clément : « les persos ne touchent toujours
+  pas la bordure de la carte »). Le bas du débardeur était 5 px au-dessus du cadre, laissant une
+  bande claire. Il glisse maintenant juste sous le cadre du bas, qui le recouvre de 3 px ; la tête
+  sort toujours par le haut.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 
