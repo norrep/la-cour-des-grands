@@ -3,37 +3,8 @@ import { COULEURS, LARGEUR, POLICE } from '../config';
 import { contourRect, forme, graineDe, panneau } from './style';
 
 /**
- * Le guide du tutoriel (DJ.2) : une bulle de papier au trait d'encre, et une main dessinée qui
- * montre le geste à faire (glisser un élève, toucher un bouton).
+ * Le guide du tutoriel (DJ.2) : une bulle de papier au trait d'encre, et l'onde d'un toucher.
  */
-
-/** La main qui montre : le bout de l'index est en (0, 0), la main vient d'en bas à droite. */
-export function creerMain(scene: Phaser.Scene): Phaser.GameObjects.Container {
-  const g = scene.add.graphics();
-  const peau = 0xfff6e4;
-  const style = { remplissage: peau, trait: 5, ombre: 0 };
-  // La paume et les doigts repliés.
-  forme(g, contourRect(-10, 46, 74, 66, 26, 11, 1), style);
-  // Le pouce, couché sur le côté gauche.
-  forme(g, contourRect(-30, 62, 36, 24, 12, 7, 0.8), style);
-  // L'index tendu, dessiné en dernier pour passer devant la paume.
-  forme(g, contourRect(-12, -4, 28, 78, 14, 5, 0.8), style);
-  // Les plis des doigts repliés.
-  g.lineStyle(4, COULEURS.encre, 1);
-  for (const x of [26, 44]) {
-    g.beginPath();
-    g.moveTo(x, 50);
-    g.lineTo(x, 66);
-    g.strokePath();
-  }
-  // La manchette, à la couleur de la bande rouge.
-  forme(g, contourRect(-4, 104, 66, 30, 8, 3, 0.8), {
-    remplissage: COULEURS.rouge,
-    trait: 5,
-    ombre: 0,
-  });
-  return scene.add.container(0, 0, [g]).setRotation(-0.32);
-}
 
 /** Un rond d'onde là où le doigt touche. */
 export function onde(scene: Phaser.Scene, x: number, y: number): Phaser.GameObjects.Arc {
