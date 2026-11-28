@@ -2549,6 +2549,54 @@ export class PartieScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Le fond d'une carte de la main (DL.14) : une case de bande dessinée à la couleur de l'équipe,
+   * avec ses lignes de vitesse, sa trame de points qui grossit vers les bords, une étoile « pop »
+   * derrière la tête, et un gros trait noir.
+   */
+  private caseBD(bande: Bande, contour: { x: number; y: number }[]): Phaser.GameObjects.Graphics {
+    const { largeurCarte: l, hauteurCarte: h } = RANG;
+    const couleur = equipeDe(bande).couleur;
+    const k = Phaser.Display.Color.IntegerToColor(couleur);
+    const pale = (v: number): number => Math.round(v + (255 - v) * 0.35);
+    const g = this.add.graphics();
+    forme(g, contour, {
+      remplissage: Phaser.Display.Color.GetColor(pale(k.red), pale(k.green), pale(k.blue)),
+      ombre: 7,
+      trait: 5,
+    });
+    const cy = -h / 2 + 64;
+    g.lineStyle(2, 0xffffff, 0.55);
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2 + 0.1;
+      const r0 = 40;
+      const r1 = 120;
+      const x0 = Phaser.Math.Clamp(Math.cos(a) * r0, -l / 2 + 4, l / 2 - 4);
+      const x1 = Phaser.Math.Clamp(Math.cos(a) * r1, -l / 2 + 4, l / 2 - 4);
+      const y1 = Phaser.Math.Clamp(cy + Math.sin(a) * r1, -h / 2 + 4, h / 2 - 4);
+      g.lineBetween(x0, cy + Math.sin(a) * r0, x1, y1);
+    }
+    g.fillStyle(couleur, 0.35);
+    for (let yy = -h / 2 + 8; yy < h / 2 - 4; yy += 11) {
+      const decale = Math.round((yy + h / 2) / 11) % 2 ? 5 : 0;
+      for (let xx = -l / 2 + 8 + decale; xx < l / 2 - 4; xx += 11) {
+        const d = Math.hypot(xx, yy - cy);
+        if (d > 52) g.fillCircle(xx, yy, Math.min(3.2, (d - 52) / 16));
+      }
+    }
+    const etoile: { x: number; y: number }[] = [];
+    for (let i = 0; i < 20; i++) {
+      const r = i % 2 ? 30 : 46;
+      const a = (i / 20) * Math.PI * 2;
+      etoile.push({ x: Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    }
+    g.fillStyle(0xffffff, 0.95);
+    g.fillPoints(etoile, true);
+    g.lineStyle(3, COULEURS.encre, 1);
+    g.strokePoints(etoile, true);
+    return g;
+  }
+
   private carte(
     el: Eleve,
     x: number,
@@ -2557,26 +2605,35 @@ export class PartieScene extends Phaser.Scene {
     jouable: boolean,
   ): Phaser.GameObjects.Container {
     const { largeurCarte: l, hauteurCarte: h } = RANG;
-    const g = this.add.graphics();
     const graine = graineDe(x, y) + el.role.length;
-    forme(g, contourRect(-l / 2, -h / 2, l, h, 12, graine, 1), {
-      remplissage: equipeDe(el.bande).clair,
-      ombre: 5,
-      trait: 3,
-    });
-    // Tête et débardeur seulement : la carte montre la chasuble de l'élève.
+    const contour = contourRect(-l / 2, -h / 2, l, h, 6, graine, 0.6);
+    const g = this.caseBD(el.bande, contour);
+    // Tête et débardeur seulement : la carte montre la chasuble de l'élève. La tête sort du haut
+    // de la case (DL.14) ; seuls les côtés sont coupés.
     const skin = skinActif();
     // Plus de nom écrit sous le portrait (DL.1) : le visage et le chiffre suffisent, la loupe
     // montre le nom et le pouvoir en grand.
     const badge = skin.buste
-      ? skin.buste(this, el.bande, el.role, l - 8, h - 14)
+      ? skin.buste(this, el.bande, el.role, l - 4, h + 10)
       : skin.eleve(this, el.bande, el.role, 84);
-    badge.setPosition(0, skin.buste ? -2 : -10);
-    const enfants: Phaser.GameObjects.GameObject[] = [g, badge];
+    badge.setPosition(0, skin.buste ? -16 : -10);
+    // Le gros trait noir de la case passe sur le buste, sauf en haut où la tête dépasse.
+    const trait = this.add.graphics();
+    trait.lineStyle(5, COULEURS.encre, 1);
+    trait.strokePoints(
+      [
+        { x: -l / 2, y: -h / 2 + 20 },
+        { x: -l / 2, y: h / 2 },
+        { x: l / 2, y: h / 2 },
+        { x: l / 2, y: -h / 2 + 20 },
+      ],
+      false,
+    );
+    const enfants: Phaser.GameObjects.GameObject[] = [g, badge, trait];
     if (malade) {
       const voile = this.add.graphics();
       voile.fillStyle(0xbfe3b0, 0.8);
-      voile.fillPoints(contourRect(-l / 2, -h / 2, l, h, 12, graine, 1), true);
+      voile.fillPoints(contour, true);
       const t = this.add
         .text(0, 0, TEXTES.hud.infirmerie, {
           fontFamily: POLICE,

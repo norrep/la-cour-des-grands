@@ -130,7 +130,7 @@ export function avecZonePunis(cour: Cour): boolean {
 }
 
 /** Hauteur commune du rond « +2 copains » et de la pioche du bas, juste au-dessus de la main. */
-const Y_COINS_MAIN = RANG.y - RANG.hauteurCarte / 2 - 70;
+const Y_COINS_MAIN = RANG.y - RANG.hauteurCarte / 2 - 92;
 
 /** Centre du rond « +2 copains » : au-dessus du coin droit de la main (DL.8). */
 export const CENTRE_APPEL: Point = { x: DROITE - 82, y: Y_COINS_MAIN };
