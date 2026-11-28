@@ -1,7 +1,7 @@
 """
 Découpe un élève dessiné en T-pose (fond blanc) en marionnette articulée de six pièces.
 
-Usage : python3 scripts/decoupe.py <image source> <nom> <hauteur cible> <sortie.png> [--ver]
+Usage : python3 scripts/decoupe.py <image source> <nom> <hauteur cible> <sortie.png> [--ver] [--tete-encre]
 Écrit la texture (2048 × 512, pièces côte à côte) et affiche l'entrée de `rig.ts` en JSON.
 
 - Le trait est égalisé à l'échelle finale : le squelette de l'encre est redessiné à TRAIT pixels.
@@ -20,6 +20,8 @@ import numpy as np
 from skimage.morphology import skeletonize
 
 TRAIT = 9
+# Grosse tête posée sur les épaules, menton dans la bande des bras (Aliens « grosse tête », DT.1).
+TETE_ENCRE = '--tete-encre' in sys.argv
 LARGEUR, HAUTEUR = 2048, 512
 ECART = 16
 
@@ -131,8 +133,33 @@ def humanoide(img):
     cx0, cx1 = min(runs(a[cou]), key=lambda r: 0 if r[0] <= milieu < r[1] else abs((r[0] + r[1]) / 2 - milieu))
     sans_bras[cou:, : max(0, int(cx0) - 1)] = False
     sans_bras[cou:, int(cx1) + 1 :] = False
-    piece('tete', 0, cou + 4, 0, w, (milieu, cou), sans_bras)
-    piece('tronc', cou, entre + marge, tx0, tx1, (milieu, entre))
+    if TETE_ENCRE:
+        # Pas de cou dans la silhouette : la tête se reconnaît à son trait. Ce sont les zones de
+        # couleur fermées par l'encre qui commencent au-dessus des bras et finissent avant leur bas
+        # (visage, cheveux, antennes), plus l'encre qui les entoure.
+        rgb = img[..., :3].astype(int)
+        encre = (rgb.max(2) < 60) & a
+        n, lab = cv2.connectedComponents((a & ~encre).astype(np.uint8), connectivity=4)
+        tete = np.zeros_like(a)
+        for k in range(1, n):
+            ys, xs = np.nonzero(lab == k)
+            if ys.min() < by0 - marge and ys.max() < by1 and xs.min() > tx0 - (tx1 - tx0):
+                tete |= lab == k
+        noyau = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * TRAIT + 1, 2 * TRAIT + 1))
+        tete = (cv2.dilate(tete.astype(np.uint8), noyau) > 0) & a
+        menton = int(np.nonzero(tete[:, milieu])[0].max())
+        piece('tete', 0, menton + 1, 0, w, (milieu, menton), tete)
+        # Le tronc et les bras ne gardent que le dessous de la tête (son intérieur est retiré).
+        reste = ~(cv2.erode(tete.astype(np.uint8), noyau) > 0)
+        piece('tronc', by0 - marge, entre + marge, tx0, tx1, (milieu, entre), reste)
+        for nom in ['brasG', 'brasD']:
+            m, piv, abs_ = pieces[nom]
+            pieces.pop(nom)
+        piece('brasG', by0 - marge, by1 + marge, 0, tx0 + marge, (tx0 + marge * 0.5, ym), reste)
+        piece('brasD', by0 - marge, by1 + marge, tx1 - marge, w, (tx1 - marge * 0.5, ym), reste)
+    else:
+        piece('tete', 0, cou + 4, 0, w, (milieu, cou), sans_bras)
+        piece('tronc', cou, entre + marge, tx0, tx1, (milieu, entre))
     piece('jambeG', entre - marge, h, 0, milieu, ((tx0 + milieu) // 2, entre))
     piece('jambeD', entre - marge, h, milieu, w, ((milieu + tx1) // 2, entre))
     bout = np.nonzero(a[by0:by1, : tx0].any(0))[0].min()

@@ -66,6 +66,10 @@ function textures(): TextureSkin[] {
 
 /** Haut de la tête, en pixels de texture depuis les pieds (négatif). */
 const hautTete = (r: Rig) => r.pieces.tete.pos[1] - r.pieces.tete.pivot[1];
+/** Largeur de case que la tête d'un buste peut occuper (DT.4) ; le masque laisse en plus du jeu
+ * pour une tête décentrée ou qui se balance (couettes des Vers). */
+const TETE_DEBORDE = 1.2;
+const MASQUE_TETE = 1.6;
 /** Bas du débardeur (un peu au-dessus des hanches), en pixels de texture depuis les pieds. */
 const basBuste = (r: Rig) => r.pieces.tronc.pos[1] - r.hauteur * 0.03;
 
@@ -185,14 +189,29 @@ export const SKIN_CARTOON: Skin = {
     const r = rig(bande, role);
     const haut = hautTete(r);
     const bas = basBuste(r);
-    const echelle = Math.min(hauteur / (bas - haut), (largeur * 0.95) / r.pieces.tronc.cadre[2]);
+    // La tête peut déborder un peu de la case (couettes, cheveux bouffants) : elle doit y tenir à
+    // 1,15 fois sa largeur ; le tronc et les bras qui pendent de chaque côté, à 1,2 fois (DT.4).
+    const bras = estVer(bande) ? 0 : 2 * r.bras;
+    const echelle = Math.min(
+      hauteur / (bas - haut),
+      (largeur * 0.95) / r.pieces.tronc.cadre[2],
+      (largeur * TETE_DEBORDE) / r.pieces.tete.cadre[2],
+      (largeur * TETE_DEBORDE) / (r.pieces.tronc.cadre[2] + bras),
+    );
     const ver = estVer(bande) ? new Ver(scene, cleCorps(bande, role), echelle) : null;
     const m = ver ?? new Marionnette(scene, cle(bande, role), r, echelle);
     // Le bas du débardeur au bas de la carte.
     m.racine.setY(hauteur / 2 - bas * echelle);
     const buste = scene.add.container(0, 0, [m.racine]);
+    // Le masque ne coupe que sous le débardeur ; sur les côtés il laisse du jeu pour une tête
+    // décentrée ou qui se balance, et pour les mains.
     const masque = masqueQuiSuit(scene, buste, (g) =>
-      g.fillRect(-largeur / 2, -hauteur / 2 - hauteur, largeur, hauteur * 2),
+      g.fillRect(
+        (-largeur * MASQUE_TETE) / 2,
+        -hauteur / 2 - hauteur,
+        largeur * MASQUE_TETE,
+        hauteur * 2,
+      ),
     );
     m.racine.setMask(masque);
     if (ver) animerVer(scene, ver, buste, { caractere: role, calme: true });
