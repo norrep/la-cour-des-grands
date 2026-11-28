@@ -342,23 +342,23 @@ function estJouable(e, bande, eleveId) {
   const j = e.joueurs[bande];
   return j.rang.some((el) => el.id === eleveId) && !j.infirmerie.includes(eleveId);
 }
-function posePossible(e, bande, eleve, cible, connectes) {
+function posePossible(e, bande, eleve2, cible, connectes) {
   const noeud = e.cour.noeuds[cible];
   if (!noeud) return false;
-  if (!valeurAutorisee(e, cible, eleve.role)) return false;
+  if (!valeurAutorisee(e, cible, eleve2.role)) return false;
   const relie = () => (connectes ?? noeudsConnectes(e, bande)).has(cible);
   if (noeud.type === "cabane") {
     if (noeud.bande === bande) return false;
-    if (estJoker(eleve.role)) return false;
+    if (estJoker(eleve2.role)) return false;
     return relie();
   }
   const dessus = sommet(e, cible);
   if (dessus && dessus.bande !== bande) {
     if (estPlanque(e, cible)) return false;
     if (dessus.role === "petit") return false;
-    if (!peutRecouvrir(eleve, dessus)) return false;
+    if (!peutRecouvrir(eleve2, dessus)) return false;
   }
-  if (eleve.role === "fouine") return true;
+  if (eleve2.role === "fouine") return true;
   return relie();
 }
 function nombreAPiocher(j, voulu) {
@@ -375,14 +375,14 @@ function peutEnvoyer(e, bande) {
     (el) => !j.infirmerie.includes(el.id) && ids.some((id) => posePossible(e, bande, el, id, connectes))
   );
 }
-function optionsEffet(e, effet) {
+function optionsEffet(e, effet2) {
   const bande = e.courant;
   const adv = adversaire(bande);
   const moi = e.joueurs[bande];
   const cour = e.cour;
   const adverseVisible = (ilot) => sommet(e, ilot)?.bande === adv && !estPlanque(e, ilot);
-  if (effet.type === "pouvoir") {
-    switch (effet.role) {
+  if (effet2.type === "pouvoir") {
+    switch (effet2.role) {
       case "populaire":
         return nombreAPiocher(moi, PIOCHE_POPULAIRE) > 0 ? [{ type: "piocher" }] : [];
       case "chouchou": {
@@ -400,7 +400,7 @@ function optionsEffet(e, effet) {
         return options;
       }
       case "rapporteuse":
-        return ilotsVoisins(cour, effet.ilot).filter(adverseVisible).map((ilot) => ({ type: "cpe", ilot }));
+        return ilotsVoisins(cour, effet2.ilot).filter(adverseVisible).map((ilot) => ({ type: "cpe", ilot }));
       case "contagieux": {
         const j = e.joueurs[adv];
         return j.rang.some((el) => !j.infirmerie.includes(el.id)) ? [{ type: "infirmerie" }] : [];
@@ -417,19 +417,19 @@ function optionsEffet(e, effet) {
         return opts;
       }
       case "fouine":
-        return effet.horsChemin && nombreAPiocher(moi, 1) > 0 ? [{ type: "piocher" }] : [];
+        return effet2.horsChemin && nombreAPiocher(moi, 1) > 0 ? [{ type: "piocher" }] : [];
       default:
         return [];
     }
   }
-  switch (effet.equipement) {
+  switch (effet2.equipement) {
     case "cabanePerchee":
       return nombreAPiocher(moi, 1) > 0 ? [{ type: "piocher" }] : [];
     case "porteVieScolaire":
       if (moi.rang.length >= TAILLE_RANG) return [];
       return moi.cpe.map((el) => ({ type: "repecher", eleveId: el.id }));
     case "buts": {
-      const dist = distancesDepuis(cour, effet.ilot);
+      const dist = distancesDepuis(cour, effet2.ilot);
       return cour.ilots.filter((ilot) => {
         if (dist[ilot] !== 2 || !adverseVisible(ilot)) return false;
         const v = valeur(sommet(e, ilot).role);
@@ -438,7 +438,7 @@ function optionsEffet(e, effet) {
     }
     case "toboggan": {
       const options = [];
-      for (const depart of ilotsVoisins(cour, effet.ilot)) {
+      for (const depart of ilotsVoisins(cour, effet2.ilot)) {
         if (!adverseVisible(depart)) continue;
         for (const arrivee of ilotsVoisins(cour, depart)) {
           if (estPlanque(e, arrivee)) continue;
@@ -451,8 +451,8 @@ function optionsEffet(e, effet) {
       return [];
   }
 }
-function sourceEffet(effet) {
-  return effet.type === "pouvoir" ? effet.role : effet.equipement;
+function sourceEffet(effet2) {
+  return effet2.type === "pouvoir" ? effet2.role : effet2.equipement;
 }
 function memeOption(a, b) {
   if (a.type !== b.type) return false;
@@ -510,11 +510,11 @@ function jouer(etat, action) {
       if (!estJouable(e, bande, action.eleveId)) {
         throw new ActionIllegale("Cet \xE9l\xE8ve ne peut pas \xEAtre jou\xE9.");
       }
-      const eleve = e.joueurs[bande].rang.find((el) => el.id === action.eleveId);
-      if (!posePossible(e, bande, eleve, action.cible)) {
+      const eleve2 = e.joueurs[bande].rang.find((el) => el.id === action.eleveId);
+      if (!posePossible(e, bande, eleve2, action.cible)) {
         throw new ActionIllegale("Pose impossible \xE0 cet endroit.");
       }
-      poser(e, bande, eleve, action.cible);
+      poser(e, bande, eleve2, action.cible);
       resoudre(e);
       return e;
     }
@@ -536,24 +536,24 @@ function terminer(e, gagnant, raison) {
   e.attente = null;
   noter(e, { type: "fin", tour: e.tour, gagnant, raison });
 }
-function poser(e, bande, eleve, cible) {
-  const horsChemin = eleve.role === "fouine" && !noeudsConnectes(e, bande).has(cible);
+function poser(e, bande, eleve2, cible) {
+  const horsChemin = eleve2.role === "fouine" && !noeudsConnectes(e, bande).has(cible);
   const j = e.joueurs[bande];
-  j.rang = j.rang.filter((el) => el.id !== eleve.id);
+  j.rang = j.rang.filter((el) => el.id !== eleve2.id);
   const noeud = e.cour.noeuds[cible];
   if (noeud?.type === "cabane") {
-    noter(e, { type: "pose", tour: e.tour, bande, eleveId: eleve.id, role: eleve.role, cible });
+    noter(e, { type: "pose", tour: e.tour, bande, eleveId: eleve2.id, role: eleve2.role, cible });
     terminer(e, bande, "cabane");
     return;
   }
   const dessous = sommet(e, cible);
-  e.piles[cible].push(eleve);
+  e.piles[cible].push(eleve2);
   noter(e, {
     type: "pose",
     tour: e.tour,
     bande,
-    eleveId: eleve.id,
-    role: eleve.role,
+    eleveId: eleve2.id,
+    role: eleve2.role,
     cible,
     ...dessous && dessous.bande !== bande ? { plaque: dessous.role } : {}
   });
@@ -561,34 +561,34 @@ function poser(e, bande, eleve, cible) {
   if (e.fin) return;
   const equipement = equipementActif(e, cible);
   if (equipement && equipement !== "marelle" && equipement !== "bancMaitresses") {
-    e.effets.push({ type: "equipement", equipement, ilot: cible, eleveId: eleve.id });
+    e.effets.push({ type: "equipement", equipement, ilot: cible, eleveId: eleve2.id });
   }
   if (equipement !== "bancMaitresses") {
     e.effets.push({
       type: "pouvoir",
-      role: eleve.role,
+      role: eleve2.role,
       ilot: cible,
-      eleveId: eleve.id,
+      eleveId: eleve2.id,
       ...horsChemin ? { horsChemin } : {}
     });
   }
 }
 function envoyerCpe(e, ilot) {
-  const eleve = e.piles[ilot].pop();
-  e.joueurs[eleve.bande].cpe.push(eleve);
+  const eleve2 = e.piles[ilot].pop();
+  e.joueurs[eleve2.bande].cpe.push(eleve2);
   noter(e, {
     type: "cpe",
     tour: e.tour,
-    bande: eleve.bande,
-    eleveId: eleve.id,
-    role: eleve.role,
+    bande: eleve2.bande,
+    eleveId: eleve2.id,
+    role: eleve2.role,
     ilot
   });
 }
-function appliquerOption(e, effet, option) {
+function appliquerOption(e, effet2, option) {
   const bande = e.courant;
   const moi = e.joueurs[bande];
-  const source = sourceEffet(effet);
+  const source = sourceEffet(effet2);
   switch (option.type) {
     case "piocher": {
       const n = nombreAPiocher(moi, source === "populaire" ? PIOCHE_POPULAIRE : 1);
@@ -597,8 +597,8 @@ function appliquerOption(e, effet, option) {
       break;
     }
     case "poser": {
-      const eleve = moi.rang.find((el) => el.id === option.eleveId);
-      poser(e, bande, eleve, option.cible);
+      const eleve2 = moi.rang.find((el) => el.id === option.eleveId);
+      poser(e, bande, eleve2, option.cible);
       break;
     }
     case "cpe":
@@ -621,27 +621,27 @@ function appliquerOption(e, effet, option) {
       break;
     }
     case "rappeler": {
-      const eleve = e.piles[option.ilot].pop();
-      moi.rang.push(eleve);
-      noter(e, { type: "rappel", tour: e.tour, bande, eleveId: eleve.id, ilot: option.ilot });
+      const eleve2 = e.piles[option.ilot].pop();
+      moi.rang.push(eleve2);
+      noter(e, { type: "rappel", tour: e.tour, bande, eleveId: eleve2.id, ilot: option.ilot });
       verifierRegions(e);
       break;
     }
     case "repecher": {
-      const eleve = moi.cpe.find((el) => el.id === option.eleveId);
+      const eleve2 = moi.cpe.find((el) => el.id === option.eleveId);
       moi.cpe = moi.cpe.filter((el) => el.id !== option.eleveId);
-      moi.rang.push(eleve);
-      noter(e, { type: "repechage", tour: e.tour, bande, eleveId: eleve.id });
+      moi.rang.push(eleve2);
+      noter(e, { type: "repechage", tour: e.tour, bande, eleveId: eleve2.id });
       break;
     }
     case "glisser": {
-      const eleve = e.piles[option.depart].pop();
-      e.piles[option.arrivee].push(eleve);
+      const eleve2 = e.piles[option.depart].pop();
+      e.piles[option.arrivee].push(eleve2);
       noter(e, {
         type: "glissade",
         tour: e.tour,
-        eleveId: eleve.id,
-        role: eleve.role,
+        eleveId: eleve2.id,
+        role: eleve2.role,
         depart: option.depart,
         arrivee: option.arrivee
       });
@@ -709,8 +709,8 @@ function cleOption(e, o) {
       return o.type;
   }
 }
-function choixUnique(e, effet, options) {
-  if (effet.type === "pouvoir" && effet.role === "delegue") return false;
+function choixUnique(e, effet2, options) {
+  if (effet2.type === "pouvoir" && effet2.role === "delegue") return false;
   const premiere = options[0];
   if (!premiere) return false;
   const cle = cleOption(e, premiere);
@@ -718,15 +718,15 @@ function choixUnique(e, effet, options) {
 }
 function resoudre(e) {
   while (!e.fin && e.effets.length > 0) {
-    const effet = e.effets[e.effets.length - 1];
-    const options = optionsEffet(e, effet);
-    if (e.pouvoirsAuto && options.length > 0 && choixUnique(e, effet, options)) {
+    const effet2 = e.effets[e.effets.length - 1];
+    const options = optionsEffet(e, effet2);
+    if (e.pouvoirsAuto && options.length > 0 && choixUnique(e, effet2, options)) {
       e.effets.pop();
-      appliquerOption(e, effet, options[0]);
+      appliquerOption(e, effet2, options[0]);
       continue;
     }
     if (options.length > 0) {
-      e.attente = { effet, options };
+      e.attente = { effet: effet2, options };
       return;
     }
     e.effets.pop();
@@ -746,22 +746,22 @@ function finirTour(e) {
   e.tour += 1;
   const suivant = e.courant;
   if (!peutAppeler(e, suivant) && !peutEnvoyer(e, suivant)) {
-    const autre = adversaire(suivant);
+    const autre2 = adversaire(suivant);
     const ptsSuivant = e.joueurs[suivant].bonsPoints;
-    const ptsAutre = e.joueurs[autre].bonsPoints;
+    const ptsAutre = e.joueurs[autre2].bonsPoints;
     if (ptsSuivant !== ptsAutre) {
-      terminer(e, ptsSuivant > ptsAutre ? suivant : autre, "sonnerie");
+      terminer(e, ptsSuivant > ptsAutre ? suivant : autre2, "sonnerie");
       return;
     }
     const tenus = (b) => e.cour.ilots.filter((i) => sommet(e, i)?.bande === b).length;
-    terminer(e, tenus(suivant) > tenus(autre) ? suivant : autre, "sonnerie");
+    terminer(e, tenus(suivant) > tenus(autre2) ? suivant : autre2, "sonnerie");
   }
 }
 
 // src/reseau/vue.ts
 var PREFIXE_CACHE = "?";
-function estCache(eleve) {
-  return eleve.id.startsWith(PREFIXE_CACHE);
+function estCache(eleve2) {
+  return eleve2.id.startsWith(PREFIXE_CACHE);
 }
 function caches(bande, lieu, n) {
   return Array.from({ length: n }, (_, i) => ({
@@ -1339,8 +1339,206 @@ var SalleMemoire = class {
     };
   }
 };
+
+// src/reseau/miroir.ts
+var CourAsymetrique = class extends Error {
+};
+var autre = (b) => b === "rouge" ? "bleu" : "rouge";
+var caches2 = /* @__PURE__ */ new Map();
+function miroirDe(cour) {
+  const deja = caches2.get(cour.id);
+  if (deja) return deja;
+  const ids = Object.keys(cour.noeuds);
+  const sigma = {};
+  for (const id of ids) {
+    const n2 = cour.noeuds[id];
+    if (!n2) continue;
+    let meilleur = id;
+    let dMin = Infinity;
+    for (const autreId of ids) {
+      const m = cour.noeuds[autreId];
+      if (!m) continue;
+      const d = Math.hypot(1 - n2.x - m.x, 1 - n2.y - m.y);
+      if (d < dMin) {
+        dMin = d;
+        meilleur = autreId;
+      }
+    }
+    sigma[id] = meilleur;
+  }
+  const s = (id) => {
+    const r = sigma[id];
+    if (r === void 0) throw new CourAsymetrique(`${cour.id} : n\u0153ud inconnu ${id}`);
+    return r;
+  };
+  const verifier = (ok, quoi) => {
+    if (!ok) throw new CourAsymetrique(`${cour.id} : pas sym\xE9trique (${quoi})`);
+  };
+  for (const id of ids) {
+    const n2 = cour.noeuds[id];
+    const m = cour.noeuds[s(id)];
+    verifier(s(s(id)) === id, `r\xE9ciproque ${id}`);
+    verifier(n2?.type === m?.type && n2?.equipement === m?.equipement, `nature de ${id}`);
+    if (n2?.bande) verifier(m?.bande === autre(n2.bande), `cabane ${id}`);
+  }
+  const cleAllee2 = (a, b) => [a, b].sort().join("|");
+  const allees = new Set(cour.allees.map(([a, b]) => cleAllee2(a, b)));
+  for (const [a, b] of cour.allees) verifier(allees.has(cleAllee2(s(a), s(b))), `all\xE9e ${a}-${b}`);
+  for (const [i, depuis] of Object.entries(cour.sensUnique)) {
+    const [a, b] = cour.allees[Number(i)] ?? ["", ""];
+    const vers = depuis === a ? b : a;
+    const j = cour.allees.findIndex(([x, y]) => cleAllee2(x, y) === cleAllee2(s(a), s(b)));
+    verifier(cour.sensUnique[j] === s(depuis) && vers !== "", `sens unique ${a}-${b}`);
+  }
+  const regionDe = /* @__PURE__ */ new Map();
+  const cleIlots = (ilots) => [...ilots].sort().join(",");
+  for (const r of cour.regions) {
+    const image = cleIlots(r.ilots.map(s));
+    const cible = cour.regions.find((q) => cleIlots(q.ilots) === image);
+    verifier(cible !== void 0 && cible.bonsPoints === r.bonsPoints, `r\xE9gion ${r.id}`);
+    regionDe.set(r.id, cible.id);
+  }
+  const indexRegion = (id) => cour.regions.findIndex((r) => r.id === id);
+  const n = cour.ronde.length;
+  const rondeDe = cour.ronde.map((ri) => {
+    const r = cour.regions[ri];
+    const image = r ? indexRegion(regionDe.get(r.id) ?? "") : -1;
+    return cour.ronde.indexOf(image);
+  });
+  const decalage = n > 0 ? ((rondeDe[0] ?? 0) + n) % n : 0;
+  rondeDe.forEach((j, i) => verifier(j === (i + decalage) % n, "ronde"));
+  const k = cour.courant.length;
+  if (k > 0) {
+    const d = cour.courant.indexOf(s(cour.courant[0] ?? ""));
+    cour.courant.forEach((id, i) => verifier(cour.courant[(i + d) % k] === s(id), "courant"));
+  }
+  const miroir = {
+    noeud: s,
+    region: (id) => regionDe.get(id) ?? id,
+    ronde: (i) => n > 0 ? (i + decalage) % n : i,
+    anneau: (liste) => {
+      const image = liste.map(s);
+      const debut = image.indexOf(cour.courant[0] ?? "");
+      return debut <= 0 ? image : [...image.slice(debut), ...image.slice(0, debut)];
+    }
+  };
+  caches2.set(cour.id, miroir);
+  return miroir;
+}
+function idEleve(id) {
+  return id.replace(/^(\??)(rouge|bleu)/, (_, q, b) => `${q}${autre(b)}`);
+}
+function eleve(e) {
+  return { id: idEleve(e.id), bande: autre(e.bande), role: e.role };
+}
+function joueur(j) {
+  return {
+    couloir: j.couloir.map(eleve),
+    rang: j.rang.map(eleve),
+    cpe: j.cpe.map(eleve),
+    absents: j.absents.map(eleve),
+    infirmerie: j.infirmerie.map(idEleve),
+    bonsPoints: j.bonsPoints
+  };
+}
+function effet(e, m) {
+  return { ...e, ilot: m.noeud(e.ilot), eleveId: idEleve(e.eleveId) };
+}
+function retournerOption(o, m) {
+  switch (o.type) {
+    case "poser":
+      return { type: "poser", eleveId: idEleve(o.eleveId), cible: m.noeud(o.cible) };
+    case "cpe":
+      return { type: "cpe", ilot: m.noeud(o.ilot) };
+    case "rappeler":
+      return { type: "rappeler", ilot: m.noeud(o.ilot) };
+    case "repecher":
+      return { type: "repecher", eleveId: idEleve(o.eleveId) };
+    case "glisser":
+      return { type: "glisser", depart: m.noeud(o.depart), arrivee: m.noeud(o.arrivee) };
+    case "surveillante":
+      return { type: "surveillante", position: m.ronde(o.position) };
+    default:
+      return o;
+  }
+}
+function retournerAction(a, m) {
+  if (a.type === "envoyer") {
+    return { type: "envoyer", eleveId: idEleve(a.eleveId), cible: m.noeud(a.cible) };
+  }
+  if (a.type === "choisir") return { type: "choisir", option: retournerOption(a.option, m) };
+  return a;
+}
+function evenement(ev, m) {
+  switch (ev.type) {
+    case "appel":
+    case "pioche":
+    case "passe":
+      return { ...ev, bande: autre(ev.bande) };
+    case "pose":
+      return {
+        ...ev,
+        bande: autre(ev.bande),
+        eleveId: idEleve(ev.eleveId),
+        cible: m.noeud(ev.cible)
+      };
+    case "cpe":
+    case "rappel":
+      return {
+        ...ev,
+        bande: autre(ev.bande),
+        eleveId: idEleve(ev.eleveId),
+        ilot: m.noeud(ev.ilot)
+      };
+    case "infirmerie":
+    case "repechage":
+      return { ...ev, bande: autre(ev.bande), eleveId: idEleve(ev.eleveId) };
+    case "surveillante":
+      return { ...ev, position: m.ronde(ev.position) };
+    case "courant":
+      return { ...ev, anneau: m.anneau(ev.anneau) };
+    case "glissade":
+      return {
+        ...ev,
+        eleveId: idEleve(ev.eleveId),
+        depart: m.noeud(ev.depart),
+        arrivee: m.noeud(ev.arrivee)
+      };
+    case "region":
+      return { ...ev, bande: autre(ev.bande), region: m.region(ev.region) };
+    case "fin":
+      return { ...ev, gagnant: autre(ev.gagnant) };
+  }
+}
+function retournerEtat(e, m) {
+  const piles = {};
+  for (const [id, pile] of Object.entries(e.piles)) piles[m.noeud(id)] = pile.map(eleve);
+  const regionsPrises = {};
+  for (const [id, b] of Object.entries(e.regionsPrises)) regionsPrises[m.region(id)] = autre(b);
+  return {
+    ...e,
+    joueurs: { rouge: joueur(e.joueurs.bleu), bleu: joueur(e.joueurs.rouge) },
+    piles,
+    surveillante: m.ronde(e.surveillante),
+    premier: autre(e.premier),
+    courant: autre(e.courant),
+    regionsPrises,
+    effets: e.effets.map((x) => effet(x, m)),
+    attente: e.attente ? {
+      effet: effet(e.attente.effet, m),
+      options: e.attente.options.map((o) => retournerOption(o, m))
+    } : null,
+    fin: e.fin ? { ...e.fin, gagnant: autre(e.fin.gagnant) } : null,
+    journal: e.journal.map((ev) => evenement(ev, m))
+  };
+}
+function retournerIssue(i) {
+  return i ? { ...i, gagnant: autre(i.gagnant) } : null;
+}
+var retournerBande = autre;
 export {
   ALPHABET_CODE,
+  CourAsymetrique,
   DELAI_TOUR_DEFAUT,
   DELAI_TOUR_MAX,
   DELAI_TOUR_MIN,
@@ -1352,11 +1550,17 @@ export {
   elevesConnusDuRang,
   estCache,
   masquer,
+  miroirDe,
   normaliserCode,
   nouveauCode,
   ouvrirPartie,
   rejoindrePartie,
   restaurer,
+  retournerAction,
+  retournerBande,
+  retournerEtat,
+  retournerIssue,
+  retournerOption,
   stocker,
   traiter,
   validerReglages,
