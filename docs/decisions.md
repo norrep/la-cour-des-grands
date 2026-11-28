@@ -420,6 +420,26 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   bords, étoile « pop » derrière la tête et gros trait noir ; la tête de l'élève sort du haut de
   la case, le visage garde sa taille. La loupe montre la même case en grand. Pour laisser passer
   les têtes, la pioche du bas et le rond « +2 copains » remontent de 22 px.
+- **DL.15 — Cartes de la main : cadre de carte de collection, têtes qui débordent** (Clément :
+  « le pire des deux mondes », garder les têtes qui sortent, reprendre le contour et le fond de la
+  carte de collection, retirer les lignes blanches). Remplace le fond de DL.14 : cadre épais à la
+  couleur de l'équipe, panneau clair avec un éclat (rayons coupés au bord du panneau) et un rond
+  blanc derrière la tête, reflet sur le bord gauche. Plus de lignes de vitesse, de trame ni
+  d'étoile. La tête sort toujours par le haut ; le cadre repasse sur le buste à gauche, à droite
+  et en bas.
+  Retouche (Clément) : plus de rond blanc derrière la tête, seul l'éclat reste.
+- **DL.16 — Le rang remonte sur les écrans courts** (Clément : « les persos sont coupés en bas »).
+  Sur un écran de forme 9:16 ou plus court (navigateur avec barres), les cartes du bord de
+  l'éventail touchaient le bas de l'écran. Le rang se place au plus à 128 px du bas visible ;
+  sur les écrans allongés rien ne change.
+- **DL.17 — La pendule montre la sonnerie qui approche** (Clément : l'horloge du haut n'était
+  pas lisible ; choix C parmi trois maquettes : grande pendule, pendule et heure écrite, sonnerie
+  qui approche). Pendule deux fois plus grande (rayon 34), cadre rouge, deux cloches jaunes
+  dessus, aiguilles épaisses ; elle avance toujours de 5 minutes par tour. Son cadran se remplit
+  de rouge à mesure que les couloirs des deux bandes se vident (vide quand les rangs de départ
+  sont tirés, plein quand plus personne ne peut appeler de copains) : la sonnerie ne vient
+  qu'ensuite, quand un joueur ne peut plus rien faire. La pastille « Au tour de… » passe sous la
+  pendule, le « ? » à sa droite, le temps restant du jeu en ligne à sa gauche.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 

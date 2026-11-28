@@ -20,6 +20,10 @@ import {
   type Action,
   type Option,
   type RoleId,
+  ABSENTS_A_L_APPEL,
+  EXEMPLAIRES_PAR_ROLE,
+  RANG_DEPART_PREMIER,
+  RANG_DEPART_SECOND,
   adversaire,
 } from '../../engine/index';
 import { apercu } from '../apercu';
@@ -107,6 +111,12 @@ const RAYON_ILOT = 48;
 /** Haut de la cour, à défaut de cabane en haut (fiche de la cour). */
 const ZONE_HAUT_COUR = 100;
 const TAILLE_BADGE = 70;
+/** La pendule du bandeau du haut (DL.17) et la pastille « Au tour de… » juste dessous. */
+const Y_HORLOGE = 44;
+const RAYON_HORLOGE = 34;
+const Y_PASTILLE_TOUR = 102;
+/** Épaisseur du cadre à la couleur de l'équipe autour des cartes de la main (DL.15). */
+const MARGE_CADRE = 8;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
 const DIAMETRE_PASTILLE = 112;
 const RAYON_DEPOT = 75;
@@ -1854,14 +1864,15 @@ export class PartieScene extends Phaser.Scene {
       this.dessinerCartable(b, x, 50, e.joueurs[b].bonsPoints - this.gouterEnVol[b]);
     }
 
-    // La pendule de l'école : elle avance à chaque tour (la règle de la sonnerie ne change pas).
-    this.dessinerHorloge(LARGEUR / 2, 24, e.tour);
+    // La pendule de l'école (DL.17) : elle avance à chaque tour et se remplit de rouge à mesure que
+    // les couloirs se vident, jusqu'à la sonnerie.
+    this.dessinerHorloge(LARGEUR / 2, Y_HORLOGE, e.tour);
     if (this.ctrl.phase === 'jeu') {
       this.ajouter(
         creerBouton(
           this,
-          LARGEUR / 2 + 52,
-          26,
+          LARGEUR / 2 + 72,
+          34,
           TEXTES.hud.aide,
           () => {
             this.aideOuverte = true;
@@ -1878,20 +1889,20 @@ export class PartieScene extends Phaser.Scene {
           ? TEXTES.enLigne.aToi
           : TEXTES.enLigne.auTourAmi
         : TEXTES.hud.tourDe(b);
-      const t = this.texte(LARGEUR / 2, 76, qui, 21, COULEURS.texteSombre, {
+      const t = this.texte(LARGEUR / 2, Y_PASTILLE_TOUR, qui, 21, COULEURS.texteSombre, {
         fontStyle: '700',
       }).setOrigin(0.5);
       const l = t.width + 28;
       const fond = this.add.graphics();
-      forme(fond, contourRect(LARGEUR / 2 - l / 2, 60, l, 33, 16, 11), {
+      forme(fond, contourRect(LARGEUR / 2 - l / 2, Y_PASTILLE_TOUR - 16, l, 33, 16, 11), {
         remplissage: equipeDe(b).couleur,
         trait: 3,
         ombre: 3,
       });
       this.dyn.addAt(fond, this.dyn.getIndex(t));
-      // En ligne : le temps qu'il reste pour jouer ce tour, sous la pastille.
+      // En ligne : le temps qu'il reste pour jouer ce tour, à gauche de la pendule.
       if (this.enLigne && this.enLigne.vue.echeance !== null) {
-        this.texteTemps = this.texte(LARGEUR / 2, 110, '', 20, COULEURS.texteSombre, {
+        this.texteTemps = this.texte(LARGEUR / 2 - 82, Y_HORLOGE, '', 20, COULEURS.texteSombre, {
           fontStyle: '700',
         }).setOrigin(0.5);
         this.horlogeEnLigne(this.enLigne);
@@ -1947,15 +1958,40 @@ export class PartieScene extends Phaser.Scene {
     g.fillCircle(x + r * 0.3, y + r * 0.3, r * 0.18);
   }
 
-  /** La pendule de l'école. Elle prend cinq minutes de plus à chaque tour, à partir de 10 h. */
+  /**
+   * La pendule de l'école (DL.17) : grande, cadre rouge, deux cloches dessus. Elle prend cinq
+   * minutes de plus à chaque tour, à partir de 10 h, et son cadran se remplit de rouge à mesure
+   * que les couloirs des deux bandes se vident : on voit venir la sonnerie.
+   */
   private dessinerHorloge(cx: number, cy: number, tour: number): void {
     const g = this.ajouter(this.add.graphics());
-    const r = 21;
-    forme(g, contourRond(cx, cy, r, 77), { remplissage: 0xffffff, trait: 4, ombre: 3 });
-    g.lineStyle(2, COULEURS.encre, 1);
+    const r = RAYON_HORLOGE;
+    // Les cloches de la sonnerie, derrière la pendule.
+    for (const dx of [-26, 26]) {
+      forme(g, contourRond(cx + dx * 1.15, cy - 30, 10, 5 + dx), {
+        remplissage: COULEURS.jaune,
+        trait: 3,
+      });
+    }
+    forme(g, contourRond(cx, cy, r + 6, 77), { remplissage: COULEURS.rouge, trait: 4, ombre: 4 });
+    forme(g, contourRond(cx, cy, r, 78), { remplissage: 0xffffff, trait: 3 });
+    const e = this.etat;
+    // Élèves dans les couloirs une fois les rangs de départ tirés : la pendule part de vide.
+    const depart =
+      2 * (ROLES.length * EXEMPLAIRES_PAR_ROLE - ABSENTS_A_L_APPEL) -
+      RANG_DEPART_PREMIER -
+      RANG_DEPART_SECOND;
+    const reste = e.joueurs.rouge.couloir.length + e.joueurs.bleu.couloir.length;
+    const f = Phaser.Math.Clamp(1 - reste / depart, 0, 1);
+    if (f > 0) {
+      g.fillStyle(0xffb3a7, 1);
+      g.slice(cx, cy, r - 2, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2, false);
+      g.fillPath();
+    }
+    g.lineStyle(3, COULEURS.encre, 1);
     for (let h = 0; h < 12; h++) {
       const a = (h / 12) * Math.PI * 2;
-      const r1 = h % 3 === 0 ? r - 7 : r - 4;
+      const r1 = h % 3 === 0 ? r - 10 : r - 7;
       g.lineBetween(
         cx + Math.sin(a) * r1,
         cy - Math.cos(a) * r1,
@@ -1975,10 +2011,11 @@ export class PartieScene extends Phaser.Scene {
       a.setOrigin(0.5, 1).setRotation(angle);
       return a;
     };
-    aiguille(angleHeure, r * 0.5, 4);
-    const grande = aiguille(angleMinute, r * 0.8, 3);
-    g.fillStyle(COULEURS.rouge, 1);
-    g.fillCircle(cx, cy, 3);
+    aiguille(angleHeure, r * 0.5, 6);
+    const grande = aiguille(angleMinute, r * 0.78, 4);
+    const centre = this.ajouter(this.add.graphics());
+    centre.fillStyle(COULEURS.rouge, 1);
+    centre.fillCircle(cx, cy, 4.5);
     // Quand le tour change, la grande aiguille avance d'un coup sec, comme une vraie pendule.
     if (this.animations && this.tourHorloge !== 0 && this.tourHorloge !== tour) {
       grande.setRotation(angleMinute - Math.PI / 6);
@@ -2605,50 +2642,78 @@ export class PartieScene extends Phaser.Scene {
   }
 
   /**
-   * Le fond d'une carte de la main (DL.14) : une case de bande dessinée à la couleur de l'équipe,
-   * avec ses lignes de vitesse, sa trame de points qui grossit vers les bords, une étoile « pop »
-   * derrière la tête, et un gros trait noir.
+   * Le fond d'une carte de la main (DL.15) : une carte de collection, cadre épais à la couleur de
+   * l'équipe, panneau clair avec un éclat derrière la tête.
    */
-  private caseBD(bande: Bande, contour: { x: number; y: number }[]): Phaser.GameObjects.Graphics {
+  private fondCollection(
+    bande: Bande,
+    contour: { x: number; y: number }[],
+    interieur: { x: number; y: number }[],
+  ): Phaser.GameObjects.Graphics {
     const { largeurCarte: l, hauteurCarte: h } = RANG;
-    const couleur = equipeDe(bande).couleur;
-    const k = Phaser.Display.Color.IntegerToColor(couleur);
-    const pale = (v: number): number => Math.round(v + (255 - v) * 0.35);
+    const eq = equipeDe(bande);
+    const k = Phaser.Display.Color.IntegerToColor(eq.couleur);
+    const pale = (v: number): number => Math.round(v + (255 - v) * 0.3);
     const g = this.add.graphics();
-    forme(g, contour, {
-      remplissage: Phaser.Display.Color.GetColor(pale(k.red), pale(k.green), pale(k.blue)),
-      ombre: 7,
-      trait: 5,
-    });
-    const cy = -h / 2 + 64;
-    g.lineStyle(2, 0xffffff, 0.55);
-    for (let i = 0; i < 18; i++) {
-      const a = (i / 18) * Math.PI * 2 + 0.1;
-      const r0 = 40;
-      const r1 = 120;
-      const x0 = Phaser.Math.Clamp(Math.cos(a) * r0, -l / 2 + 4, l / 2 - 4);
-      const x1 = Phaser.Math.Clamp(Math.cos(a) * r1, -l / 2 + 4, l / 2 - 4);
-      const y1 = Phaser.Math.Clamp(cy + Math.sin(a) * r1, -h / 2 + 4, h / 2 - 4);
-      g.lineBetween(x0, cy + Math.sin(a) * r0, x1, y1);
+    forme(g, contour, { remplissage: eq.couleur, ombre: 6, trait: 3.5 });
+    forme(g, interieur, { remplissage: eq.clair, trait: 2.5 });
+    const cy = -h / 2 + 70;
+    g.fillStyle(Phaser.Display.Color.GetColor(pale(k.red), pale(k.green), pale(k.blue)), 1);
+    // Les rayons s'arrêtent au bord du panneau clair.
+    const m = MARGE_CADRE + 2;
+    const dedans = (pts: { x: number; y: number }[]): { x: number; y: number }[] =>
+      decouperRect(pts, -l / 2 + m, -h / 2 + m, l / 2 - m, h / 2 - m);
+    const n = 16;
+    const R = 120;
+    for (let i = 0; i < n; i += 2) {
+      const a = (i / n) * Math.PI * 2;
+      const b = ((i + 1) / n) * Math.PI * 2;
+      const rayon = dedans([
+        { x: 0, y: cy },
+        { x: Math.cos(a) * R, y: cy + Math.sin(a) * R },
+        { x: Math.cos(b) * R, y: cy + Math.sin(b) * R },
+      ]);
+      if (rayon.length > 2) g.fillPoints(rayon, true);
     }
-    g.fillStyle(couleur, 0.35);
-    for (let yy = -h / 2 + 8; yy < h / 2 - 4; yy += 11) {
-      const decale = Math.round((yy + h / 2) / 11) % 2 ? 5 : 0;
-      for (let xx = -l / 2 + 8 + decale; xx < l / 2 - 4; xx += 11) {
-        const d = Math.hypot(xx, yy - cy);
-        if (d > 52) g.fillCircle(xx, yy, Math.min(3.2, (d - 52) / 16));
-      }
-    }
-    const etoile: { x: number; y: number }[] = [];
-    for (let i = 0; i < 20; i++) {
-      const r = i % 2 ? 30 : 46;
-      const a = (i / 20) * Math.PI * 2;
-      etoile.push({ x: Math.cos(a) * r, y: cy + Math.sin(a) * r });
-    }
-    g.fillStyle(0xffffff, 0.95);
-    g.fillPoints(etoile, true);
-    g.lineStyle(3, COULEURS.encre, 1);
-    g.strokePoints(etoile, true);
+    return g;
+  }
+
+  /**
+   * Le cadre de la carte repasse sur le buste à gauche, en bas et à droite ; en haut, la tête sort
+   * de la carte (DL.15).
+   */
+  private cadreCollection(bande: Bande): Phaser.GameObjects.Graphics {
+    const { largeurCarte: l, hauteurCarte: h } = RANG;
+    const m = MARGE_CADRE;
+    const haut = -h / 2 + 24;
+    const g = this.add.graphics();
+    g.fillStyle(equipeDe(bande).couleur, 1);
+    g.fillRect(-l / 2 + 1, haut, m - 1, h / 2 - haut - 1);
+    g.fillRect(l / 2 - m, haut, m - 1, h / 2 - haut - 1);
+    g.fillRect(-l / 2 + 1, h / 2 - m, l - 2, m - 1);
+    g.lineStyle(2.5, COULEURS.encre, 1);
+    g.strokePoints(
+      [
+        { x: -l / 2 + m, y: haut },
+        { x: -l / 2 + m, y: h / 2 - m },
+        { x: l / 2 - m, y: h / 2 - m },
+        { x: l / 2 - m, y: haut },
+      ],
+      false,
+    );
+    g.lineStyle(3.5, COULEURS.encre, 1);
+    g.strokePoints(
+      [
+        { x: -l / 2, y: haut },
+        { x: -l / 2, y: h / 2 },
+        { x: l / 2, y: h / 2 },
+        { x: l / 2, y: haut },
+      ],
+      false,
+    );
+    // Reflet brillant sur le bord gauche.
+    g.fillStyle(0xffffff, 0.5);
+    g.fillRoundedRect(-l / 2 + 2, haut + 10, 4, 40, 2);
     return g;
   }
 
@@ -2661,29 +2726,20 @@ export class PartieScene extends Phaser.Scene {
   ): Phaser.GameObjects.Container {
     const { largeurCarte: l, hauteurCarte: h } = RANG;
     const graine = graineDe(x, y) + el.role.length;
-    const contour = contourRect(-l / 2, -h / 2, l, h, 6, graine, 0.6);
-    const g = this.caseBD(el.bande, contour);
+    const contour = contourRect(-l / 2, -h / 2, l, h, 12, graine, 0.6);
+    const m = MARGE_CADRE;
+    const interieur = contourRect(-l / 2 + m, -h / 2 + m, l - 2 * m, h - 2 * m, 8, graine + 3, 0.4);
+    const g = this.fondCollection(el.bande, contour, interieur);
     // Tête et débardeur seulement : la carte montre la chasuble de l'élève. La tête sort du haut
-    // de la case (DL.14) ; seuls les côtés sont coupés.
+    // de la carte (DL.14) ; le cadre repasse sur les côtés et en bas (DL.15).
     const skin = skinActif();
     // Plus de nom écrit sous le portrait (DL.1) : le visage et le chiffre suffisent, la loupe
     // montre le nom et le pouvoir en grand.
     const badge = skin.buste
-      ? skin.buste(this, el.bande, el.role, l - 4, h + 10)
+      ? skin.buste(this, el.bande, el.role, l - 8, h + 10)
       : skin.eleve(this, el.bande, el.role, 84);
-    badge.setPosition(0, skin.buste ? -16 : -10);
-    // Le gros trait noir de la case passe sur le buste, sauf en haut où la tête dépasse.
-    const trait = this.add.graphics();
-    trait.lineStyle(5, COULEURS.encre, 1);
-    trait.strokePoints(
-      [
-        { x: -l / 2, y: -h / 2 + 20 },
-        { x: -l / 2, y: h / 2 },
-        { x: l / 2, y: h / 2 },
-        { x: l / 2, y: -h / 2 + 20 },
-      ],
-      false,
-    );
+    badge.setPosition(0, skin.buste ? -18 : -10);
+    const trait = this.cadreCollection(el.bande);
     const enfants: Phaser.GameObjects.GameObject[] = [g, badge, trait];
     if (malade) {
       const voile = this.add.graphics();
@@ -4779,4 +4835,34 @@ export class PartieScene extends Phaser.Scene {
     }
     return { x: LARGEUR / 2, y: 24 };
   }
+}
+
+/** Découpe un polygone convexe par un rectangle (Sutherland-Hodgman). */
+function decouperRect(
+  pts: { x: number; y: number }[],
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): { x: number; y: number }[] {
+  type P = { x: number; y: number };
+  const bords: [(p: P) => boolean, (a: P, b: P) => P][] = [
+    [(p) => p.x >= x0, (a, b) => ({ x: x0, y: a.y + ((b.y - a.y) * (x0 - a.x)) / (b.x - a.x) })],
+    [(p) => p.x <= x1, (a, b) => ({ x: x1, y: a.y + ((b.y - a.y) * (x1 - a.x)) / (b.x - a.x) })],
+    [(p) => p.y >= y0, (a, b) => ({ x: a.x + ((b.x - a.x) * (y0 - a.y)) / (b.y - a.y), y: y0 })],
+    [(p) => p.y <= y1, (a, b) => ({ x: a.x + ((b.x - a.x) * (y1 - a.y)) / (b.y - a.y), y: y1 })],
+  ];
+  let res = pts;
+  for (const [dans, coupe] of bords) {
+    const entree = res;
+    res = [];
+    entree.forEach((a, i) => {
+      const b = entree[(i + 1) % entree.length] as P;
+      if (dans(b)) {
+        if (!dans(a)) res.push(coupe(a, b));
+        res.push(b);
+      } else if (dans(a)) res.push(coupe(a, b));
+    });
+  }
+  return res;
 }
