@@ -365,6 +365,8 @@ prototype jetable : l'architecture est celle de la sortie. Le détail est dans
   deux sur un téléphone. Retourner la cour pour que chacun ait sa cabane en bas demande de revoir
   les décors : à faire dans une prochaine étape si Clément le souhaite.
 
+- **DR.11 — En ligne, chacun voit sa cabane en bas** (remplace DR.9 ; Clément : « le plateau de mon adversaire doit être retourné pour lui »). Toutes les cours sont symétriques par demi-tour : le téléphone de l'invité (camp bleu) montre la partie RETOURNÉE (`src/reseau/miroir.ts`), où il joue le camp rouge. Chaque îlot va sur son symétrique (point le plus proche de (1 − x, 1 − y)), les bandes sont échangées, la ronde du surveillant et l'anneau du courant décalés. Le serveur ne change pas : il garde la partie dans le sens de l'hôte, et les coups de l'invité sont retournés avant l'envoi. Une cour non symétrique lève une erreur. Testé sur les 3 cours : retourner deux fois redonne la partie, et jouer dans la partie retournée donne le même résultat que jouer puis retourner.
+
 ## Lisibilité sur téléphone (27/11)
 
 Audit du 27/11 : sur un Android de 360 dp, le jeu est réduit de moitié ; les cartes en main

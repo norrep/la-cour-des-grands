@@ -1,7 +1,12 @@
 import { jouer, type Action, type Bande, type Cour, type Evenement } from '../../engine/index';
 import {
+  miroirDe,
   Refus,
   restaurer,
+  retournerAction,
+  retournerEtat,
+  retournerIssue,
+  type Miroir,
   type Issue,
   type ServeurParties,
   type VueJoueur,
@@ -17,6 +22,9 @@ import { Controleur } from '../controleur';
  *   réponse ; sinon l'écran attend le résultat du serveur pour l'animer ;
  * - les coups de l'adversaire arrivent par `recevoir`, et l'écran les anime comme ceux de l'ordi.
  * Pas d'écran « Passe le téléphone » : la phase reste `jeu` jusqu'à la fin.
+ *
+ * Chacun voit sa cabane en bas (DR.11) : pour l'invité (camp bleu), la partie est RETOURNÉE
+ * (`reseau/miroir.ts`). Il y joue le camp rouge ; ses coups sont retournés avant l'envoi.
  */
 export class ControleurEnLigne extends Controleur {
   vue: VueJoueur;
@@ -41,15 +49,20 @@ export class ControleurEnLigne extends Controleur {
   ) {
     super(cour, { graine: 0 });
     this.vue = vue;
+    this.miroir = vue.bande === 'bleu' ? miroirDe(cour) : null;
     this.prendre(vue);
   }
 
+  /** La partie est montrée retournée (l'invité), ou `null`. */
+  private readonly miroir: Miroir | null;
+
+  /** Le camp du joueur À L'ÉCRAN : toujours celui du bas, le rouge. */
   get bande(): Bande {
-    return this.vue.bande;
+    return this.miroir ? 'rouge' : this.vue.bande;
   }
 
   get issue(): Issue | null {
-    return this.vue.issue;
+    return this.miroir ? retournerIssue(this.vue.issue) : this.vue.issue;
   }
 
   /** Est-ce à l'adversaire de jouer ? */
@@ -59,7 +72,7 @@ export class ControleurEnLigne extends Controleur {
 
   private prendre(vue: VueJoueur): boolean {
     if (!vue.etat) return false;
-    this.etat = restaurer(vue.etat);
+    this.etat = restaurer(this.miroir ? retournerEtat(vue.etat, this.miroir) : vue.etat);
     this.phase = vue.statut === 'finie' ? 'fin' : 'jeu';
     return true;
   }
@@ -85,7 +98,8 @@ export class ControleurEnLigne extends Controleur {
     }
     this.envoi = true;
     const version = this.vue.version;
-    this.serveur.envoyer(this.vue.id, { type: 'jouer', action, version }).then(
+    const envoyee = this.miroir ? retournerAction(action, this.miroir) : action;
+    this.serveur.envoyer(this.vue.id, { type: 'jouer', action: envoyee, version }).then(
       (v) => this.recevoir(v),
       (err: unknown) => this.echec(err),
     );

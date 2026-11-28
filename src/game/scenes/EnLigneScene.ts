@@ -363,7 +363,11 @@ export class EnLigneScene extends Phaser.Scene {
     ecrirePartieEnCours(vue.id);
     this.attente(TEXTES.choixPartie.chargement);
     const carte = vue.reglages.carte as CarteId;
-    const equipes = vue.reglages.equipes;
+    // L'invité voit la cour retournée, où il joue le camp du bas (DR.11) : les équipes aussi.
+    const equipes =
+      vue.bande === 'bleu'
+        ? { rouge: vue.reglages.equipes.bleu, bleu: vue.reglages.equipes.rouge }
+        : vue.reglages.equipes;
     await Promise.all([
       preparerEquipes(this, Object.values(tenuesPour(equipes))).catch(() => undefined),
       preparerCarte(this, carte),
