@@ -125,6 +125,9 @@ export const TEXTES = {
     conseils: 'Conseils',
     sons: 'Sons',
     style: (nom: string) => `Style : ${nom}`,
+    reglages: 'Réglages',
+    reprendre: 'Reprendre ma partie',
+    fermer: 'Fermer',
   },
   /** Jouer en ligne avec un ami (DR.1–DR.8). */
   enLigne: {
@@ -170,6 +173,10 @@ export const TEXTES = {
       'Donne-le à un ami pour qu’il t’ajoute.\nOn devient aussi amis en jouant ensemble.',
     aucunAmi: 'Pas encore d’ami ici.\nJoue avec un ami ou tape son code ami.',
     ajouterAmi: 'Ajouter un ami',
+    retirerSur: (pseudo: string) => `Retirer ${pseudo} ?`,
+    retire: (pseudo: string) => `${pseudo} n’est plus dans tes amis.`,
+    oui: 'Oui',
+    non: 'Non',
     saisieAmi: 'Tape le code ami',
     ajoute: (pseudo: string) => `${pseudo} est dans tes amis !`,
     inviterAmi: 'Inviter',
@@ -213,7 +220,7 @@ export const TEXTES = {
     } as Record<string, string>,
     regleTitre: '★ Règle spéciale',
     /** Sous le nom de la carte : qui surveille. */
-    avec: (nom: string) => `Surveillé par ${nom}`,
+    avec: (nom: string) => `${nom} surveille`,
     jouerIci: 'On joue ici !',
     prendreBande: 'Je prends cette bande !',
     /** Sous le nom de la bande : le Grand, le Petit… et toute la bande. */
@@ -228,6 +235,9 @@ export const TEXTES = {
     infirmerie: 'Infirmerie',
     rangVide: 'Ton rang est vide : appelle des copains !',
     ordiReflechit: 'L’ordi réfléchit…',
+    /** En solo, en haut de l'écran (au lieu du nom de la bande). */
+    tourOrdi: 'Au tour de l’ordi',
+    tonTour: 'À toi de jouer !',
     aToi: 'À toi !',
     toucherCarte: 'Touche un élève : son pouvoir',
     consigneTour: 'Glisse un élève vers la cour, ou :',
@@ -243,6 +253,7 @@ export const TEXTES = {
     piocher: 'Piocher',
     infirmerie: 'Éternuer',
     rejouer: 'Rejouer',
+    revanche: 'Revanche !',
     accueil: 'Accueil',
     pret: (b: Bande) => `Je suis la ${BANDES[b]}`,
   },
@@ -375,7 +386,7 @@ export const TEXTES = {
     bulles: {
       cabane: 'Pose un élève dans la cabane d’en face : gagné !',
       gouter: (seuil: number) =>
-        `Entoure un goûter d’élèves pour le ramasser. ${seuil} bons points : gagné !`,
+        `Entoure un goûter d’élèves pour le ramasser. ${seuil} goûters : gagné !`,
       banc: '★ Le banc est une planque : là, personne ne peut te toucher.',
       get josiane(): string {
         return `${surv.nom} garde ce goûter. ${surv.Il} bouge à chaque tour.`;
@@ -392,7 +403,7 @@ export const TEXTES = {
         contexte:
           'Sortie piscine ! Deux bandes se disputent les quatre coins et le grand bain sous l’œil de Monsieur Yvon.',
         regle:
-          'Le courant : après chaque tour complet, les quatre bouées du grand bain tournent d’un cran, avec tout ce qu’il y a dessus. Chaque coin se fait et se défait avec elles.',
+          'Le courant : après chaque tour complet, les quatre bouées du grand bain tournent d’un cran, avec tout ce qu’il y a dessus. Chaque coin se fait et se défait avec elles. Deux lignes d’eau font raccourci : des douches au canard, et du bord au matelas.',
       },
       'camp-scout': {
         contexte:
@@ -404,6 +415,9 @@ export const TEXTES = {
   },
   passe: {
     bientot: (b: Bande) => `À la ${BANDES[b]} de jouer…`,
+    /** En solo, juste après un coup. */
+    bientotOrdi: 'À l’ordi de jouer…',
+    bientotToi: 'À toi de jouer…',
     titre: 'Passe le téléphone',
     a: (b: Bande) => `à la ${BANDES[b]}`,
     cache: 'Ne regarde pas le rang de l’adversaire !',

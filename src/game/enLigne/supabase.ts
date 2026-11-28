@@ -110,6 +110,10 @@ export class ServeurSupabase implements ServeurParties {
     return versProfil((await this.appeler({ op: 'ajouterAmi', code })) as LigneProfil);
   }
 
+  async retirerAmi(id: string): Promise<void> {
+    await this.appeler({ op: 'retirerAmi', ami: id });
+  }
+
   async invitations(): Promise<Invitation[]> {
     const id = await this.compte();
     const depuis = new Date(Date.now() - DUREE_INVITATION).toISOString();

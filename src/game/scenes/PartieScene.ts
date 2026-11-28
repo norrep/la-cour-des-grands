@@ -16,6 +16,7 @@ import {
   type Cour,
   type CourData,
   type Eleve,
+  type EtatPartie,
   type Evenement,
   estPlanque,
   type Action,
@@ -28,7 +29,7 @@ import {
   adversaire,
 } from '../../engine/index';
 import { apercu } from '../apercu';
-import { cadreManga, fondManga } from '../ui/fondManga';
+import { cadreManga, cadreMangaRect, fondManga, ombreCaseManga } from '../ui/fondManga';
 import { ecranFin } from '../ui/ecranFin';
 import { jouerTransitionFin } from '../ui/transitionFin';
 import { DUREE_CONSEQUENCE, dureeAnimations, planAnimations, rondeParcourue } from '../sequence';
@@ -56,7 +57,13 @@ import { NB_CONSEILS, prochainConseil, type ConseilId } from '../conseils';
 import { Controleur } from '../controleur';
 import { Ordi } from '../ordi';
 import { ControleurEnLigne } from '../enLigne/controleurEnLigne';
-import { ecrirePartieEnCours, serveurPret } from '../enLigne/session';
+import { ecrirePartieEnCours, serveurParties, serveurPret } from '../enLigne/session';
+import type { EtapeEnLigne } from '../enLigne/etapes';
+import { oublierPartie, sauverPartie } from '../reprise';
+import { ciblesTuto, coupOrdiTuto, etatLecon, guideTuto, NB_LECONS, type Geste } from '../tuto';
+import { TEXTES_TUTO } from '../../data/textesTuto';
+import { bulleGuide, creerMain, onde } from '../ui/guideTuto';
+import { ecrireTutoAFaire } from '../preferences';
 import {
   centreRegion,
   noeudSous,
@@ -254,6 +261,13 @@ export class PartieScene extends Phaser.Scene {
   /** Durée des animations du dernier coup joué (ms). */
   private dureeDernierCoup = 0;
 
+  /** Tutoriel jouable (DJ.1) : la leçon en cours (`null` : une vraie partie). */
+  private tuto: number | null = null;
+  /** La carte d'ouverture de la leçon est affichée (on attend « C'est parti ! »). */
+  private tutoIntro = false;
+  /** La main du guide (cachée pendant qu'on glisse un élève). */
+  private mainGuide: Phaser.GameObjects.Container | null = null;
+
   constructor() {
     super('partie');
   }
@@ -269,13 +283,14 @@ export class PartieScene extends Phaser.Scene {
     const videosPartie = (['rouge', 'bleu'] as const).flatMap((b) =>
       ROLES.map(({ id }) => skin.videoPouvoir?.(b, id)),
     );
-    // Les vidéos de victoire viennent après celles des pouvoirs (DW.4).
+    // Puis celles des goûters, et enfin celles de victoire (DW.4). Rien n'est plus téléchargé
+    // au lancement du jeu : seulement les vidéos des équipes de la partie.
+    for (let i = 0; i < 4; i++) videosPartie.push(skin.videoGouter?.(i)?.url);
     for (const b of ['rouge', 'bleu'] as const)
       for (const r of ['cabane', 'bonsPoints'] as const)
         videosPartie.push(skin.videoVictoire?.(b, r));
     prechargerVideos(videosPartie);
     // Leurs bandes son, jouées à part pour ne pas être coupées par le téléphone (DV.9).
-    for (let i = 0; i < 4; i++) videosPartie.push(skin.videoGouter?.(i)?.url);
     for (const url of videosPartie) if (url) chargerBandeSon(url);
     this.visuel = visuelCarte(carte);
     this.cour = chargerCour(COURS[carte] as CourData);
@@ -290,13 +305,22 @@ export class PartieScene extends Phaser.Scene {
         equipements: donnees.equipements,
         signatures: signaturesPour(donnees.equipes ?? { rouge: 'ecoliers', bleu: 'ecoliers' }),
       });
+    // Une partie reprise là où on l'avait laissée (`reprise.ts`).
+    if (!this.enLigne && donnees.reprise) {
+      this.ctrl.etat = { ...donnees.reprise, cour: this.cour } as EtatPartie;
+    }
+    // Une leçon du tuto : sa cour toute prête, le joueur commence (DJ.1).
+    this.tuto = !this.enLigne && donnees.tuto !== undefined ? donnees.tuto : null;
+    this.tutoIntro = this.tuto !== null;
+    this.mainGuide = null;
+    if (this.tuto !== null) this.ctrl.etat = etatLecon(this.cour, this.tuto);
     this.texteTemps = null;
     this.reclameLe = 0;
     this.departToboggan = null;
     this.fiche = null;
     this.aideOuverte = false;
     this.abandonDemande = false;
-    this.conseilsActifs = donnees.conseils;
+    this.conseilsActifs = donnees.conseils && this.tuto === null;
     this.conseilsVus = { rouge: new Set(), bleu: new Set() };
     this.tourDernierConseil = { rouge: 0, bleu: 0 };
     this.cinematiques = [];
@@ -310,10 +334,12 @@ export class PartieScene extends Phaser.Scene {
     // En ligne, pas de fiche de la cour : la partie commence tout de suite (phase « jeu »), et le
     // surveillant doit être à sa place sur la cour dès le départ, sinon on ne voit que le rond
     // pointillé de son goûter (DR.12).
-    this.presentation = !this.enLigne;
+    // Une revanche (même carte, mêmes bandes) saute aussi la fiche : on la connaît déjà.
+    this.presentation =
+      !this.enLigne && !donnees.revanche && !donnees.reprise && this.tuto === null;
     this.enPied = null;
     this.placesMedaillon = new Map();
-    this.medaillonArrive = this.enLigne !== null;
+    this.medaillonArrive = !this.presentation;
     this.rangement = false;
     this.attenteAdversaire = false;
     this.tourHorloge = 0;
@@ -411,6 +437,11 @@ export class PartieScene extends Phaser.Scene {
   /** Redessine tout l'écran à partir de l'état. La fiche ouverte est fermée, sauf demande. */
   rafraichir(garderFiche = false): void {
     if (!garderFiche) this.fiche = null;
+    // Sur ce téléphone, la partie est gardée à chaque coup pour pouvoir la reprendre.
+    if (!this.enLigne) {
+      if (this.ctrl.phase === 'fin') oublierPartie();
+      else if (!this.presentation && this.tuto === null) sauverPartie(this.donnees, this.ctrl.etat);
+    }
     // En solo, pas de « Passe le téléphone » : le téléphone reste dans les mêmes mains.
     if (
       (this.ordi || this.enLigne) &&
@@ -471,6 +502,7 @@ export class PartieScene extends Phaser.Scene {
     if (this.fiche) this.dessinerFiche(this.fiche);
     if (this.aideOuverte) this.dessinerAide();
     else this.dessinerConseil();
+    if (this.tuto !== null && !this.aideOuverte) this.dessinerTuto(this.tuto);
     // Le tour revient au joueur : un « À toi ! » bien visible (DL.7).
     const adverse = this.ctrl.phase === 'jeu' && this.tourOrdi;
     if (this.etaitTourAdverse && !adverse && this.ctrl.phase === 'jeu') this.tamponAToi();
@@ -542,7 +574,7 @@ export class PartieScene extends Phaser.Scene {
     bord.lineStyle(8, equipeDe(bande).couleur, 1);
     bord.strokeRoundedRect(-l / 2 + 10, -46, l - 20, 92, 22);
     const c = this.add
-      .container(LARGEUR / 2, RANG.y - RANG.hauteurCarte / 2 - 120, [fond, bord, t])
+      .container(LARGEUR / 2, RANG.y - RANG.hauteurCarte / 2 - 40, [fond, bord, t])
       .setDepth(900)
       .setRotation(-0.06);
     if (!this.animations) {
@@ -550,7 +582,13 @@ export class PartieScene extends Phaser.Scene {
       return;
     }
     c.setScale(0.2).setAlpha(0);
-    this.tweenCinematique({ targets: c, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
+    this.tweenCinematique({
+      targets: c,
+      scale: 0.85,
+      alpha: 1,
+      duration: 260,
+      ease: 'Back.easeOut',
+    });
     this.tweenCinematique({
       targets: c,
       alpha: 0,
@@ -602,6 +640,9 @@ export class PartieScene extends Phaser.Scene {
     );
   }
 
+  /** Où vient d'être posé l'élève dont on montre le pouvoir : la case de BD va à côté (DU.9). */
+  private lieuPouvoir: Point | null = null;
+
   private pos(id: string): Point {
     return positionNoeud(this.cour, id);
   }
@@ -629,7 +670,9 @@ export class PartieScene extends Phaser.Scene {
    */
   private planifierOrdi(): void {
     if (!this.ordi || this.coupOrdi) return;
-    const delai = this.animations ? Math.max(750, this.dureeDernierCoup + 350) : 30;
+    // Dans le tuto, l'ordi laisse le temps de lire la bulle du guide.
+    const pause = this.tuto !== null ? 2600 : 750;
+    const delai = this.animations ? Math.max(pause, this.dureeDernierCoup + 350) : 30;
     this.coupOrdi = this.time.delayedCall(delai, () => {
       this.coupOrdi = null;
       const ordi = this.ordi;
@@ -639,7 +682,7 @@ export class PartieScene extends Phaser.Scene {
         this.planifierOrdi();
         return;
       }
-      const action = ordi.prochaineAction(this.etat);
+      const action = this.tuto !== null ? coupOrdiTuto(this.etat) : ordi.prochaineAction(this.etat);
       const deuxieme = action.type === 'choisir' && action.option.type === 'poser';
       this.departToboggan = null;
       if (!this.agir(() => this.ctrl.jouer(action), deuxieme)) this.rafraichir();
@@ -702,14 +745,134 @@ export class PartieScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Tracé d'une allée : un segment droit, sauf si elle frôle un autre îlot (raccourcis de la
+   * piscine, DK.1) ; elle s'arrondit alors vers l'extérieur de la cour pour le contourner.
+   */
+  private trajetAllee(a: string, b: string): Point[] {
+    const pa = this.pos(a);
+    const pb = this.pos(b);
+    const dx = pb.x - pa.x;
+    const dy = pb.y - pa.y;
+    const l2 = dx * dx + dy * dy;
+    const frole = this.cour.ilots.some((id) => {
+      if (id === a || id === b) return false;
+      const p = this.pos(id);
+      const t = ((p.x - pa.x) * dx + (p.y - pa.y) * dy) / l2;
+      if (t <= 0.05 || t >= 0.95) return false;
+      return Math.hypot(pa.x + t * dx - p.x, pa.y + t * dy - p.y) < 110;
+    });
+    if (!frole) return [pa, pb];
+    const milieu = { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 };
+    const centre = this.cour.ilots.reduce(
+      (c, id) => ({
+        x: c.x + this.pos(id).x / this.cour.ilots.length,
+        y: c.y + this.pos(id).y / this.cour.ilots.length,
+      }),
+      { x: 0, y: 0 },
+    );
+    const l = Math.sqrt(l2);
+    let nx = -dy / l;
+    let ny = dx / l;
+    if (nx * (milieu.x - centre.x) + ny * (milieu.y - centre.y) < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    const bombe = l * 0.42;
+    const ctrl = { x: milieu.x + nx * bombe, y: milieu.y + ny * bombe };
+    const pts: Point[] = [];
+    for (let i = 0; i <= 32; i++) {
+      const t = i / 32;
+      const u = 1 - t;
+      pts.push({
+        x: u * u * pa.x + 2 * u * t * ctrl.x + t * t * pb.x,
+        y: u * u * pa.y + 2 * u * t * ctrl.y + t * t * pb.y,
+      });
+    }
+    return pts;
+  }
+
+  /** Pointillés le long d'un tracé (droit ou courbe). */
+  private pointillesTrajet(
+    g: Phaser.GameObjects.Graphics,
+    pts: Point[],
+    trait = 12,
+    espace = 10,
+  ): void {
+    if (pts.length === 2) {
+      this.pointilles(g, pts[0] as Point, pts[1] as Point, trait, espace);
+      return;
+    }
+    let reste = 0;
+    let dessine = true;
+    for (let i = 1; i < pts.length; i++) {
+      let a = pts[i - 1] as Point;
+      const b = pts[i] as Point;
+      let d = Math.hypot(b.x - a.x, b.y - a.y);
+      while (d > 0) {
+        if (reste <= 0) {
+          dessine = !dessine;
+          reste = dessine ? trait : espace;
+        }
+        const pas = Math.min(reste, d);
+        const f = pas / d;
+        const c = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+        if (dessine) g.lineBetween(a.x, a.y, c.x, c.y);
+        a = c;
+        d -= pas;
+        reste -= pas;
+      }
+    }
+  }
+
+  /** Raccourci de la piscine : une ligne d'eau, corde d'encre et bouchons jaunes et blancs (DK.2). */
+  private ligneDEau(g: Phaser.GameObjects.Graphics, pts: Point[]): void {
+    g.lineStyle(5, COULEURS.encre, 0.8);
+    g.strokePoints(pts as Phaser.Types.Math.Vector2Like[], false);
+    let acc = 0;
+    let k = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1] as Point;
+      const b = pts[i] as Point;
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      for (let t = (26 - acc) % 26; t < d; t += 26) {
+        const x = a.x + ((b.x - a.x) * t) / d;
+        const y = a.y + ((b.y - a.y) * t) / d;
+        const r = 11;
+        g.fillStyle(k % 2 === 0 ? 0xf2c23a : 0xffffff, 1);
+        g.lineStyle(4, COULEURS.encre, 1);
+        const c = Math.cos(ang);
+        const sn = Math.sin(ang);
+        const poly: Phaser.Types.Math.Vector2Like[] = [];
+        for (let j = 0; j < 16; j++) {
+          const th = (j / 16) * Math.PI * 2;
+          const ex = Math.cos(th) * r * 1.15;
+          const ey = Math.sin(th) * r * 0.85;
+          poly.push({ x: x + ex * c - ey * sn, y: y + ex * sn + ey * c });
+        }
+        g.fillPoints(poly, true);
+        g.strokePoints(poly, true);
+        k++;
+      }
+      acc = (acc + d) % 26;
+    }
+  }
+
   private dessinerCour(): void {
     const e = this.etat;
     const g = this.ajouter(this.add.graphics());
 
     // Allées en pointillés d'encre, comme tracées à la craie grasse sur le goudron.
     for (const [a, b] of this.cour.allees) {
+      const trajet = this.trajetAllee(a, b);
+      // Les raccourcis de la piscine (allées courbes) sont des lignes d'eau (DK.2).
+      if (trajet.length > 2) {
+        this.ligneDEau(g, trajet);
+        continue;
+      }
       g.lineStyle(7, COULEURS.encre, 0.55);
-      this.pointilles(g, this.pos(a), this.pos(b), 14, 10);
+      this.pointillesTrajet(g, trajet, 14, 10);
     }
     // Sentiers à sens unique (camp scout, DB.2) : des flèches dans le sens où l'on passe.
     for (const [i, depuis] of Object.entries(this.cour.sensUnique)) {
@@ -726,9 +889,17 @@ export class PartieScene extends Phaser.Scene {
       ] as const) {
         g.lineStyle(largeur, couleur, 1);
         for (const [a, c] of segments) {
-          const pa = this.pos(a);
-          const pc = this.pos(c);
-          g.lineBetween(pa.x, pa.y, pc.x, pc.y);
+          const pts = this.trajetAllee(a, c);
+          if (pts.length === 2) {
+            g.lineBetween(
+              (pts[0] as Point).x,
+              (pts[0] as Point).y,
+              (pts[1] as Point).x,
+              (pts[1] as Point).y,
+            );
+          } else {
+            g.strokePoints(pts as Phaser.Types.Math.Vector2Like[], false);
+          }
         }
       }
     }
@@ -1202,6 +1373,9 @@ export class PartieScene extends Phaser.Scene {
    * les cartes du rang. Le nombre est dans une pastille ; le paquet maigrit quand il se vide.
    */
   private dessinerPortail(bande: Bande): void {
+    // Sur la fiche de la cour, les pioches n'ont rien à expliquer et le surveillant en pied
+    // recouvrait celle du bas sur les petits écrans.
+    if (this.presentation && this.ctrl.phase === 'passe') return;
     const j = this.etat.joueurs[bande];
     const n = j.couloir.length;
     const punisIci = avecZonePunis(this.cour) ? 0 : j.cpe.length;
@@ -1901,7 +2075,11 @@ export class PartieScene extends Phaser.Scene {
         ? b === this.enLigne.bande
           ? TEXTES.enLigne.aToi
           : TEXTES.enLigne.auTourAmi(this.enLigne.vue.adversaire)
-        : TEXTES.hud.tourDe(b);
+        : this.ordi
+          ? b === this.ordi.humain
+            ? TEXTES.hud.tonTour
+            : TEXTES.hud.tourOrdi
+          : TEXTES.hud.tourDe(b);
       const t = this.texte(LARGEUR / 2, Y_PASTILLE_TOUR, qui, 21, COULEURS.texteSombre, {
         fontStyle: '700',
       }).setOrigin(0.5);
@@ -2605,7 +2783,9 @@ export class PartieScene extends Phaser.Scene {
           ? optionsChouchou.filter((o) => o.eleveId === el.id).map((o) => o.cible)
           : malade
             ? []
-            : ciblesPossibles(e, el.id);
+            : this.tuto !== null
+              ? ciblesTuto(e, this.tuto, el.id)
+              : ciblesPossibles(e, el.id);
       const pose = poseCarteRang(i, j.rang.length);
       const { x } = pose;
       const carte = this.carte(el, x, pose.y, malade, !interactif || cibles.length > 0);
@@ -2885,6 +3065,8 @@ export class PartieScene extends Phaser.Scene {
     };
 
     carte.on('dragstart', (p: Phaser.Input.Pointer) => {
+      // Le doigt du joueur remplace celui du guide (tuto).
+      this.mainGuide?.setVisible(false);
       // Pendant le glisser, la fiche est une simple bulle (rien à toucher pour la fermer).
       ficheGlisse = this.bulle(
         TEXTES.fiche.eleve(el.role, valeur(el.role)),
@@ -2939,6 +3121,7 @@ export class PartieScene extends Phaser.Scene {
           chouchou,
         );
       if (!ok) {
+        this.mainGuide?.setVisible(true);
         // Retour au rang : la carte revient en rebondissant.
         if (avecPantin) {
           carte.setPosition(p.worldX, p.worldY - HAUTEUR_PRISE / 2);
@@ -2975,7 +3158,7 @@ export class PartieScene extends Phaser.Scene {
       g.lineStyle(14, couleur, 0.85);
       for (const i of a.nouvellesAllees) {
         const [u, v] = this.cour.allees[i] as [string, string];
-        this.pointilles(g, this.pos(u), this.pos(v), 16, 12);
+        this.pointillesTrajet(g, this.trajetAllee(u, v), 16, 12);
       }
       this.tweens.add({ targets: g, alpha: 0.4, duration: 380, yoyo: true, repeat: -1 });
       objets.push(g);
@@ -3053,7 +3236,13 @@ export class PartieScene extends Phaser.Scene {
     // La bande qui vient de jouer voit encore son rang (le téléphone est toujours dans ses mains) :
     // les copains appelés y arrivent.
     this.dessinerRang(this.bandeVue, false, true);
-    this.bandeauTour(TEXTES.passe.bientot(this.etat.courant), this.etat.courant, false);
+    const suivante = this.etat.courant;
+    const annonce = this.ordi
+      ? suivante === this.ordi.humain
+        ? TEXTES.passe.bientotToi
+        : TEXTES.passe.bientotOrdi
+      : TEXTES.passe.bientot(suivante);
+    this.bandeauTour(annonce, suivante, false);
     const bloc = this.ajouter(
       this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 0.001),
     );
@@ -3649,6 +3838,8 @@ export class PartieScene extends Phaser.Scene {
   private videoALaPose(nouveaux: Evenement[], suite: Cinematique[]): Cinematique | undefined {
     const pose = nouveaux.find((ev) => ev.type === 'pose');
     if (pose?.type !== 'pose') return undefined;
+    // La case de BD du pouvoir se pose à côté de cet élève (DU.9).
+    this.lieuPouvoir = this.cour.noeuds[pose.cible] ? this.pos(pose.cible) : null;
     const skin = skinActif();
     const aUneVideo = (c: Cinematique): boolean => {
       const role = roleDuPouvoir(c);
@@ -4432,15 +4623,31 @@ export class PartieScene extends Phaser.Scene {
     // Les goûters sont filmés en carré : on les montre entiers dans une case de manga, sur un
     // fond manga animé à la couleur de la bande (DV.3).
     const yVideo = creme ? HAUTEUR / 2 - 90 : HAUTEUR / 2;
+    // Pouvoir : plus de plein écran (DU.9). La vidéo joue dans une case de BD penchée, posée à
+    // côté de l'élève, sur la cour juste assombrie ; toucher n'importe où la passe.
+    const enCase = !creme;
     const fond = this.add
-      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 1)
+      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, enCase ? 0.35 : 1)
       .setOrigin(0, 0)
       .setInteractive();
     const video = this.add.video(0, 0);
     const COTE_CASE = 600;
+    const CASE_L = 420;
+    const CASE_H = 560;
+    const placeCase = this.placeCasePouvoir(CASE_L, CASE_H);
+    this.lieuPouvoir = null;
     const decor: Phaser.GameObjects.GameObject[] = [];
     let laCase: Phaser.GameObjects.Container | undefined;
-    if (creme) {
+    if (enCase) {
+      laCase = this.add
+        .container(placeCase.x, placeCase.y, [
+          ombreCaseManga(this, CASE_L, CASE_H),
+          video,
+          cadreMangaRect(this, CASE_L, CASE_H),
+        ])
+        .setAngle(placeCase.angle);
+      decor.push(laCase);
+    } else if (creme) {
       decor.push(
         fondManga(
           this,
@@ -4467,8 +4674,9 @@ export class PartieScene extends Phaser.Scene {
           )
         : T[cin.id];
     const style = { fontFamily: POLICE, color: COULEURS.texteClair, align: 'center' };
+    const yTitre = enCase ? placeCase.y + CASE_H / 2 + 70 : 1010;
     const titre = this.add
-      .text(LARGEUR / 2, 1010, C.titre, {
+      .text(LARGEUR / 2, yTitre, C.titre, {
         ...style,
         fontSize: '64px',
         fontStyle: '700',
@@ -4478,7 +4686,7 @@ export class PartieScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
     const sous = this.add
-      .text(LARGEUR / 2, 1090, C.sous, {
+      .text(LARGEUR / 2, yTitre + 80, C.sous, {
         ...style,
         fontSize: '30px',
         fontStyle: '600',
@@ -4489,12 +4697,17 @@ export class PartieScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
     const passer = this.add
-      .text(LARGEUR / 2, 1190, TEXTES.cinematiques.passer, {
-        ...style,
-        fontSize: '18px',
-        stroke: '#1d1a16',
-        strokeThickness: 4,
-      })
+      .text(
+        LARGEUR / 2,
+        enCase ? placeCase.y - CASE_H / 2 - 40 : 1190,
+        TEXTES.cinematiques.passer,
+        {
+          ...style,
+          fontSize: '18px',
+          stroke: '#1d1a16',
+          strokeThickness: 4,
+        },
+      )
       .setOrigin(0.5)
       .setAlpha(0.7);
     const tout = this.add
@@ -4550,13 +4763,22 @@ export class PartieScene extends Phaser.Scene {
       // La vidéo couvre tout l'écran, quelle que soit sa forme, sans être déformée.
       const w = video.width || LARGEUR;
       const h = video.height || HAUTEUR;
-      video.setScale(laCase ? COTE_CASE / w : Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
-      // La case du goûter arrive d'un coup, en se penchant, comme une case de manga.
+      if (enCase) {
+        // La vidéo remplit la case en largeur ; on n'en garde que le haut (tête et buste).
+        const echelle = CASE_L / w;
+        const hVisible = Math.min(h, CASE_H / echelle);
+        const haut = Math.min(h - hVisible, h * 0.04);
+        video.setScale(echelle).setCrop(0, haut, w, hVisible);
+        video.setPosition(0, -(haut + hVisible / 2 - h / 2) * echelle);
+      } else {
+        video.setScale(laCase ? COTE_CASE / w : Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
+      }
+      // La case arrive d'un coup, en se penchant, comme une case de manga.
       if (laCase)
         this.tweenCinematique({
           targets: laCase,
           scale: { from: 1.35, to: 1 },
-          angle: { from: 6, to: -3 },
+          angle: { from: enCase ? -placeCase.angle * 2 : 6, to: enCase ? placeCase.angle : -3 },
           duration: 320,
           ease: 'Back.easeOut',
         });
@@ -4619,6 +4841,32 @@ export class PartieScene extends Phaser.Scene {
     else video.loadURL(url, muette);
     video.play();
     return true;
+  }
+
+  /**
+   * Où poser la case de BD d'un pouvoir (DU.9) : à côté de l'élève qui vient d'arriver, sans le
+   * cacher. Loin du milieu, la case va de l'autre côté ; au milieu, au-dessus ou en dessous.
+   * Elle reste entre le haut de l'écran et la main.
+   */
+  private placeCasePouvoir(l: number, h: number): Point & { angle: number } {
+    const p = this.lieuPouvoir ?? { x: LARGEUR / 2, y: HAUTEUR / 2 };
+    const yMin = HAUT + h / 2 + 90;
+    const yMax = RANG.y - RANG.hauteurCarte / 2 - h / 2 - 150;
+    const borne = (v: number, a: number, b: number): number => Math.min(Math.max(v, a), b);
+    if (Math.abs(p.x - LARGEUR / 2) > 110) {
+      const droite = p.x < LARGEUR / 2;
+      return {
+        x: droite ? Math.min(LARGEUR, DROITE) - l / 2 - 26 : Math.max(0, GAUCHE) + l / 2 + 26,
+        y: borne(p.y, yMin, Math.max(yMin, yMax)),
+        angle: droite ? 3 : -3,
+      };
+    }
+    const dessous = p.y < HAUTEUR / 2;
+    return {
+      x: LARGEUR / 2,
+      y: borne(dessous ? p.y + h / 2 + 90 : p.y - h / 2 - 90, yMin, Math.max(yMin, yMax)),
+      angle: -3,
+    };
   }
 
   /** Emplacement de l'animation de chaque cinématique : pictogramme provisoire. */
@@ -4725,13 +4973,17 @@ export class PartieScene extends Phaser.Scene {
         () => {
           const url =
             raison === 'sonnerie' ? undefined : skinActif().videoVictoire?.(fin.gagnant, raison);
-          if (url) this.videoVictoire(url, () => this.rafraichir());
+          if (url && this.tuto === null) this.videoVictoire(url, () => this.rafraichir());
           else this.rafraichir();
         },
       );
       return;
     }
     this.transitionFinJouee = true;
+    if (this.tuto !== null) {
+      this.dessinerFinLecon(this.tuto);
+      return;
+    }
     const moi: Bande | null = this.enLigne
       ? this.enLigne.bande
       : this.ordi
@@ -4768,18 +5020,399 @@ export class PartieScene extends Phaser.Scene {
           cabane: this.visuel.cabane ?? { image: PLATEAU.cabaneBleue, murs: PLATEAU.mursBleue },
         },
         {
-          libelleRejouer: TEXTES.boutons.rejouer,
+          libelleRejouer: TEXTES.boutons.revanche,
           libelleAccueil: TEXTES.boutons.accueil,
-          rejouer: () =>
-            this.enLigne
-              ? this.scene.start('enLigne', { ...this.donnees, enLigne: { etape: 'menu' } })
-              : this.scene.restart({ ...this.donnees, graine: Date.now() }),
+          // Revanche : même carte, mêmes bandes, sans repasser par la fiche. En ligne, on
+          // rouvre une partie et on la propose au même ami (choix de la carte et de la bande).
+          rejouer: () => (this.enLigne ? void this.revancheEnLigne() : this.revanche()),
           accueil: () => this.scene.start('accueil'),
           bouton: (x, y, t, f, st) => creerBouton(this, x, y, t, f, st),
         },
         entree,
       ),
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // Tutoriel jouable (DJ.1–DJ.5)
+  // -------------------------------------------------------------------------
+
+  /** Le guide de la leçon : sa carte d'ouverture, puis la bulle et la main qui montre le geste. */
+  private dessinerTuto(lecon: number): void {
+    this.mainGuide = null;
+    if (this.tutoIntro) {
+      this.carteLecon(lecon);
+      return;
+    }
+    if (this.ctrl.phase !== 'jeu' || this.etat.fin) return;
+    const etape = guideTuto(this.etat, lecon);
+    for (const id of etape.reperes) this.repereTuto(id);
+    const bulle = this.ajouter(
+      bulleGuide(this, {
+        etiquette: `${TEXTES_TUTO.etiquette(lecon + 1, NB_LECONS)} · ${TEXTES_TUTO.lecons[lecon]?.titre ?? ''}`,
+        texte: etape.texte,
+        y: 0,
+      }),
+    );
+    const h = bulle.getBounds().height;
+    bulle.setY(MONTEE + 34 + h / 2);
+    if (this.animations) {
+      bulle.setScale(0.96);
+      this.tweens.add({ targets: bulle, scale: 1, duration: 220, ease: 'Back.easeOut' });
+    }
+    // « Passer le tuto », discret, sous la bulle à droite.
+    const passer = this.texte(
+      DROITE - 24,
+      bulle.y + h / 2 + 14,
+      TEXTES_TUTO.passer,
+      20,
+      COULEURS.texteSombre,
+      { fontStyle: '600', stroke: '#fff6e4', strokeThickness: 6 },
+    ).setOrigin(1, 0);
+    passer.setInteractive({ useHandCursor: true }).on('pointerup', () => this.quitterTuto());
+    if (!this.tourOrdi) this.gesteGuide(etape.geste);
+  }
+
+  /** Un rond jaune qui respire autour d'un îlot à regarder. */
+  private repereTuto(id: string): void {
+    const p = this.pos(id);
+    const r = this.cour.noeuds[id]?.type === 'cabane' ? 84 : RAYON_ILOT + 16;
+    const c = this.ajouter(this.add.circle(p.x, p.y, r));
+    c.setStrokeStyle(7, COULEURS.allume, 1);
+    if (!this.animations) return;
+    this.tweens.add({
+      targets: c,
+      scale: 1.12,
+      alpha: 0.55,
+      duration: 650,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  /** La main du guide fait le geste attendu, en boucle. */
+  private gesteGuide(geste: Geste): void {
+    if (geste.type === 'regarder') return;
+    const main = this.ajouter(creerMain(this));
+    this.mainGuide = main;
+    if (geste.type === 'appeler') {
+      const p = CENTRE_APPEL;
+      main.setPosition(p.x + 10, p.y + 10);
+      if (!this.animations) return;
+      const rond = this.ajouter(onde(this, p.x, p.y)).setAlpha(0);
+      this.dyn.bringToTop(main);
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration: 1300,
+        repeat: -1,
+        onUpdate: (tw) => {
+          const t = tw.getValue() ?? 0;
+          const appui = Math.sin(Math.min(1, t / 0.4) * Math.PI);
+          main.setPosition(p.x + 10, p.y + 34 - appui * 24);
+          main.setScale(1 - appui * 0.08);
+          const o = Math.max(0, (t - 0.2) / 0.8);
+          rond.setScale(1 + o * 3).setAlpha(t > 0.2 ? 1 - o : 0);
+        },
+      });
+      return;
+    }
+    const rang = this.etat.joueurs.rouge.rang;
+    const i = rang.findIndex((el) => el.id === geste.eleveId);
+    if (i < 0) return;
+    const pose = poseCarteRang(i, rang.length);
+    const de = { x: pose.x, y: pose.y - 30 };
+    const vers = this.pos(geste.vers);
+    main.setPosition(de.x, de.y);
+    if (!this.animations) {
+      main.setPosition(vers.x, vers.y);
+      return;
+    }
+    const rond = this.ajouter(onde(this, vers.x, vers.y)).setAlpha(0);
+    this.dyn.bringToTop(main);
+    const doux = Phaser.Math.Easing.Sine.InOut;
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 2400,
+      repeat: -1,
+      onUpdate: (tw) => {
+        const t = tw.getValue() ?? 0;
+        if (t < 0.14) {
+          // Le doigt se pose sur la carte et appuie.
+          main.setPosition(de.x, de.y).setAlpha(Math.min(1, t / 0.07));
+          main.setScale(1 - Math.sin((t / 0.14) * Math.PI) * 0.1);
+        } else if (t < 0.62) {
+          const k = doux((t - 0.14) / 0.48);
+          // Une petite courbe, comme un vrai geste.
+          main.setPosition(
+            de.x + (vers.x - de.x) * k + Math.sin(k * Math.PI) * 40,
+            de.y + (vers.y - de.y) * k,
+          );
+          main.setScale(0.92).setAlpha(1);
+        } else if (t < 0.8) {
+          main.setPosition(vers.x, vers.y).setScale(1);
+          const o = (t - 0.62) / 0.18;
+          rond.setScale(1 + o * 3).setAlpha(1 - o);
+        } else {
+          main.setAlpha(1 - (t - 0.8) / 0.2);
+          rond.setAlpha(0);
+        }
+      },
+    });
+  }
+
+  /** La carte d'ouverture d'une leçon : son titre, son but, et « C'est parti ! ». */
+  private carteLecon(lecon: number): void {
+    const textes = TEXTES_TUTO.lecons[lecon];
+    if (!textes) return;
+    const voile = this.ajouter(
+      this.add.rectangle(
+        LARGEUR / 2,
+        HAUTEUR / 2,
+        DROITE - GAUCHE,
+        BAS - HAUT,
+        COULEURS.fondSombre,
+        0.55,
+      ),
+    );
+    voile.setInteractive();
+    const l = 620;
+    const corps = this.add
+      .text(0, 0, textes.intro, {
+        fontFamily: POLICE,
+        fontSize: '29px',
+        color: COULEURS.texteSombre,
+        fontStyle: '600',
+        align: 'center',
+        lineSpacing: 4,
+        wordWrap: { width: l - 70 },
+      })
+      .setOrigin(0.5, 0);
+    const h = 170 + corps.height + 130;
+    const y0 = HAUTEUR / 2 - h / 2;
+    const fond = this.add.graphics();
+    panneau(fond, -l / 2, 0, l, h, { rayon: 30, ombre: 9, trait: 5 });
+    const numero = this.add
+      .text(0, 44, TEXTES_TUTO.etiquette(lecon + 1, NB_LECONS), {
+        fontFamily: POLICE,
+        fontSize: '26px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const lo = numero.width + 40;
+    const onglet = this.add.graphics();
+    forme(onglet, contourRect(-lo / 2, 22, lo, 44, 16, graineDe(lo, 7), 0.8), {
+      remplissage: COULEURS.jaune,
+      trait: 4,
+    });
+    const titre = this.add
+      .text(0, 112, textes.titre, {
+        fontFamily: POLICE_TITRE,
+        fontSize: '52px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    corps.setY(160);
+    const c = this.ajouter(
+      this.add.container(LARGEUR / 2, y0, [fond, onglet, numero, titre, corps]).setRotation(-0.015),
+    );
+    const bouton = creerBouton(
+      this,
+      LARGEUR / 2,
+      y0 + h - 64,
+      TEXTES_TUTO.commencer,
+      () => {
+        this.tutoIntro = false;
+        this.rafraichir();
+      },
+      { largeur: 340, hauteur: 84, taille: 34, couleur: COULEURS.jaune },
+    );
+    this.ajouter(bouton);
+    const passer = this.texte(
+      LARGEUR / 2,
+      y0 + h + 40,
+      TEXTES_TUTO.passer,
+      24,
+      COULEURS.texteClair,
+      {
+        fontStyle: '600',
+      },
+    ).setOrigin(0.5);
+    passer.setInteractive({ useHandCursor: true }).on('pointerup', () => this.quitterTuto());
+    if (this.animations) {
+      c.setScale(0.6).setAlpha(0);
+      bouton.setAlpha(0);
+      this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 320, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: bouton, alpha: 1, delay: 250, duration: 200 });
+    }
+  }
+
+  /** Fin d'une leçon gagnée : bravo, ce qu'on retient, et la suite. */
+  private dessinerFinLecon(lecon: number): void {
+    const textes = TEXTES_TUTO.lecons[lecon];
+    if (!textes) return;
+    const derniere = lecon + 1 >= NB_LECONS;
+    if (derniere) ecrireTutoAFaire(false);
+    const voile = this.ajouter(
+      this.add.rectangle(
+        LARGEUR / 2,
+        HAUTEUR / 2,
+        DROITE - GAUCHE,
+        BAS - HAUT,
+        COULEURS.fondSombre,
+        0.6,
+      ),
+    );
+    voile.setInteractive();
+    const l = 620;
+    const bravo = typeof textes.bravo === 'function' ? textes.bravo() : textes.bravo;
+    const corpsTexte = derniere ? `${bravo}\n\n${TEXTES_TUTO.finTexte}` : bravo;
+    const corps = this.add
+      .text(0, 150, corpsTexte, {
+        fontFamily: POLICE,
+        fontSize: '28px',
+        color: COULEURS.texteSombre,
+        fontStyle: '600',
+        align: 'center',
+        lineSpacing: 4,
+        wordWrap: { width: l - 70 },
+      })
+      .setOrigin(0.5, 0);
+    const h = 150 + corps.height + (derniere ? 220 : 140);
+    const y0 = HAUTEUR / 2 - h / 2;
+    const fond = this.add.graphics();
+    panneau(fond, -l / 2, 0, l, h, { rayon: 30, ombre: 9, trait: 5 });
+    // Les étoiles des leçons : une par leçon réussie.
+    const etoiles = this.add.graphics();
+    for (let k = 0; k < NB_LECONS; k++) {
+      const x = (k - (NB_LECONS - 1) / 2) * 70;
+      this.etoile(etoiles, x, 0, 30, k <= lecon ? COULEURS.jaune : 0xe8e0cc);
+    }
+    const titre = this.add
+      .text(0, 86, derniere ? TEXTES_TUTO.fini : TEXTES_TUTO.reussie, {
+        fontFamily: POLICE_TITRE,
+        fontSize: '50px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const c = this.ajouter(
+      this.add.container(LARGEUR / 2, y0, [fond, etoiles, titre, corps]).setRotation(0.012),
+    );
+    const suite = (): void => {
+      if (derniere) {
+        // La première vraie partie : contre l'ordi facile, on choisit sa carte et sa bande.
+        const d: DonneesPartie = { ...this.donnees, graine: Date.now(), ordi: 'facile' };
+        delete d.tuto;
+        this.scene.start('choix', d);
+      } else {
+        this.scene.restart({ ...this.donnees, graine: Date.now(), tuto: lecon + 1 });
+      }
+    };
+    const yb = y0 + h - (derniere ? 150 : 64);
+    const b1 = creerBouton(
+      this,
+      LARGEUR / 2,
+      yb,
+      derniere ? TEXTES_TUTO.premierePartie : TEXTES_TUTO.suivante,
+      suite,
+      {
+        largeur: 400,
+        hauteur: 84,
+        taille: 32,
+        couleur: COULEURS.jaune,
+      },
+    );
+    this.ajouter(b1);
+    const boutons: Phaser.GameObjects.Container[] = [b1];
+    if (derniere) {
+      boutons.push(
+        this.ajouter(
+          creerBouton(
+            this,
+            LARGEUR / 2,
+            yb + 92,
+            TEXTES_TUTO.accueilRetour,
+            () => this.scene.start('accueil'),
+            {
+              largeur: 260,
+              hauteur: 64,
+              taille: 26,
+            },
+          ),
+        ),
+      );
+    }
+    jouerSon('victoire');
+    if (this.animations) {
+      c.setScale(0.5).setAlpha(0);
+      this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 360, ease: 'Back.easeOut' });
+      for (const b of boutons) {
+        b.setAlpha(0);
+        this.tweens.add({ targets: b, alpha: 1, delay: 300, duration: 200 });
+      }
+      etoiles.setScale(0.2);
+      this.tweens.add({
+        targets: etoiles,
+        scale: 1,
+        delay: 200,
+        duration: 420,
+        ease: 'Back.easeOut',
+      });
+    }
+  }
+
+  /** Une étoile pleine au trait d'encre. */
+  private etoile(
+    g: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    r: number,
+    couleur: number,
+  ): void {
+    const pts: { x: number; y: number }[] = [];
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const rr = i % 2 === 0 ? r : r * 0.48;
+      pts.push({ x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr });
+    }
+    forme(g, pts, { remplissage: couleur, trait: 4, ombre: 4 });
+  }
+
+  /** On passe le tuto : il ne sera plus proposé, retour à l'accueil. */
+  private quitterTuto(): void {
+    ecrireTutoAFaire(false);
+    this.scene.start('accueil');
+  }
+
+  /** Revanche en solo ou à deux : la même partie, nouvelle donne, tout de suite. */
+  private revanche(): void {
+    const donnees: DonneesPartie = { ...this.donnees, graine: Date.now(), revanche: true };
+    delete donnees.reprise;
+    this.scene.restart(donnees);
+  }
+
+  /**
+   * Revanche en ligne : l'adversaire est devenu un ami en jouant ensemble (DR.12). On retrouve
+   * son nom dans la liste d'amis et on lui propose une nouvelle partie ; s'il est introuvable
+   * (ou deux amis portent ce nom), on retombe sur le menu en ligne.
+   */
+  private async revancheEnLigne(): Promise<void> {
+    const pseudo = this.enLigne?.vue.adversaire ?? null;
+    let ami: { id: string; pseudo: string } | undefined;
+    try {
+      const serveur = await serveurParties();
+      const amis = (await serveur.amis()).filter((a) => a.pseudo === pseudo);
+      if (amis.length === 1 && amis[0]) ami = { id: amis[0].id, pseudo: amis[0].pseudo };
+    } catch {
+      ami = undefined;
+    }
+    const enLigne: EtapeEnLigne = ami ? { etape: 'hote', ami } : { etape: 'menu' };
+    this.scene.start(ami ? 'choix' : 'enLigne', { ...this.donnees, enLigne });
   }
 
   /**

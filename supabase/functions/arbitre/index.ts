@@ -38,6 +38,7 @@ type Requete =
   | { op: 'ouvrir'; reglages: Partial<ReglagesEnLigne>; ami?: string }
   | { op: 'rejoindre'; code: string; equipe?: string }
   | { op: 'ajouterAmi'; code: string }
+  | { op: 'retirerAmi'; ami: string }
   | { op: 'envoyer'; partieId: string; demande: Demande };
 
 function hasard(): number {
@@ -109,6 +110,42 @@ async function ajouterAmi(compte: string, saisie: string): Promise<unknown> {
   return data;
 }
 
+/** Retire l'amitié dans les deux sens, et les invitations encore en attente entre les deux. */
+async function retirerAmi(compte: string, ami: string): Promise<null> {
+  // Un identifiant de compte, rien d'autre : il entre dans un filtre de la base.
+  if (typeof ami !== 'string' || !/^[0-9a-f-]{36}$/i.test(ami)) throw new Refus('ami_introuvable');
+  const { error } = await base
+    .from('amis')
+    .delete()
+    .or(`and(compte.eq.${compte},ami.eq.${ami}),and(compte.eq.${ami},ami.eq.${compte})`);
+  if (error) throw error;
+  await base
+    .from('invitations')
+    .delete()
+    .or(`and(de.eq.${compte},pour.eq.${ami}),and(de.eq.${ami},pour.eq.${compte})`);
+  return null;
+}
+
+/** Anti-abus : au plus 5 parties ouvertes qui attendent encore un ami, par joueur et par jour. */
+const MAX_PARTIES_EN_ATTENTE = 5;
+
+async function verifierPartiesEnAttente(compte: string): Promise<void> {
+  const depuis = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { count, error } = await base
+    .from('parties')
+    .select('id', { count: 'exact', head: true })
+    .eq('rouge', compte)
+    .eq('statut', 'attente')
+    .gte('cree_le', depuis);
+  if (error) throw error;
+  if ((count ?? 0) >= MAX_PARTIES_EN_ATTENTE) {
+    throw new Refus(
+      'trop_de_parties',
+      'Tu as déjà plusieurs parties qui attendent un ami. Attends qu’il arrive !',
+    );
+  }
+}
+
 async function finirInvitation(partieId: string): Promise<void> {
   await base.from('invitations').delete().eq('partie_id', partieId);
 }
@@ -145,7 +182,10 @@ async function traiterRequete(compte: string, r: Requete): Promise<unknown> {
       return profil(compte, r.pseudo);
     case 'ajouterAmi':
       return ajouterAmi(compte, r.code);
+    case 'retirerAmi':
+      return retirerAmi(compte, r.ami);
     case 'ouvrir': {
+      await verifierPartiesEnAttente(compte);
       const nom = await pseudoDe(compte);
       if (r.ami) {
         const { data } = await base
