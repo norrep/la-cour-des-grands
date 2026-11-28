@@ -7,6 +7,8 @@ import {
   RANG_DEPART_PREMIER,
   RANG_DEPART_SECOND,
   ROLES,
+  SIGNATURES,
+  VALEUR_MAX_BOUSCULE,
   TAILLE_RANG,
   VALEUR_MIN_CHOUCHOU,
   estJoker,
@@ -40,11 +42,14 @@ export function adversaire(bande: Bande): Bande {
 // Mise en place
 // ---------------------------------------------------------------------------
 
-function creerBande(bande: Bande): Eleve[] {
+/** Les 24 élèves d'une bande ; le rôle signature de son clan prend la place de celui qu'il remplace. */
+function creerBande(bande: Bande, signature?: RoleId): Eleve[] {
+  const remplace = signature ? SIGNATURES[signature]?.remplace : undefined;
   const eleves: Eleve[] = [];
   for (const r of ROLES) {
+    const role = signature && r.id === remplace ? signature : r.id;
     for (let n = 1; n <= EXEMPLAIRES_PAR_ROLE; n++) {
-      eleves.push({ id: `${bande}-${r.id}-${n}`, bande, role: r.id });
+      eleves.push({ id: `${bande}-${role}-${n}`, bande, role });
     }
   }
   return eleves;
@@ -55,7 +60,7 @@ export function creerPartie(cour: Cour, options: OptionsPartie): EtatPartie {
   let rng = graineVersEtat(options.graine);
   const joueurs = {} as Record<Bande, Joueur>;
   for (const bande of BANDES) {
-    const [melange, suivant] = melanger(creerBande(bande), rng);
+    const [melange, suivant] = melanger(creerBande(bande, options.signatures?.[bande]), rng);
     rng = suivant;
     joueurs[bande] = {
       absents: melange.slice(0, ABSENTS_A_L_APPEL),
@@ -333,6 +338,36 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
         });
         return opts;
       }
+      case 'bagarreur': {
+        // Bousculade (DS.2) : un adversaire voisin plus faible recule sur un îlot vide voisin de
+        // lui. Ni le Petit (intouchable) ni un planqué ; jamais sur l'îlot du Bagarreur.
+        const opts: Option[] = [];
+        for (const depart of ilotsVoisins(cour, effet.ilot)) {
+          if (!adverseVisible(depart)) continue;
+          const v = valeur((sommet(e, depart) as Eleve).role);
+          if (v === null || v > VALEUR_MAX_BOUSCULE) continue;
+          for (const arrivee of ilotsVoisins(cour, depart)) {
+            if (arrivee === effet.ilot || (e.piles[arrivee]?.length ?? 0) > 0) continue;
+            opts.push({ type: 'glisser', depart, arrivee });
+          }
+        }
+        return opts;
+      }
+      case 'teleporteur':
+        // Téléportation (DS.3) : échange de place avec un élève de sa bande visible ailleurs sur
+        // la cour. Ni un planqué (banc), ni le Petit (demande de Clément) ; pas depuis le banc.
+        if (estPlanque(e, effet.ilot)) return [];
+        return cour.ilots
+          .filter((ilot) => {
+            const s = sommet(e, ilot);
+            return (
+              ilot !== effet.ilot &&
+              s?.bande === bande &&
+              s.role !== 'petit' &&
+              !estPlanque(e, ilot)
+            );
+          })
+          .map((ilot) => ({ type: 'echanger', ilot }));
       case 'fouine':
         // Passée par les buissons (hors du chemin), la Fouine ramène un copain.
         return effet.horsChemin && nombreAPiocher(moi, 1) > 0 ? [{ type: 'piocher' }] : [];
@@ -428,6 +463,8 @@ function memeOption(a: Option, b: Option): boolean {
       return b.type === 'repecher' && a.eleveId === b.eleveId;
     case 'glisser':
       return b.type === 'glisser' && a.depart === b.depart && a.arrivee === b.arrivee;
+    case 'echanger':
+      return b.type === 'echanger' && a.ilot === b.ilot;
   }
 }
 
@@ -627,7 +664,32 @@ function appliquerOption(e: EtatPartie, effet: Effet, option: Option): void {
         role: eleve.role,
         depart: option.depart,
         arrivee: option.arrivee,
+        ...(source === 'bagarreur' ? { par: 'bagarreur' as const } : {}),
       });
+      verifierRegions(e);
+      break;
+    }
+    case 'echanger': {
+      const ici = e.piles[effet.ilot] as Eleve[];
+      const la = e.piles[option.ilot] as Eleve[];
+      const teleporteur = ici.pop() as Eleve;
+      const copain = la.pop() as Eleve;
+      ici.push(copain);
+      la.push(teleporteur);
+      for (const [el, depart, arrivee] of [
+        [teleporteur, effet.ilot, option.ilot],
+        [copain, option.ilot, effet.ilot],
+      ] as const) {
+        noter(e, {
+          type: 'glissade',
+          tour: e.tour,
+          eleveId: el.id,
+          role: el.role,
+          depart,
+          arrivee,
+          par: 'teleporteur',
+        });
+      }
       verifierRegions(e);
       break;
     }
@@ -697,9 +759,19 @@ function cleOption(e: EtatPartie, o: Option): string {
       return `${o.type}:${o.ilot}`;
     case 'glisser':
       return `glisser:${o.depart}:${o.arrivee}`;
+    case 'echanger':
+      return `echanger:${o.ilot}`;
     default:
       return o.type;
   }
+}
+
+/** Pouvoirs facultatifs : on peut les garder (« Passer »), même avec une seule option. */
+export function pouvoirFacultatif(effet: Effet): boolean {
+  return (
+    effet.type === 'pouvoir' &&
+    (effet.role === 'delegue' || effet.role === 'bagarreur' || effet.role === 'teleporteur')
+  );
 }
 
 /**
@@ -707,7 +779,7 @@ function cleOption(e: EtatPartie, o: Option): string {
  * du Délégué reste un vrai choix, car on peut le garder (« Passer », DF.8).
  */
 export function choixUnique(e: EtatPartie, effet: Effet, options: readonly Option[]): boolean {
-  if (effet.type === 'pouvoir' && effet.role === 'delegue') return false;
+  if (pouvoirFacultatif(effet)) return false;
   const premiere = options[0];
   if (!premiere) return false;
   const cle = cleOption(e, premiere);

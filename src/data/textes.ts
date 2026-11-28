@@ -17,6 +17,8 @@ const ROLES: Record<RoleId, string> = {
   contagieux: 'Le Contagieux',
   delegue: 'Le Délégué',
   grand: 'Le Grand de CM2',
+  bagarreur: 'Le Bagarreur',
+  teleporteur: 'Le Téléporteur',
 };
 
 const ROLES_COURTS: Record<RoleId, string> = {
@@ -28,6 +30,8 @@ const ROLES_COURTS: Record<RoleId, string> = {
   contagieux: 'Contagieux',
   delegue: 'Délégué',
   grand: 'Grand',
+  bagarreur: 'Bagarreur',
+  teleporteur: 'Téléporteur',
 };
 
 const EQUIPEMENTS: Record<EquipementId, string> = {
@@ -54,6 +58,10 @@ const POUVOIRS: Record<RoleId, string> = {
     return `Mot d’excuse : tu choisis le goûter où file ${surv.role}.`;
   },
   grand: 'Pas de pouvoir : c’est le plus fort.',
+  bagarreur:
+    '★ Rôle spécial des Écoliers. Bousculade : un adversaire voisin de 1 à 4 recule sur un îlot vide à côté de lui.',
+  teleporteur:
+    '★ Rôle spécial des Aliens. Téléportation : il échange sa place avec un élève de ta bande, n’importe où (sauf le Petit).',
 };
 
 /** Effet de chaque équipement spécial. */
@@ -254,6 +262,9 @@ export const TEXTES = {
     buts: '★ Buts : touche l’adversaire (1 ou 2) à punir.',
     tobogganDepart: '★ Toboggan : touche l’adversaire à faire glisser.',
     tobogganArrivee: '★ Toboggan : touche l’îlot d’arrivée.',
+    bagarreurDepart: 'Bagarreur : touche l’adversaire à bousculer, ou passe.',
+    bagarreurArrivee: 'Bagarreur : touche l’îlot vide où il recule.',
+    teleporteur: 'Téléporteur : touche l’élève de ta bande avec qui échanger, ou passe.',
     bulle: 'Pouvoir !',
   },
   fiche: {
@@ -471,6 +482,8 @@ export const TEXTES = {
     rappel: (b: Bande) => `${BANDES_TITRE[b]} rappelle un élève dans son rang.`,
     repechage: (b: Bande) => `${BANDES_TITRE[b]} fait revenir un élève puni.`,
     glissade: (role: RoleId) => `${ROLES[role]} glisse sur le toboggan !`,
+    bousculade: (role: RoleId) => `Bousculade ! ${ROLES[role]} recule d’un îlot.`,
+    teleportation: (role: RoleId) => `Bzzzt ! ${ROLES[role]} est téléporté.`,
     passe: (b: Bande) => `${BANDES_TITRE[b]} renonce à son pouvoir.`,
     region: (b: Bande, nom: string, n: number) =>
       `${BANDES_TITRE[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} : +${n} !`,

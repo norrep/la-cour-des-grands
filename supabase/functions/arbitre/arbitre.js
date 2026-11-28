@@ -30,7 +30,14 @@ var VALEUR_MIN_CHOUCHOU = 5;
 var PAR_ID = Object.fromEntries(
   ROLES.map((r) => [r.id, r])
 );
+var SIGNATURES = {
+  bagarreur: { valeur: 5, remplace: "contagieux" },
+  teleporteur: { valeur: 6, remplace: "delegue" }
+};
+var VALEUR_MAX_BOUSCULE = 4;
 function valeur(role) {
+  const signature = SIGNATURES[role];
+  if (signature) return signature.valeur;
   return PAR_ID[role].valeur;
 }
 function estJoker(role) {
@@ -211,11 +218,13 @@ var BANDES = ["rouge", "bleu"];
 function adversaire(bande) {
   return bande === "rouge" ? "bleu" : "rouge";
 }
-function creerBande(bande) {
+function creerBande(bande, signature) {
+  const remplace = signature ? SIGNATURES[signature]?.remplace : void 0;
   const eleves = [];
   for (const r of ROLES) {
+    const role = signature && r.id === remplace ? signature : r.id;
     for (let n = 1; n <= EXEMPLAIRES_PAR_ROLE; n++) {
-      eleves.push({ id: `${bande}-${r.id}-${n}`, bande, role: r.id });
+      eleves.push({ id: `${bande}-${role}-${n}`, bande, role });
     }
   }
   return eleves;
@@ -224,7 +233,7 @@ function creerPartie(cour, options) {
   let rng = graineVersEtat(options.graine);
   const joueurs = {};
   for (const bande of BANDES) {
-    const [melange, suivant] = melanger(creerBande(bande), rng);
+    const [melange, suivant] = melanger(creerBande(bande, options.signatures?.[bande]), rng);
     rng = suivant;
     joueurs[bande] = {
       absents: melange.slice(0, ABSENTS_A_L_APPEL),
@@ -416,6 +425,25 @@ function optionsEffet(e, effet2) {
         });
         return opts;
       }
+      case "bagarreur": {
+        const opts = [];
+        for (const depart of ilotsVoisins(cour, effet2.ilot)) {
+          if (!adverseVisible(depart)) continue;
+          const v = valeur(sommet(e, depart).role);
+          if (v === null || v > VALEUR_MAX_BOUSCULE) continue;
+          for (const arrivee of ilotsVoisins(cour, depart)) {
+            if (arrivee === effet2.ilot || (e.piles[arrivee]?.length ?? 0) > 0) continue;
+            opts.push({ type: "glisser", depart, arrivee });
+          }
+        }
+        return opts;
+      }
+      case "teleporteur":
+        if (estPlanque(e, effet2.ilot)) return [];
+        return cour.ilots.filter((ilot) => {
+          const s = sommet(e, ilot);
+          return ilot !== effet2.ilot && s?.bande === bande && s.role !== "petit" && !estPlanque(e, ilot);
+        }).map((ilot) => ({ type: "echanger", ilot }));
       case "fouine":
         return effet2.horsChemin && nombreAPiocher(moi, 1) > 0 ? [{ type: "piocher" }] : [];
       default:
@@ -472,6 +500,8 @@ function memeOption(a, b) {
       return b.type === "repecher" && a.eleveId === b.eleveId;
     case "glisser":
       return b.type === "glisser" && a.depart === b.depart && a.arrivee === b.arrivee;
+    case "echanger":
+      return b.type === "echanger" && a.ilot === b.ilot;
   }
 }
 function jouer(etat, action) {
@@ -643,8 +673,33 @@ function appliquerOption(e, effet2, option) {
         eleveId: eleve2.id,
         role: eleve2.role,
         depart: option.depart,
-        arrivee: option.arrivee
+        arrivee: option.arrivee,
+        ...source === "bagarreur" ? { par: "bagarreur" } : {}
       });
+      verifierRegions(e);
+      break;
+    }
+    case "echanger": {
+      const ici = e.piles[effet2.ilot];
+      const la = e.piles[option.ilot];
+      const teleporteur = ici.pop();
+      const copain = la.pop();
+      ici.push(copain);
+      la.push(teleporteur);
+      for (const [el, depart, arrivee] of [
+        [teleporteur, effet2.ilot, option.ilot],
+        [copain, option.ilot, effet2.ilot]
+      ]) {
+        noter(e, {
+          type: "glissade",
+          tour: e.tour,
+          eleveId: el.id,
+          role: el.role,
+          depart,
+          arrivee,
+          par: "teleporteur"
+        });
+      }
       verifierRegions(e);
       break;
     }
@@ -705,12 +760,17 @@ function cleOption(e, o) {
       return `${o.type}:${o.ilot}`;
     case "glisser":
       return `glisser:${o.depart}:${o.arrivee}`;
+    case "echanger":
+      return `echanger:${o.ilot}`;
     default:
       return o.type;
   }
 }
+function pouvoirFacultatif(effet2) {
+  return effet2.type === "pouvoir" && (effet2.role === "delegue" || effet2.role === "bagarreur" || effet2.role === "teleporteur");
+}
 function choixUnique(e, effet2, options) {
-  if (effet2.type === "pouvoir" && effet2.role === "delegue") return false;
+  if (pouvoirFacultatif(effet2)) return false;
   const premiere = options[0];
   if (!premiere) return false;
   const cle = cleOption(e, premiere);
@@ -1062,10 +1122,31 @@ var COURS = {
 
 // src/data/equipes.ts
 var EQUIPES = {
-  ecoliers: { id: "ecoliers", nom: "Les \xC9coliers", tenue: "rouges", miroir: "bleus" },
+  ecoliers: {
+    id: "ecoliers",
+    nom: "Les \xC9coliers",
+    tenue: "rouges",
+    miroir: "bleus",
+    signature: "bagarreur"
+  },
+  // Les Vers gardent leurs 8 rôles : le Fouisseur n'a pas pu être équilibré (DS.4).
   vers: { id: "vers", nom: "Les Vers de terre", tenue: "vers", miroir: "vers2" },
-  aliens: { id: "aliens", nom: "Les Aliens", tenue: "aliens", miroir: "aliens2" }
+  aliens: {
+    id: "aliens",
+    nom: "Les Aliens",
+    tenue: "aliens",
+    miroir: "aliens2",
+    signature: "teleporteur"
+  }
 };
+function signaturesPour(c) {
+  const s = {};
+  for (const b of ["rouge", "bleu"]) {
+    const r = EQUIPES[c[b]]?.signature;
+    if (r) s[b] = r;
+  }
+  return s;
+}
 
 // src/reseau/arbitre.ts
 var DELAI_TOUR_DEFAUT = 120;
@@ -1132,13 +1213,15 @@ function rejoindrePartie(p, invite, graine, maintenant, equipe, nom) {
     throw new Refus("deja_dedans", "Tu es d\xE9j\xE0 dans cette partie.");
   }
   if (p.statut !== "attente" || p.joueurs.bleu) throw new Refus("partie_pleine");
+  const reglages = equipe ? { ...p.reglages, equipes: { ...p.reglages.equipes, bleu: equipe } } : p.reglages;
   const etat = creerPartie(courDe(p.reglages.carte), {
     graine,
     equipements: p.reglages.equipements,
     // Comme à l'écran : un pouvoir sans vrai choix s'applique tout seul (DF.40).
-    pouvoirsAuto: true
+    pouvoirsAuto: true,
+    // Chaque clan joue avec son rôle signature (DS.1).
+    signatures: signaturesPour(reglages.equipes)
   });
-  const reglages = equipe ? { ...p.reglages, equipes: { ...p.reglages.equipes, bleu: equipe } } : p.reglages;
   return {
     ...p,
     reglages,
@@ -1565,6 +1648,8 @@ function retournerOption(o, m) {
       return { type: "glisser", depart: m.noeud(o.depart), arrivee: m.noeud(o.arrivee) };
     case "surveillante":
       return { type: "surveillante", position: m.ronde(o.position) };
+    case "echanger":
+      return { type: "echanger", ilot: m.noeud(o.ilot) };
     default:
       return o;
   }

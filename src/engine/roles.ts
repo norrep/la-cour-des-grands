@@ -32,7 +32,34 @@ const PAR_ID: Record<RoleId, DefinitionRole> = Object.fromEntries(
   ROLES.map((r) => [r.id, r]),
 ) as Record<RoleId, DefinitionRole>;
 
+/**
+ * Rôles signature des clans (DS.1) : chacun remplace un rôle à « petit pouvoir », au même
+ * chiffre (échelle de Clément : chiffre fort → petit pouvoir).
+ */
+export const SIGNATURES: Partial<Record<RoleId, { valeur: number; remplace: RoleOrigine }>> = {
+  bagarreur: { valeur: 5, remplace: 'contagieux' },
+  teleporteur: { valeur: 6, remplace: 'delegue' },
+};
+
+/** Le Bagarreur ne bouscule qu'un adversaire de valeur strictement inférieure. */
+export const VALEUR_MAX_BOUSCULE = 4;
+
+/** Rôle signature d'un clan (et non l'un des 8 rôles d'origine). */
+export function estSignature(role: RoleId): boolean {
+  return SIGNATURES[role] !== undefined;
+}
+
+/** Les 8 rôles d'origine. */
+export type RoleOrigine = Exclude<RoleId, 'bagarreur' | 'teleporteur'>;
+
+/** Le rôle d'origine qu'un rôle signature remplace (lui-même pour les 8 rôles d'origine). */
+export function roleRemplace(role: RoleId): RoleOrigine {
+  return (SIGNATURES[role]?.remplace ?? role) as RoleOrigine;
+}
+
 export function valeur(role: RoleId): number | null {
+  const signature = SIGNATURES[role];
+  if (signature) return signature.valeur;
   return PAR_ID[role].valeur;
 }
 

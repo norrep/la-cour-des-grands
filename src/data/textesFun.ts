@@ -48,6 +48,9 @@ export const FUN = {
     buts: ['★ Buts : touche le petit (1 ou 2) à punir. Tir cadré !'],
     tobogganDepart: ['★ Toboggan : qui on fait glisser ? Touche-le.'],
     tobogganArrivee: ['★ Toboggan : il atterrit où ? Touche l’îlot.'],
+    bagarreurDepart: ['« Pousse-toi de là ! » Touche l’adversaire à bousculer, ou laisse tomber.'],
+    bagarreurArrivee: ['Il recule où ? Touche l’îlot vide.'],
+    teleporteur: ['Bzzzt ! Touche le copain avec qui changer de place, ou reste là.'],
   },
   fiche: {
     glisser: ['Hop, lâche-le sur un îlot jaune.', 'Vise un îlot jaune et lâche tout.'],
@@ -106,6 +109,8 @@ export const FUN = {
     rappel: (b: Bande) => [`${BT(b)} rappelle un élève : « Reviens, on a besoin de toi ! »`],
     repechage: (b: Bande) => [`${BT(b)} négocie le retour d’un puni. Promis, il sera sage.`],
     glissade: (role: RoleId) => [`Wiiiz ! ${R(role)} dévale le toboggan.`],
+    bousculade: (role: RoleId) => [`Pousse-toi ! ${R(role)} se fait bousculer.`],
+    teleportation: (role: RoleId) => [`Bzzzt ! ${R(role)} change de place en un éclair.`],
     passe: (b: Bande) => [`${BT(b)} garde son pouvoir dans sa poche.`],
     region: (b: Bande, nom: string, n: number) => [
       `Miam ! ${BT(b)} ramasse ${min(nom)} : +${n} !`,

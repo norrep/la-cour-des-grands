@@ -9,7 +9,8 @@
  */
 import { equipeDe } from '../../../data/equipes';
 import Phaser from 'phaser';
-import { ROLES, type Bande, type RoleId } from '../../../engine/index';
+import { estSignature, roleRemplace, ROLES, type Bande, type RoleId } from '../../../engine/index';
+import { etoileDoree } from '../../ui/badge';
 import { COULEURS } from '../../config';
 import { animerMarionnette, Marionnette, type Rig } from '../../ui/marionnette';
 import { animerVer, Ver } from '../../ui/ver';
@@ -32,8 +33,13 @@ const HAUTEUR_PANTIN = 170;
 const RAYON_BUSTE = 150;
 /** Tenu par la main gauche, le corps penche vers la droite : la grosse tête ne cache pas le bras. */
 const PENCHE = 0.45;
+/**
+ * Dessin d'un rôle : un rôle signature (DS.1) emprunte, en attendant le sien, celui du rôle qu'il
+ * remplace (même chiffre sur le débardeur) ; son étoile dorée le distingue (DS.5).
+ */
+const dessin = roleRemplace;
 /** Nom de l'image d'un élève : préfixe de l'équipe qui joue ce camp (DB.1), puis le rôle. */
-const nom = (bande: Bande, role: RoleId) => `${equipeDe(bande).prefixe}-${role}`;
+const nom = (bande: Bande, role: RoleId) => `${equipeDe(bande).prefixe}-${dessin(role)}`;
 const cle = (bande: Bande, role: RoleId) => `dodu-${nom(bande, role)}`;
 /** Les vers de terre n'ont pas de membres : un seul dessin, déformé d'un bloc (DB.8). */
 const estVer = (bande: Bande) => equipeDe(bande).sansBras === true;
@@ -42,7 +48,7 @@ const cleCorps = (bande: Bande, role: RoleId) => `${cle(bande, role)}-corps`;
 function rig(bande: Bande, role: RoleId): Rig {
   // Une tenue miroir reprend les attaches de la tenue dont elle est recolorée (DE.1).
   const t = equipeDe(bande);
-  const n = `${t.rig ?? t.prefixe}-${role}`;
+  const n = `${t.rig ?? t.prefixe}-${dessin(role)}`;
   const r = RIGS[n] ?? RIGS_EQUIPES[n];
   if (!r) throw new Error(`Élève sans marionnette : ${n}`);
   return r;
@@ -166,8 +172,13 @@ export const SKIN_CARTOON: Skin = {
     m.racine.setY(pieds);
     // Pas de pastille de valeur : le numéro est déjà sur la chasuble (DP.1).
     const eleve = scene.add.container(0, 0, [m.racine]);
-    if (ver) animerVer(scene, ver, eleve, { caractere: role });
-    else animerMarionnette(scene, m as Marionnette, eleve, { caractere: role });
+    if (ver) animerVer(scene, ver, eleve, { caractere: dessin(role) });
+    else animerMarionnette(scene, m as Marionnette, eleve, { caractere: dessin(role) });
+    if (estSignature(role)) {
+      const etoile = etoileDoree(scene, role, taille * 0.22);
+      etoile.setPosition(taille * 0.35, pieds - taille * 0.55);
+      eleve.add(etoile);
+    }
     return eleve;
   },
   acteur(scene, bande, role, taille): Acteur {
@@ -214,8 +225,15 @@ export const SKIN_CARTOON: Skin = {
       ),
     );
     m.racine.setMask(masque);
-    if (ver) animerVer(scene, ver, buste, { caractere: role, calme: true });
-    else animerMarionnette(scene, m as Marionnette, buste, { caractere: role, calme: true });
+    if (ver) animerVer(scene, ver, buste, { caractere: dessin(role), calme: true });
+    else
+      animerMarionnette(scene, m as Marionnette, buste, { caractere: dessin(role), calme: true });
+    if (estSignature(role)) {
+      // Le numéro doré, en bas à droite du débardeur (DS.5).
+      const etoile = etoileDoree(scene, role, Math.min(largeur, hauteur) * 0.2);
+      etoile.setPosition(largeur * 0.3, hauteur / 2 - Math.min(largeur, hauteur) * 0.18);
+      buste.add(etoile);
+    }
     return buste;
   },
   pastille(scene, bande, role, diametre) {
@@ -252,11 +270,16 @@ export const SKIN_CARTOON: Skin = {
     });
     if (ver) {
       ver.corps.setMask(masque);
-      animerVer(scene, ver, pastille, { caractere: role, calme: true });
+      animerVer(scene, ver, pastille, { caractere: dessin(role), calme: true });
     } else {
       const mm = m as Marionnette;
       for (const p of ['jambeG', 'jambeD', 'tronc', 'tete'] as const) mm.pieces[p].setMask(masque);
-      animerMarionnette(scene, mm, pastille, { caractere: role, calme: true });
+      animerMarionnette(scene, mm, pastille, { caractere: dessin(role), calme: true });
+    }
+    if (estSignature(role)) {
+      const etoile = etoileDoree(scene, role, r * 0.42);
+      etoile.setPosition(r * 0.78, r * 0.72);
+      pastille.add(etoile);
     }
     return pastille;
   },

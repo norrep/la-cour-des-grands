@@ -15,7 +15,10 @@ export type RoleId =
   | 'fouine'
   | 'contagieux'
   | 'delegue'
-  | 'grand';
+  | 'grand'
+  /** Rôles signature des clans (DS.1) : chacun remplace un rôle, au même chiffre. */
+  | 'bagarreur'
+  | 'teleporteur';
 
 /** Les équipements spéciaux, un par cour. */
 export type EquipementId =
@@ -181,7 +184,9 @@ export type Option =
   | { type: 'surveillante'; position: number }
   | { type: 'rappeler'; ilot: string }
   | { type: 'repecher'; eleveId: string }
-  | { type: 'glisser'; depart: string; arrivee: string };
+  | { type: 'glisser'; depart: string; arrivee: string }
+  /** Téléportation : le Téléporteur échange sa place avec l'élève de sa bande visible sur `ilot`. */
+  | { type: 'echanger'; ilot: string };
 
 export interface Attente {
   effet: Effet;
@@ -229,6 +234,8 @@ export type Evenement =
       role: RoleId;
       depart: string;
       arrivee: string;
+      /** Déplacé par un pouvoir (bousculade, téléportation) plutôt que par le toboggan. */
+      par?: 'bagarreur' | 'teleporteur';
     }
   | { type: 'passe'; tour: number; bande: Bande; effet: RoleId | EquipementId }
   | { type: 'region'; tour: number; bande: Bande; region: string; bonsPoints: number }
@@ -246,6 +253,11 @@ export interface OptionsPartie {
    * seul, sans demande (DF.40). Le jeu l'active ; par défaut la règle stricte (facultatif).
    */
   pouvoirsAuto?: boolean;
+  /**
+   * Rôle signature de chaque bande (DS.1), selon son clan : il prend la place, dans le couloir,
+   * des 3 exemplaires du rôle qu'il remplace. Absent : les 8 rôles d'origine.
+   */
+  signatures?: Partial<Record<Bande, RoleId>>;
 }
 
 export interface EtatPartie {
