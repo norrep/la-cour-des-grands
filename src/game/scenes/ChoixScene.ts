@@ -284,7 +284,7 @@ export class ChoixScene extends Phaser.Scene {
   private medaillon(id: CarteId, x: number, y: number, d: number): Phaser.GameObjects.Container {
     const s = visuelCarte(id).surveillant;
     const texture = id === 'cour-premier-jour' ? JOSIANE : s.texture;
-    const m = new MedaillonSurveillant(this, texture, s.rig, s.id, CARTES[id].surveillant, d);
+    const m = new MedaillonSurveillant(this, texture, s.rig, s.id, d);
     return m.racine.setPosition(x, y);
   }
 

@@ -80,7 +80,7 @@ export const RIGS_EQUIPES: Record<string, Rig> = {
       brasG: { cadre: [286, 0, 125, 54], pivot: [120.5, 25.0], pos: [-122.5, -260.0] },
       brasD: { cadre: [427, 0, 125, 54], pivot: [4.5, 28.0], pos: [122.5, -260.0] },
       tronc: { cadre: [568, 0, 254, 184], pivot: [127.0, 175.0], pos: [0.0, -118.0] },
-      tete: { cadre: [838, 0, 272, 297], pivot: [136.0, 288.0], pos: [0.0, -293.0] },
+      tete: { cadre: [838, 0, 272, 292], pivot: [136.0, 288.0], pos: [0.0, -293.0] },
     },
   },
   'aliens-populaire': {

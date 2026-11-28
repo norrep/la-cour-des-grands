@@ -1,5 +1,5 @@
 import type { Cour } from '../engine/index';
-import { HAUT, LARGEUR } from './config';
+import { DROITE, GAUCHE, HAUT, LARGEUR } from './config';
 
 /**
  * Sur un écran plus allongé que 9:16, la place gagnée en bas va surtout à la cour : le pupitre
@@ -129,16 +129,31 @@ export function avecZonePunis(cour: Cour): boolean {
   return Object.values(cour.noeuds).some((n) => n.equipement === 'porteVieScolaire');
 }
 
+/** Hauteur commune du rond « +2 copains » et de la pioche du bas, juste au-dessus de la main. */
+const Y_COINS_MAIN = RANG.y - RANG.hauteurCarte / 2 - 92;
+
+/** Centre du rond « +2 copains » : au-dessus du coin droit de la main (DL.8). */
+export const CENTRE_APPEL: Point = { x: DROITE - 82, y: Y_COINS_MAIN };
+
 /**
- * Centre d'un lieu : à gauche de la cabane de la bande, la pioche au bord, les punis à côté.
+ * La pioche du bas en miroir du rond « +2 copains » (DL.12) : au-dessus du coin gauche de la main,
+ * un peu plus grande, son étiquette en ruban dessous comme « copains ».
+ */
+export const PIOCHE_MIROIR = { x: GAUCHE + 82, y: Y_COINS_MAIN - 24, echelle: 1.22 };
+
+/**
+ * Centre d'un lieu : à gauche de la cabane de la bande, la pioche au bord, les punis à côté. La
+ * pioche du bas (bande rouge) se range au-dessus du coin gauche de la main (DL.12).
  */
 export function positionLieu(cour: Cour, bande: 'rouge' | 'bleu', lieu: Lieu): Point {
+  if (bande === 'rouge' && lieu === 'portail') return { x: PIOCHE_MIROIR.x, y: PIOCHE_MIROIR.y };
+  // Sans zone des punis, les punis volent jusqu'à la pioche (DL.10).
+  if (lieu === 'cpe' && !avecZonePunis(cour)) return positionLieu(cour, bande, 'portail');
   const cabane = cour.cabanes[bande][0];
   const c = cabane ? positionNoeud(cour, cabane) : { x: LARGEUR / 2, y: ZONE_COUR.y };
   // En bas (bande rouge), on remonte un peu pour laisser la place au journal.
   const dy = bande === 'rouge' ? -22 : 14;
   const ecarts = cour.id === 'piscine' ? ECARTS_LIEUX_PISCINE : ECARTS_LIEUX;
-  // Sans zone des punis, la pioche reste au bord (loin des îlots) et les punis y volent.
-  const ecart = avecZonePunis(cour) ? ecarts[lieu] : ecarts.portail;
+  const ecart = ecarts[lieu];
   return { x: c.x - ecart, y: c.y + dy };
 }

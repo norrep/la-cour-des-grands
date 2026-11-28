@@ -127,7 +127,11 @@ def humanoide(img):
     sans_bras = np.ones_like(a)
     sans_bras[by0 - marge :, :tx0] = False
     sans_bras[by0 - marge :, tx1:] = False
-    piece('tete', 0, cou + marge, 0, w, (milieu, cou), sans_bras)
+    # Ni les épaules : sous la coupe, la tête ne garde que la largeur du cou (épaules hautes).
+    cx0, cx1 = min(runs(a[cou]), key=lambda r: 0 if r[0] <= milieu < r[1] else abs((r[0] + r[1]) / 2 - milieu))
+    sans_bras[cou:, : max(0, int(cx0) - 1)] = False
+    sans_bras[cou:, int(cx1) + 1 :] = False
+    piece('tete', 0, cou + 4, 0, w, (milieu, cou), sans_bras)
     piece('tronc', cou, entre + marge, tx0, tx1, (milieu, entre))
     piece('jambeG', entre - marge, h, 0, milieu, ((tx0 + milieu) // 2, entre))
     piece('jambeD', entre - marge, h, milieu, w, ((milieu + tx1) // 2, entre))

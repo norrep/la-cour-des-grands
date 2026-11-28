@@ -403,6 +403,22 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.11 — Rond « +2 copains » redessiné** : jeton jaune au trait épais avec reflet, deux cartes
   de la pioche en éventail qui se dandinent, « +2 » en autocollant blanc cerclé de noir, « copains »
   sur un ruban à la couleur de l'équipe, halo qui respire, et le rond s'enfonce sous le pouce.
+- **DL.12 — La pioche du bas en miroir du rond « +2 copains »** (choix A de Clément parmi trois
+  maquettes : miroir, duo à droite, pioche-bouton). Elle se range au-dessus du coin gauche de la
+  main, à la hauteur du rond et un peu agrandie (×1,22), son étiquette « Pioche » en ruban dessous
+  comme « copains », les punis au-dessus. La pioche du haut ne bouge pas.
+- **DL.13 — On voit l'élève partir à la punition** (demande de Clément) : un carton rouge jaillit
+  au-dessus de lui, il sursaute bras en l'air, puis traîne les pieds tête basse jusqu'à la pioche
+  (ou au bureau des punis s'il existe), petits nuages de poussière à chaque pas, et disparaît
+  dedans (≈ 1,5 s, `DUREE_PUNITION`). La conséquence suivante attend 0,7 s pour qu'on voie le
+  carton. Le panneau « Puni ! » (carton et sifflet) est retiré : il ne reste que la vidéo du
+  pouvoir quand le skin en a une.
+- **DL.14 — Les cartes de la main deviennent des cases de bande dessinée** (Clément trouvait la
+  main « un peu pauvre » ; choix C parmi trois maquettes : cartes de collection, pupitre, cases de
+  BD). Fond à la couleur de l'équipe avec lignes de vitesse, trame de points qui grossit vers les
+  bords, étoile « pop » derrière la tête et gros trait noir ; la tête de l'élève sort du haut de
+  la case, le visage garde sa taille. La loupe montre la même case en grand. Pour laisser passer
+  les têtes, la pioche du bas et le rond « +2 copains » remontent de 22 px.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 
@@ -453,3 +469,30 @@ Trois maquettes (carrousel, billets empilés, plein écran) ; Clément choisit l
   le nom sur un ruban, puis les six autres élèves en bustes (« Toute la bande »). L'ombre se pose
   sous les pieds de la marionnette (et non plus sous le bas de son cadre), ce qui corrige les Vers
   dont l'ombre flottait au milieu du corps.
+- **DQ.8 — Goûter pris** : un goûter ne se prend qu’une fois (déjà le cas dans le moteur). À l’écran, il s’envole vers le cartable puis disparaît de la cour, au lieu de rester pâli sur un rond de la couleur de l’équipe (demande de Clément, 28/11).
+- **DQ.9 — Pioche sans mégaphone** : quand un pouvoir fait piocher (Populaire, Fouine, copains), le mégaphone incrusté au-dessus de la pioche (DF.38) est retiré, jugé superflu par Clément (28/11). Restent le rebond de la pioche, le vol des cartes vers la main et le son de pioche ; la pause après une pioche passe de 1,45 s à 0,76 s comme les autres conséquences.
+
+## Goûter gardé visible sous la surveillante (28/11, demande de Clément)
+
+- **DG.1** — Le médaillon se posait 96 px au-dessus du goûter, mais sa banderole et ses rubans
+  retombaient sur le goûter et sa pastille « +N ». Il se pose désormais selon sa vraie emprise
+  (tête, rubans, banderole du nom) : jamais par-dessus le goûter gardé, le plus près possible, en
+  évitant les îlots, les autres goûters et les lieux ; au-dessus quand il y a la place.
+- **DG.3** — Plus de nom sous le médaillon sur la cour, pour les trois surveillants (demande de
+  Clément : la carte est déjà chargée). Le nom reste à la présentation de la carte, en pied. Le
+  médaillon, plus étroit sans sa banderole, se pose plus près de son goûter.
+- **DG.4** — Plus de rubans sous la rosette non plus (demande de Clément) : sur la cour, le
+  médaillon n'est plus que la rosette et la tête.
+- **DG.2** — Le médaillon passe de 100 à 84 px de diamètre sur la cour : à 100, il ne tenait pas
+  près de son goûter sur la cour et le camp scout (trop serrés) et partait loin. Ambiguïté notée :
+  s'il paraît trop petit, on peut revenir à 92 en acceptant qu'il s'éloigne un peu sur ces cartes.
+
+## Goûters de la piscine dégagés (28/11, demande de Clément : « illisibles, plein d'informations se superposent »)
+
+- **DH.1** — Les goûters des quatre coins étaient au milieu de deux îlots du bord, donc sous
+  l'élève posé (sa tête), sa pile « ×2 » et les étiquettes. Ils se posent 105 px plus près du milieu
+  du bassin, dans l'eau libre. Dessin et pastille « +N » inchangés (une bouée-plateau plus grande a
+  été essayée puis refusée : « revenir au goûter d'origine »).
+- **DH.2** — Mot d'excuse du Délégué : plus d'étiquette « Mot d'excuse ! » sur chaque goûter visé
+  (la consigne le dit déjà, et elles se recouvraient). La bulle de consigne passe sous l'îlot quand,
+  au-dessus, elle cacherait un goûter (sur toutes les cartes).

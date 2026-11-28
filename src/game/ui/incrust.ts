@@ -9,10 +9,9 @@ import { COULEURS } from '../config';
  * Chaque objet est une image fixe dessinée ; tout le mouvement (gonfle, tremble, ondes, étoiles)
  * est fait en code, ce qui le garde net à toute taille et réglable sans rien régénérer.
  */
-export type IncrustId = 'appelCopains' | 'plaquage' | 'sonnerie';
+export type IncrustId = 'plaquage' | 'sonnerie';
 
 const IMAGES: Record<IncrustId, string> = {
-  appelCopains: 'megaphone',
   plaquage: 'nuage',
   sonnerie: 'reveil',
 };
@@ -82,8 +81,7 @@ export function jouerIncrust(
       onComplete: () => boite.destroy(),
     });
   };
-  if (id === 'appelCopains') megaphone(scene, boite, objet, echelle, taille, fin);
-  else if (id === 'sonnerie') reveil(scene, boite, objet, echelle, taille, fin);
+  if (id === 'sonnerie') reveil(scene, boite, objet, echelle, taille, fin);
   else bagarre(scene, boite, objet, echelle, taille, fin);
   // Filet de sécurité : l'horloge de la scène n'est pas arrêtée avec les tweens.
   scene.time.delayedCall(DUREE_INCRUST + 100, () => {
@@ -104,74 +102,6 @@ type Anim = (
 /** Apparition commune : l'objet surgit en rebondissant. */
 function surgir(scene: Phaser.Scene, objet: Phaser.GameObjects.Image, echelle: number): void {
   scene.tweens.add({ targets: objet, scale: echelle, duration: 220, ease: 'Back.easeOut' });
-}
-
-/** Le mégaphone gonfle, recule sous le souffle et crache trois ondes vers le haut à droite. */
-const megaphone: Anim = (scene, boite, objet, e, taille, fin) => {
-  surgir(scene, objet, e);
-  // Gonfle (inspiration)…
-  scene.tweens.add({
-    targets: objet,
-    scaleX: e * 1.25,
-    scaleY: e * 1.15,
-    angle: 8,
-    delay: 220,
-    duration: 180,
-    ease: 'Sine.easeOut',
-    onComplete: () => {
-      // …puis recule d'un coup pendant qu'il crie.
-      scene.tweens.add({
-        targets: objet,
-        x: -taille * 0.08,
-        y: taille * 0.05,
-        scaleX: e * 0.9,
-        scaleY: e * 1.05,
-        angle: -10,
-        duration: 90,
-        ease: 'Quad.easeOut',
-        yoyo: true,
-        hold: 380,
-      });
-      for (let i = 0; i < 3; i++) onde(scene, boite, taille, i * 130);
-    },
-  });
-  scene.time.delayedCall(1250, fin);
-};
-
-/** Un arc d'onde sonore (trait d'encre + cœur blanc) qui s'éloigne et s'efface. */
-function onde(
-  scene: Phaser.Scene,
-  boite: Phaser.GameObjects.Container,
-  taille: number,
-  delai: number,
-): void {
-  const g = scene.add.graphics();
-  const r = taille * 0.2;
-  const dir = -0.7; // vers le haut à droite, là où pointe le pavillon
-  const dessiner = (epaisseur: number, couleur: number): void => {
-    g.lineStyle(epaisseur, couleur, 1);
-    g.beginPath();
-    g.arc(0, 0, r, dir - 0.75, dir + 0.75);
-    g.strokePath();
-  };
-  dessiner(taille * 0.075, ENCRE);
-  dessiner(taille * 0.04, 0xffffff);
-  g.setPosition(taille * 0.12, -taille * 0.08)
-    .setScale(0.4)
-    .setVisible(false);
-  boite.add(g);
-  scene.tweens.add({
-    targets: g,
-    x: taille * 0.32,
-    y: -taille * 0.28,
-    scale: 1.6,
-    delay: delai,
-    duration: 520,
-    ease: 'Quad.easeOut',
-    onStart: () => g.setVisible(true),
-    onComplete: () => g.destroy(),
-  });
-  scene.tweens.add({ targets: g, alpha: 0, delay: delai + 340, duration: 180 });
 }
 
 /** Le réveil sonne comme un fou : il sautille, se tortille, avec des traits de vibration. */
