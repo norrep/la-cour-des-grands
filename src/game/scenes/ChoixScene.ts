@@ -540,7 +540,10 @@ export class ChoixScene extends Phaser.Scene {
         ...this.donnees,
         carte: this.carte,
         equipes: { rouge: id, bleu: id },
-        enLigne: { etape: 'ouvrir' },
+        enLigne: {
+          etape: 'ouvrir',
+          ...(enLigne.etape === 'hote' && enLigne.ami ? { ami: enLigne.ami } : {}),
+        },
       });
       return;
     }

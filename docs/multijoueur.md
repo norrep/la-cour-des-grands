@@ -38,12 +38,13 @@ Store. Les choix ci-dessous visent la sortie, pas un prototype.
 
 ## Tables
 
-| Table     | Contenu                                                    | Lisible par             |
-| --------- | ---------------------------------------------------------- | ----------------------- |
-| `profils` | pseudo, code ami, date de création                         | tout compte connecté    |
-| `parties` | `PartieServeur` complète (état non masqué, version, délai) | personne (serveur seul) |
-| `vues`    | une ligne par (partie, camp) : `VueJoueur`                 | le joueur de ce camp    |
-| `amis`    | paires de comptes, demandes en attente                     | les deux comptes        |
+| Table         | Contenu                                                    | Lisible par             |
+| ------------- | ---------------------------------------------------------- | ----------------------- |
+| `profils`     | pseudo, code ami, date de création                         | tout compte connecté    |
+| `parties`     | `PartieServeur` complète (état non masqué, version, délai) | personne (serveur seul) |
+| `vues`        | une ligne par (partie, camp) : `VueJoueur`                 | le joueur de ce camp    |
+| `amis`        | une ligne par sens : (compte, ami)                         | le compte               |
+| `invitations` | partie ouverte pour un ami précis, tant qu'elle attend     | l'invité et l'hôte      |
 
 Écritures uniquement par les fonctions serveur. Un coup = une transaction qui vérifie la version
 (verrou optimiste), écrit la partie et les deux vues.
@@ -52,8 +53,22 @@ Store. Les choix ci-dessous visent la sortie, pas un prototype.
 
 - Le téléphone garde l'id de sa partie ; au retour (réseau, appli rouverte), il relit sa vue et
   se réabonne. `mesParties` retrouve les parties en cours sur un autre appareil.
-- Temps par tour (DR.3) : l'échéance est stockée dans la partie ; l'adversaire peut réclamer la
-  victoire une fois l'échéance passée, et une tâche planifiée (pg_cron) clôt les parties oubliées.
+- Temps par tour (DR.3, DR.12) : l'échéance est stockée dans la partie. Toute demande arrivée
+  après l'échéance clôt la partie (le joueur en retard perd) ; les deux téléphones la demandent
+  quand le compte à rebours tombe à zéro, et le menu en ligne clôt les parties échues en
+  s'ouvrant. Pas de tâche planifiée : une partie n'est lue que par ses deux joueurs, elle est
+  donc toujours close avant d'être vue.
+- Abandon : depuis l'aide « ? » pendant la partie, deux touchers (« Abandonner », « Sûr ? »).
+
+## Amis (DR.12)
+
+- Chaque joueur choisit un pseudo (2 à 16 lettres) en entrant dans le jeu en ligne ; il reçoit un
+  code ami de 6 lettres.
+- On devient amis en jouant une partie ensemble, ou en tapant le code ami de l'autre (dans les
+  deux sens).
+- « Mes amis » → « Inviter » : la partie s'ouvre pour cet ami ; il voit « X t'invite à jouer ! »
+  en haut de son menu (en temps réel) et rejoint d'un toucher. Le code reste affiché aussi.
+- Le pseudo de l'adversaire remplace « ton ami » pendant la partie.
 
 ## Tester sans réseau
 
@@ -73,7 +88,8 @@ Store. Les choix ci-dessous visent la sortie, pas un prototype.
 1. Arbitre, vues masquées, serveur en mémoire, tests. ← fait
 2. Projet Supabase : tables, sécurité, comptes anonymes, fonction arbitre. ← fait
 3. Écran : jouer en ligne, inviter par lien ou code, partie en direct, reprise. ← fait
-4. Amis, abandon et temps à l'écran, notifications.
+4. Amis, abandon et temps à l'écran. ← fait
+5. Notifications « c'est ton tour », comptes Apple/Google.
 
 ## Projet Supabase et mise en ligne du serveur
 

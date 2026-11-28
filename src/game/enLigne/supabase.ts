@@ -1,9 +1,14 @@
 import type { EquipeId } from '../../data/equipes';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
+  DUREE_INVITATION,
+  normaliserCode,
   Refus,
+  type Ami,
   type CodeRefus,
   type Demande,
+  type Invitation,
+  type Profil,
   type ReglagesEnLigne,
   type ServeurParties,
   type VueJoueur,
@@ -13,11 +18,17 @@ import { SUPABASE_CLE_PUBLIQUE, SUPABASE_URL } from './config';
 /** Temps maximal d'une demande au serveur (ms). */
 const DELAI_RESEAU = 15_000;
 
-export interface Profil {
+interface LigneProfil {
   id: string;
   pseudo: string;
   code_ami: string;
 }
+
+const versProfil = (l: LigneProfil): Profil => ({
+  id: l.id,
+  pseudo: l.pseudo,
+  codeAmi: l.code_ami,
+});
 
 /**
  * Le vrai serveur : Supabase. Les coups passent par la fonction « arbitre » ; les vues se lisent
@@ -67,11 +78,87 @@ export class ServeurSupabase implements ServeurParties {
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
-    return data as Profil | null;
+    return data ? versProfil(data as LigneProfil) : null;
   }
 
-  async choisirPseudo(pseudo: string): Promise<Profil> {
-    return (await this.appeler({ op: 'profil', pseudo })) as Profil;
+  async nommer(pseudo: string): Promise<Profil> {
+    return versProfil((await this.appeler({ op: 'profil', pseudo })) as LigneProfil);
+  }
+
+  /** Les profils de ces comptes (lisibles par tous les joueurs connectés). */
+  private async profils(ids: string[]): Promise<Map<string, Profil>> {
+    if (ids.length === 0) return new Map();
+    const { data, error } = await this.base
+      .from('profils')
+      .select('id, pseudo, code_ami')
+      .in('id', ids);
+    if (error) throw error;
+    return new Map((data as LigneProfil[]).map((l) => [l.id, versProfil(l)]));
+  }
+
+  async amis(): Promise<Ami[]> {
+    const id = await this.compte();
+    const { data, error } = await this.base.from('amis').select('ami').eq('compte', id);
+    if (error) throw error;
+    const profils = await this.profils((data as { ami: string }[]).map((l) => l.ami));
+    return [...profils.values()].sort((a, b) => a.pseudo.localeCompare(b.pseudo, 'fr'));
+  }
+
+  async ajouterAmi(codeAmi: string): Promise<Ami> {
+    const code = normaliserCode(codeAmi);
+    if (!code) throw new Refus('ami_introuvable');
+    return versProfil((await this.appeler({ op: 'ajouterAmi', code })) as LigneProfil);
+  }
+
+  async invitations(): Promise<Invitation[]> {
+    const id = await this.compte();
+    const depuis = new Date(Date.now() - DUREE_INVITATION).toISOString();
+    const { data, error } = await this.base
+      .from('invitations')
+      .select('partie_id, code, de, carte, cree_le')
+      .eq('pour', id)
+      .gte('cree_le', depuis)
+      .order('cree_le', { ascending: false });
+    if (error) throw error;
+    const lignes = data as {
+      partie_id: string;
+      code: string;
+      de: string;
+      carte: string;
+      cree_le: string;
+    }[];
+    const profils = await this.profils([...new Set(lignes.map((l) => l.de))]);
+    return lignes.map((l) => ({
+      partieId: l.partie_id,
+      code: l.code,
+      de: l.de,
+      pseudo: profils.get(l.de)?.pseudo ?? '?',
+      carte: l.carte,
+      creeLe: Date.parse(l.cree_le),
+    }));
+  }
+
+  suivreInvitations(rappel: () => void): () => void {
+    let canal: ReturnType<SupabaseClient['channel']> | null = null;
+    let arrete = false;
+    void this.compte().then(
+      (id) => {
+        if (arrete) return;
+        canal = this.base
+          .channel(`invitations-${id}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'invitations', filter: `pour=eq.${id}` },
+            () => rappel(),
+          )
+          .subscribe();
+      },
+      () => undefined,
+    );
+    return () => {
+      arrete = true;
+      if (canal) void this.base.removeChannel(canal);
+    };
   }
 
   private async appeler(corps: Record<string, unknown>): Promise<unknown> {
@@ -89,8 +176,8 @@ export class ServeurSupabase implements ServeurParties {
     return (data as { resultat: unknown }).resultat;
   }
 
-  async ouvrir(reglages: Partial<ReglagesEnLigne>): Promise<VueJoueur> {
-    return (await this.appeler({ op: 'ouvrir', reglages })) as VueJoueur;
+  async ouvrir(reglages: Partial<ReglagesEnLigne>, ami?: string): Promise<VueJoueur> {
+    return (await this.appeler({ op: 'ouvrir', reglages, ami })) as VueJoueur;
   }
 
   async rejoindre(code: string, equipe?: EquipeId): Promise<VueJoueur> {

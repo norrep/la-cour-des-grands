@@ -55,6 +55,8 @@ export interface PartieServeur {
   echeance: number | null;
   creeLe: number;
   majLe: number;
+  /** Le pseudo de chaque joueur, pris au moment où il entre dans la partie. */
+  noms?: Partial<Record<Bande, string>>;
 }
 
 /** Ce qu'un joueur reçoit : la partie vue de son camp. */
@@ -72,13 +74,41 @@ export interface VueJoueur {
   etat: EtatStocke | null;
   issue: Issue | null;
   echeance: number | null;
+  /** Le pseudo de l'adversaire, s'il en a un. */
+  adversaire?: string | null;
+}
+
+/** Le profil d'un joueur : son pseudo et le code à donner à ses amis. */
+export interface Profil {
+  id: string;
+  pseudo: string;
+  codeAmi: string;
+}
+
+/** Un ami de la liste (on devient amis en jouant ensemble, ou avec le code ami). */
+export type Ami = Profil;
+
+/** Un ami a ouvert une partie pour nous et nous attend. */
+export interface Invitation {
+  partieId: string;
+  /** Le code de la partie, pour la rejoindre. */
+  code: string;
+  /** L'ami qui invite. */
+  de: string;
+  pseudo: string;
+  carte: string;
+  /** Heure d'envoi (ms depuis 1970). */
+  creeLe: number;
 }
 
 /** Ce qu'un joueur peut demander au serveur pendant une partie. */
 export type Demande =
   | { type: 'jouer'; action: Action; version: number }
   | { type: 'abandonner' }
-  /** Le tour adverse a dépassé son heure limite : le joueur réclame la victoire. */
+  /**
+   * L'heure limite du tour est passée : la partie est close (gagnée par celui qui attendait).
+   * L'un ou l'autre joueur peut le demander, par exemple en rouvrant le jeu.
+   */
   | { type: 'reclamer' };
 
 /** Les refus possibles, à traduire en phrases à l'écran. */
@@ -94,6 +124,10 @@ export type CodeRefus =
   | 'coup_illegal'
   | 'pas_encore'
   | 'reglages_invalides'
+  | 'pseudo_invalide'
+  | 'ami_introuvable'
+  | 'soi_meme'
+  | 'pas_ami'
   /** Le serveur refuse les connexions sans compte (réglage du projet). */
   | 'connexion_fermee';
 
