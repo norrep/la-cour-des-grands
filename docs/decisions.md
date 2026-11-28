@@ -419,3 +419,13 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DP.3 — Contour noir autour des numéros des Vers**, comme chez les autres équipes (16 dessins,
   tenue miroir comprise) : trait de 8 px de texture, la même épaisseur que les chiffres des
   écoliers. Le « 2 » du Chouchou, crème (ou bleu pâle en miroir), passe en blanc comme les autres.
+
+## Goûter gardé visible sous la surveillante (28/11, demande de Clément)
+
+- **DG.1** — Le médaillon se posait 96 px au-dessus du goûter, mais sa banderole et ses rubans
+  retombaient sur le goûter et sa pastille « +N ». Il se pose désormais selon sa vraie emprise
+  (tête, rubans, banderole du nom) : jamais par-dessus le goûter gardé, le plus près possible, en
+  évitant les îlots, les autres goûters et les lieux ; au-dessus quand il y a la place.
+- **DG.2** — Le médaillon passe de 100 à 84 px de diamètre sur la cour : à 100, il ne tenait pas
+  près de son goûter sur la cour et le camp scout (trop serrés) et partait loin. Ambiguïté notée :
+  s'il paraît trop petit, on peut revenir à 92 en acceptant qu'il s'éloigne un peu sur ces cartes.

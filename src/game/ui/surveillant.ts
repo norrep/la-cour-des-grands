@@ -644,8 +644,8 @@ class Tetes {
 /* Le médaillon sur la cour                                                                     */
 /* ------------------------------------------------------------------------------------------ */
 
-/** Diamètre du cœur du médaillon (les pastilles d'élèves font 92). */
-export const DIAMETRE_MEDAILLON = 100;
+/** Diamètre du cœur du médaillon sur la cour : assez petit pour se poser à côté du goûter gardé. */
+export const DIAMETRE_MEDAILLON = 84;
 
 function rosette(r: number, dx = 0, dy = 0): P[] {
   const pts: P[] = [];
@@ -656,6 +656,25 @@ function rosette(r: number, dx = 0, dy = 0): P[] {
     pts.push({ x: dx + Math.cos(a) * rr, y: dy + Math.sin(a) * rr });
   }
   return pts;
+}
+
+/**
+ * La place que prend le médaillon autour de son centre : la tête qui dépasse en haut, les rubans en
+ * bas, la banderole du nom sur les côtés. Sert à le poser sur la cour sans cacher son goûter.
+ */
+export function empriseMedaillon(
+  scene: Phaser.Scene,
+  nom: string,
+  diametre = DIAMETRE_MEDAILLON,
+): { gauche: number; droite: number; haut: number; bas: number } {
+  const r = diametre / 2;
+  const t = scene.make.text(
+    { text: nom, style: { fontFamily: POLICE, fontSize: '15px', fontStyle: '700' } },
+    false,
+  );
+  const demi = Math.max(r + 9, t.width / 2 + 24);
+  t.destroy();
+  return { gauche: -demi, droite: demi, haut: -(r + 22), bas: r * 1.45 + 4 };
 }
 
 export class MedaillonSurveillant {
