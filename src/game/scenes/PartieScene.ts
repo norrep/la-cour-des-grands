@@ -176,6 +176,8 @@ export class PartieScene extends Phaser.Scene {
     debut: number;
   } | null = null;
   private aideOuverte = false;
+  /** En ligne : « Abandonner » touché une fois, on attend la confirmation. */
+  private abandonDemande = false;
   /** Conseils pour débuter : actifs ou non, et déjà vus par chaque joueur. */
   private conseilsActifs = true;
   private conseilsVus: Record<Bande, Set<ConseilId>> = { rouge: new Set(), bleu: new Set() };
@@ -291,6 +293,7 @@ export class PartieScene extends Phaser.Scene {
     this.departToboggan = null;
     this.fiche = null;
     this.aideOuverte = false;
+    this.abandonDemande = false;
     this.conseilsActifs = donnees.conseils;
     this.conseilsVus = { rouge: new Set(), bleu: new Set() };
     this.tourDernierConseil = { rouge: 0, bleu: 0 };
@@ -376,8 +379,9 @@ export class PartieScene extends Phaser.Scene {
       this.texteTemps.setText(TEXTES.enLigne.temps(restant));
       this.texteTemps.setColor(restant <= 15 ? COULEURS.texteRouge : COULEURS.texteSombre);
     }
-    // L'ami a laissé filer son temps : on réclame la victoire (le serveur vérifie l'heure).
-    if (restant === 0 && ctrl.tourAdverse && Date.now() - this.reclameLe > 5000) {
+    // Le temps du tour est écoulé : on demande au serveur de clore la partie (il vérifie l'heure).
+    // Les deux téléphones le font, pour que celui qui a laissé filer son temps le voie aussi.
+    if (restant === 0 && Date.now() - this.reclameLe > 5000) {
       this.reclameLe = Date.now();
       ctrl.reclamer().catch(() => undefined);
     }
@@ -439,7 +443,9 @@ export class PartieScene extends Phaser.Scene {
       // L'ordi joue : on garde son propre rang sous les yeux, rangé plus bas et passé, sans pouvoir
       // y toucher ; un bandeau et un cadre à la couleur d'en face disent que c'est son tour (DL.7).
       this.dessinerRang(this.bandeVue, false, true);
-      const attente = this.enLigne ? TEXTES.enLigne.tourAdverse : TEXTES.hud.ordiReflechit;
+      const attente = this.enLigne
+        ? TEXTES.enLigne.tourAdverse(this.enLigne.vue.adversaire)
+        : TEXTES.hud.ordiReflechit;
       this.bandeauTour(attente, this.bandeActive, true);
       this.planifierOrdi();
     } else if (this.ctrl.phase === 'jeu' && this.enLigne?.envoi) {
@@ -1892,7 +1898,7 @@ export class PartieScene extends Phaser.Scene {
       const qui = this.enLigne
         ? b === this.enLigne.bande
           ? TEXTES.enLigne.aToi
-          : TEXTES.enLigne.auTourAmi
+          : TEXTES.enLigne.auTourAmi(this.enLigne.vue.adversaire)
         : TEXTES.hud.tourDe(b);
       const t = this.texte(LARGEUR / 2, Y_PASTILLE_TOUR, qui, 21, COULEURS.texteSombre, {
         fontStyle: '700',
@@ -3444,19 +3450,45 @@ export class PartieScene extends Phaser.Scene {
       y += t.height + 4;
     }
     panneau(fondAide, 14, 24, LARGEUR - 28, Math.min(HAUTEUR - 40, y + 90), { rayon: 28 });
+    const yBouton = Math.min(HAUTEUR - 50, y + 46);
+    const enLigne = this.enLigne && this.ctrl.phase === 'jeu' ? this.enLigne : null;
     this.ajouter(
       creerBouton(
         this,
-        LARGEUR / 2,
-        Math.min(HAUTEUR - 50, y + 46),
+        enLigne ? LARGEUR / 2 - 150 : LARGEUR / 2,
+        yBouton,
         A.fermer,
         () => {
           this.aideOuverte = false;
+          this.abandonDemande = false;
           this.rafraichir();
         },
-        { largeur: 300, hauteur: 64, couleur: COULEURS.jaune },
+        { largeur: enLigne ? 260 : 300, hauteur: 64, couleur: COULEURS.jaune },
       ),
     );
+    // En ligne : abandonner la partie (l'ami gagne). Il faut toucher deux fois.
+    if (enLigne) {
+      this.ajouter(
+        creerBouton(
+          this,
+          LARGEUR / 2 + 150,
+          yBouton,
+          this.abandonDemande ? TEXTES.enLigne.abandonnerSur : TEXTES.enLigne.abandonner,
+          () => {
+            if (!this.abandonDemande) {
+              this.abandonDemande = true;
+              this.rafraichir();
+              return;
+            }
+            this.abandonDemande = false;
+            this.aideOuverte = false;
+            enLigne.abandonner().catch(() => this.bulleErreur('reseau'));
+            this.rafraichir();
+          },
+          { largeur: 260, hauteur: 64, taille: 22, couleur: COULEURS.rouge },
+        ),
+      );
+    }
   }
 
   /** Bulle de conseil pour débuter : un seul à la fois, à fermer avant de jouer. */
@@ -4703,7 +4735,7 @@ export class PartieScene extends Phaser.Scene {
         : null;
     const vue = moi === null ? 'neutre' : moi === fin.gagnant ? 'gagne' : 'perdu';
     const qui = this.enLigne
-      ? TEXTES.enLigne.gagnant(fin.gagnant === this.enLigne.bande)
+      ? TEXTES.enLigne.gagnant(fin.gagnant === this.enLigne.bande, this.enLigne.vue.adversaire)
       : this.ordi
         ? TEXTES.fin.gagnantSolo(fin.gagnant === this.ordi.bande)
         : TEXTES.fin.gagnant(fin.gagnant);

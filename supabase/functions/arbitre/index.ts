@@ -9,6 +9,7 @@ import {
   Refus,
   rejoindrePartie,
   traiter,
+  validerPseudo,
   vuePour,
 } from './arbitre.js';
 
@@ -34,8 +35,9 @@ const ENTETES = {
 
 type Requete =
   | { op: 'profil'; pseudo: string }
-  | { op: 'ouvrir'; reglages: Partial<ReglagesEnLigne> }
+  | { op: 'ouvrir'; reglages: Partial<ReglagesEnLigne>; ami?: string }
   | { op: 'rejoindre'; code: string; equipe?: string }
+  | { op: 'ajouterAmi'; code: string }
   | { op: 'envoyer'; partieId: string; demande: Demande };
 
 function hasard(): number {
@@ -72,12 +74,47 @@ async function enregistrer(p: PartieServeur, versionLue: number): Promise<void> 
   if (data !== true) throw new Refus('version_perimee', 'La partie a changé entre-temps.');
 }
 
+async function pseudoDe(compte: string): Promise<string | undefined> {
+  const { data } = await base.from('profils').select('pseudo').eq('id', compte).maybeSingle();
+  return (data?.pseudo as string | undefined) ?? undefined;
+}
+
+/** Deux joueurs deviennent amis (dans les deux sens). Sans profil, on ne fait rien. */
+async function lier(a: string, b: string): Promise<void> {
+  if (a === b) return;
+  const { error } = await base.from('amis').upsert(
+    [
+      { compte: a, ami: b },
+      { compte: b, ami: a },
+    ],
+    { onConflict: 'compte,ami', ignoreDuplicates: true },
+  );
+  // 23503 : l'un des deux n'a pas encore de pseudo.
+  if (error && error.code !== '23503') throw error;
+}
+
+async function ajouterAmi(compte: string, saisie: string): Promise<unknown> {
+  const code = normaliserCode(saisie ?? '');
+  if (!code) throw new Refus('ami_introuvable', 'Aucun joueur n’a ce code ami.');
+  if (!(await pseudoDe(compte))) throw new Refus('pseudo_invalide', 'Choisis d’abord ton pseudo.');
+  const { data, error } = await base
+    .from('profils')
+    .select('id, pseudo, code_ami')
+    .eq('code_ami', code)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Refus('ami_introuvable', 'Aucun joueur n’a ce code ami.');
+  if (data.id === compte) throw new Refus('soi_meme', 'C’est ton propre code !');
+  await lier(compte, data.id as string);
+  return data;
+}
+
+async function finirInvitation(partieId: string): Promise<void> {
+  await base.from('invitations').delete().eq('partie_id', partieId);
+}
+
 async function profil(compte: string, pseudo: string): Promise<unknown> {
-  const propre = String(pseudo ?? '')
-    .trim()
-    .replace(/\s+/g, ' ');
-  if (propre.length < 2 || propre.length > 20)
-    throw new Refus('reglages_invalides', 'Pseudo de 2 à 20 lettres.');
+  const propre = validerPseudo(pseudo);
   const { data: existant } = await base.from('profils').select('*').eq('id', compte).maybeSingle();
   if (existant) {
     const { data, error } = await base
@@ -106,7 +143,19 @@ async function traiterRequete(compte: string, r: Requete): Promise<unknown> {
   switch (r.op) {
     case 'profil':
       return profil(compte, r.pseudo);
+    case 'ajouterAmi':
+      return ajouterAmi(compte, r.code);
     case 'ouvrir': {
+      const nom = await pseudoDe(compte);
+      if (r.ami) {
+        const { data } = await base
+          .from('amis')
+          .select('ami')
+          .eq('compte', compte)
+          .eq('ami', r.ami)
+          .maybeSingle();
+        if (!data || !nom) throw new Refus('pas_ami', 'Ce joueur n’est pas dans tes amis.');
+      }
       for (let essai = 0; essai < 5; essai++) {
         const p = ouvrirPartie(
           crypto.randomUUID(),
@@ -114,9 +163,20 @@ async function traiterRequete(compte: string, r: Requete): Promise<unknown> {
           compte,
           r.reglages ?? {},
           maintenant,
+          nom,
         );
         try {
           await enregistrer(p, -1);
+          if (r.ami) {
+            const { error } = await base.from('invitations').insert({
+              partie_id: p.id,
+              de: compte,
+              pour: r.ami,
+              code: p.code,
+              carte: (p.reglages as { carte: string }).carte,
+            });
+            if (error) throw error;
+          }
           return vuePour(p, compte);
         } catch (e) {
           if (!(e instanceof Refus && e.message === 'code_pris')) throw e;
@@ -136,14 +196,18 @@ async function traiterRequete(compte: string, r: Requete): Promise<unknown> {
       if (error) throw error;
       if (!data) throw new Refus('partie_introuvable', 'Aucune partie n’attend avec ce code.');
       const p = data.donnees as PartieServeur;
-      const q = rejoindrePartie(p, compte, hasard(), maintenant, r.equipe);
+      const q = rejoindrePartie(p, compte, hasard(), maintenant, r.equipe, await pseudoDe(compte));
       await enregistrer(q, p.version);
+      await finirInvitation(q.id);
+      // Avoir joué ensemble suffit pour devenir amis.
+      if (q.joueurs.rouge) await lier(q.joueurs.rouge, compte);
       return vuePour(q, compte);
     }
     case 'envoyer': {
       const p = await lirePartie(r.partieId);
       const q = traiter(p, compte, r.demande, maintenant);
       await enregistrer(q, p.version);
+      if ((p as { statut?: string }).statut === 'attente') await finirInvitation(q.id);
       return vuePour(q, compte);
     }
     default:

@@ -85,6 +85,7 @@ export function ouvrirPartie(
   hote: string,
   reglages: Partial<ReglagesEnLigne>,
   maintenant: number,
+  nom?: string,
 ): PartieServeur {
   return {
     id,
@@ -98,6 +99,7 @@ export function ouvrirPartie(
     echeance: null,
     creeLe: maintenant,
     majLe: maintenant,
+    ...(nom ? { noms: { rouge: nom } } : {}),
   };
 }
 
@@ -111,6 +113,7 @@ export function rejoindrePartie(
   graine: number,
   maintenant: number,
   equipe?: EquipeId,
+  nom?: string,
 ): PartieServeur {
   if (equipe !== undefined && !(equipe in EQUIPES)) {
     throw new Refus('reglages_invalides', 'Équipe inconnue.');
@@ -134,6 +137,7 @@ export function rejoindrePartie(
     reglages,
     statut: 'en_cours',
     joueurs: { ...p.joueurs, bleu: invite },
+    ...(nom ? { noms: { ...p.noms, bleu: nom } } : {}),
     etat: stocker(etat),
     version: p.version + 1,
     echeance: maintenant + p.reglages.delaiTour * 1000,
@@ -214,6 +218,10 @@ export function traiter(
   maintenant: number,
 ): PartieServeur {
   const bande = bandeDe(p, compte);
+  // Le temps du tour est écoulé : la partie est close, quelle que soit la demande (un coup en
+  // retard ne passe pas).
+  const echue = verifierTemps(p, maintenant);
+  if (echue !== p) return echue;
   switch (demande.type) {
     case 'jouer':
       return jouerAction(p, bande, demande.action, demande.version, maintenant);
@@ -225,13 +233,10 @@ export function traiter(
       }
       return terminer(p, { gagnant: adversaire(bande), raison: 'abandon' }, maintenant);
     }
-    case 'reclamer': {
-      const etat = enCours(p);
-      if (etat.courant === bande || p.echeance === null || maintenant <= p.echeance) {
-        throw new Refus('pas_encore', 'L’adversaire a encore le temps de jouer.');
-      }
-      return terminer(p, { gagnant: bande, raison: 'temps' }, maintenant);
-    }
+    case 'reclamer':
+      // Le temps n'est pas écoulé (sinon la partie serait déjà close, plus haut).
+      enCours(p);
+      throw new Refus('pas_encore', 'Le joueur a encore le temps de jouer.');
   }
 }
 
@@ -258,5 +263,6 @@ export function vuePour(p: PartieServeur, compte: string): VueJoueur {
     etat: p.etat ? (p.statut === 'finie' ? p.etat : masquer(p.etat, bande)) : null,
     issue: p.issue,
     echeance: p.echeance,
+    adversaire: p.noms?.[adversaire(bande)] ?? null,
   };
 }

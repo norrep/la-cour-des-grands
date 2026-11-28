@@ -1108,7 +1108,7 @@ function validerReglages(r) {
     delaiTour: Math.round(delai)
   };
 }
-function ouvrirPartie(id, code, hote, reglages, maintenant) {
+function ouvrirPartie(id, code, hote, reglages, maintenant, nom) {
   return {
     id,
     code,
@@ -1120,10 +1120,11 @@ function ouvrirPartie(id, code, hote, reglages, maintenant) {
     issue: null,
     echeance: null,
     creeLe: maintenant,
-    majLe: maintenant
+    majLe: maintenant,
+    ...nom ? { noms: { rouge: nom } } : {}
   };
 }
-function rejoindrePartie(p, invite, graine, maintenant, equipe) {
+function rejoindrePartie(p, invite, graine, maintenant, equipe, nom) {
   if (equipe !== void 0 && !(equipe in EQUIPES)) {
     throw new Refus("reglages_invalides", "\xC9quipe inconnue.");
   }
@@ -1143,6 +1144,7 @@ function rejoindrePartie(p, invite, graine, maintenant, equipe) {
     reglages,
     statut: "en_cours",
     joueurs: { ...p.joueurs, bleu: invite },
+    ...nom ? { noms: { ...p.noms, bleu: nom } } : {},
     etat: stocker(etat),
     version: p.version + 1,
     echeance: maintenant + p.reglages.delaiTour * 1e3,
@@ -1204,6 +1206,8 @@ function jouerAction(p, bande, action, version, maintenant) {
 }
 function traiter(p, compte, demande, maintenant) {
   const bande = bandeDe(p, compte);
+  const echue = verifierTemps(p, maintenant);
+  if (echue !== p) return echue;
   switch (demande.type) {
     case "jouer":
       return jouerAction(p, bande, demande.action, demande.version, maintenant);
@@ -1214,13 +1218,9 @@ function traiter(p, compte, demande, maintenant) {
       }
       return terminer2(p, { gagnant: adversaire(bande), raison: "abandon" }, maintenant);
     }
-    case "reclamer": {
-      const etat = enCours(p);
-      if (etat.courant === bande || p.echeance === null || maintenant <= p.echeance) {
-        throw new Refus("pas_encore", "L\u2019adversaire a encore le temps de jouer.");
-      }
-      return terminer2(p, { gagnant: bande, raison: "temps" }, maintenant);
-    }
+    case "reclamer":
+      enCours(p);
+      throw new Refus("pas_encore", "Le joueur a encore le temps de jouer.");
   }
 }
 function verifierTemps(p, maintenant) {
@@ -1242,7 +1242,8 @@ function vuePour(p, compte) {
     // Une fois la partie finie, tout est montré : chacun peut voir la main de l'autre.
     etat: p.etat ? p.statut === "finie" ? p.etat : masquer(p.etat, bande) : null,
     issue: p.issue,
-    echeance: p.echeance
+    echeance: p.echeance,
+    adversaire: p.noms?.[adversaire(bande)] ?? null
   };
 }
 
@@ -1263,6 +1264,19 @@ function normaliserCode(saisie) {
   return code;
 }
 
+// src/reseau/amis.ts
+var PSEUDO_MIN = 2;
+var PSEUDO_MAX = 16;
+function validerPseudo(saisie) {
+  const propre = String(saisie ?? "").replace(/\p{Cc}/gu, "").trim().replace(/\s+/g, " ");
+  const longueur = [...propre].length;
+  if (longueur < PSEUDO_MIN || longueur > PSEUDO_MAX) {
+    throw new Refus("pseudo_invalide", `Un pseudo de ${PSEUDO_MIN} \xE0 ${PSEUDO_MAX} lettres.`);
+  }
+  return propre;
+}
+var DUREE_INVITATION = 24 * 3600 * 1e3;
+
 // src/reseau/client.ts
 var SalleMemoire = class {
   constructor(horloge = () => Date.now(), hasard = () => Math.floor(Math.random() * 4294967296)) {
@@ -1274,14 +1288,34 @@ var SalleMemoire = class {
   parties = /* @__PURE__ */ new Map();
   abonnes = /* @__PURE__ */ new Map();
   compteur = 0;
+  profils = /* @__PURE__ */ new Map();
+  /** compte → ses amis. */
+  liens = /* @__PURE__ */ new Map();
+  invites = /* @__PURE__ */ new Map();
+  guetteurs = /* @__PURE__ */ new Set();
   enregistrer(p) {
     this.parties.set(p.id, p);
+    if (p.statut !== "attente" && this.invites.delete(p.id)) this.prevenirInvitations();
     for (const prevenir of this.abonnes.get(p.id) ?? []) prevenir();
   }
   trouver(id) {
     const p = this.parties.get(id);
     if (!p) throw new Refus("partie_introuvable");
     return p;
+  }
+  prevenirInvitations() {
+    for (const g of this.guetteurs) g();
+  }
+  lier(a, b) {
+    if (a === b || !this.profils.has(a) || !this.profils.has(b)) return;
+    for (const [x, y] of [
+      [a, b],
+      [b, a]
+    ]) {
+      let set = this.liens.get(x);
+      if (!set) this.liens.set(x, set = /* @__PURE__ */ new Set());
+      set.add(y);
+    }
   }
   /** Comme la tâche de fond du serveur : clôt les tours dont le temps est écoulé. */
   verifierTemps() {
@@ -1297,13 +1331,36 @@ var SalleMemoire = class {
   client(compte) {
     const salle = this;
     return {
-      async ouvrir(reglages) {
+      async ouvrir(reglages, ami) {
+        if (ami !== void 0 && !salle.liens.get(compte)?.has(ami)) {
+          throw new Refus("pas_ami", "Ce joueur n\u2019est pas dans tes amis.");
+        }
         let code;
         do
           code = nouveauCode(salle.hasard);
         while ([...salle.parties.values()].some((p2) => p2.code === code && p2.statut === "attente"));
-        const p = ouvrirPartie(`p${++salle.compteur}`, code, compte, reglages, salle.horloge());
+        const moi = salle.profils.get(compte);
+        const p = ouvrirPartie(
+          `p${++salle.compteur}`,
+          code,
+          compte,
+          reglages,
+          salle.horloge(),
+          moi?.pseudo
+        );
         salle.enregistrer(p);
+        if (ami !== void 0 && moi) {
+          salle.invites.set(p.id, {
+            partieId: p.id,
+            code,
+            de: compte,
+            pseudo: moi.pseudo,
+            carte: p.reglages.carte,
+            creeLe: salle.horloge(),
+            pour: ami
+          });
+          salle.prevenirInvitations();
+        }
         return vuePour(p, compte);
       },
       async rejoindre(saisie, equipe) {
@@ -1312,8 +1369,16 @@ var SalleMemoire = class {
           (q2) => q2.code === code && q2.statut === "attente"
         );
         if (!p) throw new Refus("partie_introuvable", "Aucune partie n\u2019attend avec ce code.");
-        const q = rejoindrePartie(p, compte, salle.hasard(), salle.horloge(), equipe);
+        const q = rejoindrePartie(
+          p,
+          compte,
+          salle.hasard(),
+          salle.horloge(),
+          equipe,
+          salle.profils.get(compte)?.pseudo
+        );
         salle.enregistrer(q);
+        if (q.joueurs.rouge) salle.lier(q.joueurs.rouge, compte);
         return vuePour(q, compte);
       },
       async envoyer(id, demande) {
@@ -1335,6 +1400,48 @@ var SalleMemoire = class {
         return [...salle.parties.values()].filter(
           (p) => p.statut !== "finie" && (p.joueurs.rouge === compte || p.joueurs.bleu === compte)
         ).map((p) => vuePour(p, compte));
+      },
+      async profil() {
+        return salle.profils.get(compte) ?? null;
+      },
+      async nommer(saisie) {
+        const pseudo = validerPseudo(saisie);
+        const avant = salle.profils.get(compte);
+        let codeAmi = avant?.codeAmi;
+        while (!codeAmi || [...salle.profils.values()].some((x) => x.id !== compte && x.codeAmi === codeAmi)) {
+          codeAmi = nouveauCode(salle.hasard);
+        }
+        const profil = { id: compte, pseudo, codeAmi };
+        salle.profils.set(compte, profil);
+        return profil;
+      },
+      async amis() {
+        return [...salle.liens.get(compte) ?? []].map((id) => salle.profils.get(id)).filter((x) => x !== void 0).sort((a, b) => a.pseudo.localeCompare(b.pseudo, "fr"));
+      },
+      async ajouterAmi(saisie) {
+        if (!salle.profils.has(compte))
+          throw new Refus("pseudo_invalide", "Choisis d\u2019abord ton pseudo.");
+        const code = normaliserCode(saisie);
+        const ami = [...salle.profils.values()].find((x) => x.codeAmi === code);
+        if (!ami) throw new Refus("ami_introuvable", "Aucun joueur n\u2019a ce code ami.");
+        if (ami.id === compte) throw new Refus("soi_meme", "C\u2019est ton propre code !");
+        salle.lier(compte, ami.id);
+        return ami;
+      },
+      async invitations() {
+        const limite = salle.horloge() - DUREE_INVITATION;
+        return [...salle.invites.values()].filter((i) => i.pour === compte && i.creeLe >= limite).map((i) => ({
+          partieId: i.partieId,
+          code: i.code,
+          de: i.de,
+          pseudo: i.pseudo,
+          carte: i.carte,
+          creeLe: i.creeLe
+        }));
+      },
+      suivreInvitations(rappel) {
+        salle.guetteurs.add(rappel);
+        return () => salle.guetteurs.delete(rappel);
       }
     };
   }
@@ -1542,7 +1649,10 @@ export {
   DELAI_TOUR_DEFAUT,
   DELAI_TOUR_MAX,
   DELAI_TOUR_MIN,
+  DUREE_INVITATION,
   LONGUEUR_CODE,
+  PSEUDO_MAX,
+  PSEUDO_MIN,
   Refus,
   SalleMemoire,
   bandeDe,
@@ -1563,6 +1673,7 @@ export {
   retournerOption,
   stocker,
   traiter,
+  validerPseudo,
   validerReglages,
   verifierTemps,
   vuePour
