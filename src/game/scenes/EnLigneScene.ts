@@ -166,6 +166,8 @@ export class EnLigneScene extends Phaser.Scene {
     longueur: number;
     code: boolean;
     valeur?: string;
+    /** Hauteur du centre du champ, en coordonnées du jeu. */
+    y: number;
     valider: (texte: string) => void;
   }): HTMLInputElement {
     const champ = document.createElement('input');
@@ -179,10 +181,7 @@ export class EnLigneScene extends Phaser.Scene {
     champ.setAttribute('aria-label', options.etiquette);
     Object.assign(champ.style, {
       position: 'fixed',
-      left: '50%',
-      top: '38%',
       transform: 'translate(-50%, -50%)',
-      width: 'min(70vw, 340px)',
       fontSize: options.code ? '40px' : '34px',
       fontFamily: 'Fredoka, sans-serif',
       fontWeight: '700',
@@ -196,6 +195,20 @@ export class EnLigneScene extends Phaser.Scene {
       color: '#2b2228',
       zIndex: '10',
     } satisfies Partial<CSSStyleDeclaration>);
+    // Posé à sa place sur le dessin du jeu, quelle que soit la taille de l'écran.
+    const placer = (): void => {
+      const r = this.game.canvas.getBoundingClientRect();
+      champ.style.left = `${r.left + r.width / 2}px`;
+      champ.style.top = `${r.top + (r.height * options.y) / HAUTEUR}px`;
+      champ.style.width = `${Math.min(r.width * 0.68, 360)}px`;
+    };
+    placer();
+    window.addEventListener('resize', placer);
+    const retirer = champ.remove.bind(champ);
+    champ.remove = () => {
+      window.removeEventListener('resize', placer);
+      retirer();
+    };
     document.body.appendChild(champ);
     this.champ = champ;
     champ.focus();
@@ -280,14 +293,53 @@ export class EnLigneScene extends Phaser.Scene {
   ): void {
     const c = this.vider();
     this.titre(c, TEXTES.enLigne.titre);
-    if (message) this.texte(c, 270, message, 22);
-    else if (pseudo) this.texte(c, 260, TEXTES.enLigne.bonjour(pseudo), 28);
-    let y = 400;
+    if (message) this.texte(c, 260, message, 22);
+    else if (pseudo) this.texte(c, 255, TEXTES.enLigne.bonjour(pseudo), 28);
+    // Les boutons forment un seul bloc, centré dans la place libre entre le titre et « Retour ».
+    const boutons: [string, () => void, number][] = [
+      [
+        TEXTES.enLigne.inviter,
+        () => this.scene.start('choix', { ...this.donnees, enLigne: { etape: 'hote' } }),
+        invitation ? COULEURS.papier : COULEURS.jaune,
+      ],
+      [TEXTES.enLigne.jaiUnCode, () => this.montrerSaisie(), 0xc9d3ff],
+    ];
+    if (pseudo) boutons.push([TEXTES.enLigne.mesAmis, () => void this.montrerAmis(), 0xffc9e0]);
+    // Une partie en cours sur ce compte : on propose de la reprendre (après une coupure).
+    if (enCours) {
+      boutons.unshift([
+        TEXTES.enLigne.reprendre,
+        () => void this.reprendre(enCours.id),
+        COULEURS.ilot,
+      ]);
+    }
+    const PAS = 118;
+    const hCarte = invitation ? 200 : 0;
+    const hauteur = hCarte + (boutons.length - 1) * PAS;
+    let y = Math.round((330 + 1060) / 2 - hauteur / 2);
     if (invitation) {
-      this.texte(c, 360, TEXTES.enLigne.invitation(invitation.pseudo), 28);
+      // L'invitation d'un ami, dans un cadre, au-dessus des autres choix.
+      const g = this.add.graphics();
+      forme(g, contourRect(LARGEUR / 2 - 280, y - 60, 560, 200, 26, 9, 2), {
+        remplissage: 0xffe7a8,
+        ombre: 7,
+        trait: 5,
+      });
+      c.add(g);
+      const t = this.add
+        .text(LARGEUR / 2, y - 10, TEXTES.enLigne.invitation(invitation.pseudo), {
+          fontFamily: POLICE,
+          fontSize: '30px',
+          color: COULEURS.texteSombre,
+          fontStyle: '700',
+          align: 'center',
+          wordWrap: { width: 520 },
+        })
+        .setOrigin(0.5);
+      c.add(t);
       this.bouton(
         c,
-        440,
+        y + 72,
         TEXTES.enLigne.accepter,
         () =>
           this.scene.start('choix', {
@@ -295,31 +347,14 @@ export class EnLigneScene extends Phaser.Scene {
             enLigne: { etape: 'invite', code: invitation.code },
           }),
         COULEURS.jaune,
+        LARGEUR / 2,
+        320,
       );
-      y = 580;
+      y += hCarte + 40;
     }
-    this.bouton(
-      c,
-      y,
-      TEXTES.enLigne.inviter,
-      () => {
-        this.scene.start('choix', { ...this.donnees, enLigne: { etape: 'hote' } });
-      },
-      invitation ? COULEURS.papier : COULEURS.jaune,
-    );
-    this.bouton(c, y + 115, TEXTES.enLigne.jaiUnCode, () => this.montrerSaisie(), 0xc9d3ff);
-    if (pseudo) {
-      this.bouton(c, y + 230, TEXTES.enLigne.mesAmis, () => void this.montrerAmis(), 0xffc9e0);
-    }
-    // Une partie en cours sur ce compte : on propose de la reprendre (après une coupure).
-    if (enCours) {
-      this.bouton(
-        c,
-        y + 345,
-        TEXTES.enLigne.reprendre,
-        () => void this.reprendre(enCours.id),
-        COULEURS.ilot,
-      );
+    for (const [texte, action, couleur] of boutons) {
+      this.bouton(c, y, texte, action, couleur);
+      y += PAS;
     }
     this.bouton(c, 1150, TEXTES.enLigne.retour, () => this.allerAccueil());
   }
@@ -328,7 +363,7 @@ export class EnLigneScene extends Phaser.Scene {
   private montrerPseudo(apres: () => void, erreur?: string, valeur?: string): void {
     const c = this.vider();
     this.titre(c, TEXTES.enLigne.pseudoTitre);
-    this.texte(c, 300, TEXTES.enLigne.pseudoConsigne, 24);
+    this.texte(c, 280, TEXTES.enLigne.pseudoConsigne, 24);
     const valider = (texte: string): void => {
       void (async () => {
         this.attente(TEXTES.enLigne.connexion);
@@ -346,10 +381,11 @@ export class EnLigneScene extends Phaser.Scene {
       longueur: PSEUDO_MAX,
       code: false,
       valeur,
+      y: 400,
       valider,
     });
-    if (erreur) this.texte(c, 640, erreur, 22);
-    this.bouton(c, 760, TEXTES.enLigne.pseudoValider, () => valider(champ.value), COULEURS.jaune);
+    if (erreur) this.texte(c, 478, erreur, 22);
+    this.bouton(c, 570, TEXTES.enLigne.pseudoValider, () => valider(champ.value), COULEURS.jaune);
     this.bouton(c, 1150, TEXTES.enLigne.retour, () => this.allerAccueil());
   }
 
@@ -390,23 +426,29 @@ export class EnLigneScene extends Phaser.Scene {
     });
     c.add([g, code]);
     this.texte(c, 420, message ?? TEXTES.enLigne.consigneCodeAmi, 20);
+    let yAjout = 640;
     if (amis.length === 0) {
-      this.texte(c, 620, TEXTES.enLigne.aucunAmi, 24);
+      this.texte(c, 540, TEXTES.enLigne.aucunAmi, 24);
     }
-    // Au plus 5 amis à l'écran (les premiers par ordre alphabétique).
+    // Au plus 5 amis à l'écran (les premiers par ordre alphabétique) : une carte par ami, son
+    // nom à gauche et « Inviter » à droite.
     amis.slice(0, 5).forEach((ami, i) => {
-      const y = 530 + i * 95;
+      const y = 535 + i * 104;
+      const g = this.add.graphics();
+      forme(g, contourRect(LARGEUR / 2 - 280, y - 44, 560, 88, 22, 9, 2), {
+        remplissage: COULEURS.papier,
+        ombre: 5,
+        trait: 4,
+      });
       const nom = this.add
-        .text(80, y, ami.pseudo, {
+        .text(LARGEUR / 2 - 250, y, ami.pseudo, {
           fontFamily: POLICE,
           fontSize: '30px',
           color: COULEURS.texteSombre,
           fontStyle: '700',
-          backgroundColor: '#fff4dcdd',
-          padding: { x: 14, y: 8 },
         })
         .setOrigin(0, 0.5);
-      c.add(nom);
+      c.add([g, nom]);
       this.bouton(
         c,
         y,
@@ -416,11 +458,12 @@ export class EnLigneScene extends Phaser.Scene {
           this.scene.start('choix', { ...this.donnees, enLigne: { etape: 'hote', ami: invite } });
         },
         COULEURS.jaune,
-        LARGEUR - 160,
-        220,
+        LARGEUR / 2 + 165,
+        200,
       );
+      yAjout = y + 130;
     });
-    this.bouton(c, 1030, TEXTES.enLigne.ajouterAmi, () => this.montrerAjoutAmi(), 0xc9d3ff);
+    this.bouton(c, yAjout, TEXTES.enLigne.ajouterAmi, () => this.montrerAjoutAmi(), 0xc9d3ff);
     this.bouton(c, 1150, TEXTES.enLigne.retour, () => this.montrerMenu());
   }
 
@@ -448,10 +491,11 @@ export class EnLigneScene extends Phaser.Scene {
       etiquette: TEXTES.enLigne.saisieAmi,
       longueur: 12,
       code: true,
+      y: 400,
       valider,
     });
-    if (erreur) this.texte(c, 640, erreur, 22);
-    this.bouton(c, 760, TEXTES.enLigne.ajouterAmi, () => valider(champ.value), COULEURS.jaune);
+    if (erreur) this.texte(c, 478, erreur, 22);
+    this.bouton(c, 570, TEXTES.enLigne.ajouterAmi, () => valider(champ.value), COULEURS.jaune);
     this.bouton(c, 1150, TEXTES.enLigne.retour, () => void this.montrerAmis());
   }
 
@@ -472,10 +516,11 @@ export class EnLigneScene extends Phaser.Scene {
       etiquette: TEXTES.enLigne.saisie,
       longueur: 12,
       code: true,
+      y: 400,
       valider,
     });
-    if (erreur) this.texte(c, 640, erreur, 24);
-    this.bouton(c, 760, TEXTES.enLigne.rejoindre, () => valider(champ.value), COULEURS.jaune);
+    if (erreur) this.texte(c, 478, erreur, 22);
+    this.bouton(c, 570, TEXTES.enLigne.rejoindre, () => valider(champ.value), COULEURS.jaune);
     this.bouton(c, 1150, TEXTES.enLigne.retour, () => this.montrerMenu());
   }
 
