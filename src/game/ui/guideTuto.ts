@@ -10,13 +10,13 @@ import { MAIN_TUTO } from '../scenes/ChargementScene';
 
 /**
  * La main qui montre, dessinée sur Higgsfield dans le style des élèves (`public/tuto/main.png`, job
- * 8b1dee3f, vue de dos, fond cyan détouré), peau du Grand,
+ * f3cc370d, vue de dos, fond cyan détouré), peau du Grand,
  * manchette rouge). Le bout de l'index est en (0, 0) ; la main est un peu penchée.
  */
 export function creerMain(scene: Phaser.Scene): Phaser.GameObjects.Container {
   const image = scene.add.image(0, 0, MAIN_TUTO);
   // Bout de l'index dans le dessin (600 × 720), ramené à 180 px de haut à l'écran.
-  image.setOrigin(241 / 600, 26 / 720).setScale(180 / 720);
+  image.setOrigin(229 / 600, 26 / 720).setScale(180 / 720);
   return scene.add.container(0, 0, [image]).setRotation(-0.28);
 }
 
