@@ -523,8 +523,9 @@ Trois maquettes (carrousel, billets empilés, plein écran) ; Clément choisit l
   recolorés par tenue (la casquette pervenche, peu saturée, est épargnée), fond manga animé à la
   couleur de la tenue. Elles passent plein écran juste après le rond de la transition, puis
   l'écran de fin ; toucher passe. `public/videos/cartoon/victoire-<tenue>-<cabane|gouters>.mp4`
-  (+ .m4a), tenues rouges, bleus, vers, vers2. Ambiguïté notée : les Aliens n'ont pas encore la
-  leur (dessin refait en cours, PR #50) ; sans vidéo, la transition va droit à l'écran de fin.
+  (+ .m4a), pour les six tenues. Les Aliens partent de leur nouveau dessin « grosse tête »
+  (PR #50) et sont tournés sur fond magenta : leur peau menthe est trop proche du cyan. Sans
+  vidéo (skin sans vidéo, réseau), la transition va droit à l'écran de fin.
   Pas de vidéo pour la sonnerie : le réveil de la transition suffit.
 - **DW.5 — Cri en tampon** : la bulle d'explosion de manga du cri (DW.1) est jugée « très moche »
   par Clément. Parmi trois styles (tampon, ruban, lettres seules), il choisit le tampon : le même

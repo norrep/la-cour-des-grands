@@ -131,8 +131,15 @@ const VIDEOS_GOUTERS = (
   ] as const
 ).map(([nom, haut, bas]) => ({ url: `videos/cartoon/gouter-${nom}.mp4`, haut, bas }));
 
-/** Tenues qui ont leur vidéo de victoire (DW.4) ; les Aliens attendent leur nouveau dessin. */
-const TENUES_VICTOIRE: readonly TenueId[] = ['rouges', 'bleus', 'vers', 'vers2'];
+/** Tenues qui ont leur vidéo de victoire (DW.4) : toutes. */
+const TENUES_VICTOIRE: readonly TenueId[] = [
+  'rouges',
+  'bleus',
+  'vers',
+  'vers2',
+  'aliens',
+  'aliens2',
+];
 
 export const SKIN_CARTOON: Skin = {
   id: 'cartoon',
