@@ -87,6 +87,12 @@ def humanoide(img):
     haut = np.nonzero(a.any(1))[0].min()
     zone = range(haut + (by0 - haut) // 3, by0)
     cou = min(zone, key=lambda y: largeur[y] if largeur[y] > 0 else 10**9)
+    # Sans vrai cou (grosse tête posée sur les épaules), la ligne la plus étroite tombe dans une
+    # antenne ou une mèche, au-dessus de la tête : on coupe alors sous la ligne la plus large de la
+    # tête, juste avant les épaules (sinon la tête reste dans le tronc, rognée à sa largeur).
+    yt = haut + int(np.argmax(largeur[haut : by0 - 2 * TRAIT]))
+    if cou < yt:
+        cou = min(range(yt, by0 - TRAIT), key=lambda y: largeur[y])
     # Entrejambe : première ligne sous les bras où le bas du corps se sépare en deux.
     milieu = (tx0 + tx1) // 2
     entre = None
