@@ -497,3 +497,23 @@ Trois maquettes (carrousel, billets empilés, plein écran) ; Clément choisit l
 - **DH.2** — Mot d'excuse du Délégué : plus d'étiquette « Mot d'excuse ! » sur chaque goûter visé
   (la consigne le dit déjà, et elles se recouvraient). La bulle de consigne passe sous l'îlot quand,
   au-dessus, elle cacherait un goûter (sur toutes les cartes).
+
+## Transition et écran de victoire (28/11, demande de Clément)
+
+- **DW.1 — Transition de victoire, en code** : quand la partie se gagne sur la cour, on voit
+  d'abord comment, environ 2 s. La cour s'assombrit sauf un rond de projecteur, et la caméra
+  s'approche : sur la cabane prise (le drapeau du gagnant s'y plante), sur la boîte à goûter
+  pleine (les goûters en débordent) ou sur la pendule (le réveil sonne). Un cri de manga claque
+  (« CABANE PRISE ! », « GOÛTERS DÉVALISÉS ! », « DRIIIIING ! »), puis un rond à la couleur de la
+  bande se referme sur l'écran de fin. Toucher l'écran passe. Rien pour un abandon ou un temps
+  écoulé en ligne (l'écran de fin vient directement). Ambiguïté notée : la vidéo du Grand
+  (cabane, goûters) choisie aussi par Clément viendra se loger dans ce cri, une fois validée.
+- **DW.2 — Écran de victoire « affiche manga »** (maquette A, choisie parmi trois) : fond manga à
+  la couleur de la bande gagnante, ruban « GAGNÉ ! », le Grand et le Petit qui sautent, une
+  étiquette qui dit comment (pictogramme + trois mots + la phrase), les deux boîtes à goûter
+  (un biscuit par goûter, un rond vide pour ceux qui manquaient), « Rejouer » en grand et
+  « Accueil » à côté. Les élèves sont les marionnettes de l'équipe (plus l'ancien dessin).
+- **DW.3 — Point de vue** : contre l'ordi ou en ligne, si on perd, le titre devient « PERDU… »
+  sur fond gris et c'est notre bande qui boude. À deux sur le même téléphone, le titre est le nom
+  de l'équipe gagnante (« ALIENS ! »). Les couleurs viennent de l'équipe (avant, rouge/bleu fixes,
+  faux pour les Vers et les Aliens).

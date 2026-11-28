@@ -20,9 +20,12 @@ import {
   type Action,
   type Option,
   type RoleId,
+  adversaire,
 } from '../../engine/index';
 import { apercu } from '../apercu';
 import { cadreManga, fondManga } from '../ui/fondManga';
+import { ecranFin } from '../ui/ecranFin';
+import { jouerTransitionFin } from '../ui/transitionFin';
 import { DUREE_CONSEQUENCE, dureeAnimations, planAnimations, rondeParcourue } from '../sequence';
 import {
   BAS,
@@ -172,6 +175,9 @@ export class PartieScene extends Phaser.Scene {
   private entreDeuxTours = false;
   /** La partie vient de se finir : la cour finit de jouer le coup avant l'écran de victoire. */
   private finEnAttente = false;
+  private transitionFinJouee = false;
+  /** L'écran de fin est déjà apparu (il ne rejoue pas son entrée à chaque redessin). */
+  private finMontree = false;
   /** Fiche de la cour affichée au lancement, avant le premier « Passe le téléphone ». */
   private presentation = true;
   /**
@@ -276,6 +282,8 @@ export class PartieScene extends Phaser.Scene {
     this.cinematiqueEnCours = null;
     this.entreDeuxTours = false;
     this.finEnAttente = false;
+    this.transitionFinJouee = false;
+    this.finMontree = false;
     this.surveillanteVue = null;
     this.marchesEnCours = 0;
     this.presentation = true;
@@ -4611,92 +4619,92 @@ export class PartieScene extends Phaser.Scene {
     const issue = this.enLigne?.issue ?? null;
     const fin = issue ?? this.etat.fin;
     if (!fin) return;
-    this.voile(0.85);
-    const cx = LARGEUR / 2;
-    const g = this.ajouter(this.add.graphics());
-    panneau(g, 40, 150, LARGEUR - 80, 940, {
-      remplissage: fin.gagnant === 'rouge' ? 0xffe1d9 : 0xe1e6ff,
-      rayon: 36,
-      ombre: 12,
-    });
-    forme(g, contourRect(cx - 230, 190, 460, 120, 30, 41, 2.5), {
-      remplissage: COULEURS.jaune,
-      ombre: 6,
-    });
-    this.texte(cx, 250, TEXTES.fin.titre, 64, COULEURS.texteSombre, {
-      fontStyle: '700',
-    }).setOrigin(0.5);
-    // Les élèves gagnants sautent de joie.
-    (['petit', 'grand', 'populaire'] as const).forEach((role, i) => {
-      const el = skinActif().eleve(this, fin.gagnant, role, 82);
-      el.setPosition(cx + (i - 1) * 140, 500);
-      this.ajouter(el);
-      this.tweens.add({
-        targets: el,
-        y: 470,
-        duration: 260 + i * 40,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeOut',
-        delay: i * 90,
-      });
-    });
-    this.texte(
-      cx,
-      650,
-      this.enLigne
-        ? TEXTES.enLigne.gagnant(fin.gagnant === this.enLigne.bande)
-        : this.ordi
-          ? TEXTES.fin.gagnantSolo(fin.gagnant === this.ordi.bande)
-          : TEXTES.fin.gagnant(fin.gagnant),
-      46,
-      fin.gagnant === 'rouge' ? COULEURS.texteRouge : COULEURS.texteBleu,
-      {
-        fontStyle: '700',
-      },
-    ).setOrigin(0.5);
-    this.texte(
-      cx,
-      708,
+    // Transition (DW.1) : on montre d'abord sur la cour comment la partie s'est gagnée.
+    if (
+      this.animations &&
+      !this.transitionFinJouee &&
+      (fin.raison === 'cabane' || fin.raison === 'bonsPoints' || fin.raison === 'sonnerie')
+    ) {
+      this.transitionFinJouee = true;
+      const raison = fin.raison;
+      jouerTransitionFin(
+        this,
+        {
+          gagnant: fin.gagnant,
+          raison,
+          lieu: this.lieuDeLaVictoire(fin.gagnant, raison),
+          cri: TEXTES.fin.cri[raison],
+        },
+        () => this.rafraichir(),
+      );
+      return;
+    }
+    this.transitionFinJouee = true;
+    const moi: Bande | null = this.enLigne
+      ? this.enLigne.bande
+      : this.ordi
+        ? adversaire(this.ordi.bande)
+        : null;
+    const vue = moi === null ? 'neutre' : moi === fin.gagnant ? 'gagne' : 'perdu';
+    const qui = this.enLigne
+      ? TEXTES.enLigne.gagnant(fin.gagnant === this.enLigne.bande)
+      : this.ordi
+        ? TEXTES.fin.gagnantSolo(fin.gagnant === this.ordi.bande)
+        : TEXTES.fin.gagnant(fin.gagnant);
+    const raisonTexte =
       fin.raison === 'abandon' || fin.raison === 'temps'
         ? TEXTES.enLigne.raison[fin.raison]
         : tonFun()
           ? FUN.fin.raison[fin.raison]
-          : TEXTES.fin.raison(fin.raison),
-      28,
-      COULEURS.texteSombre,
-      { fontStyle: '600' },
-    ).setOrigin(0.5);
+          : TEXTES.fin.raison(fin.raison);
     // Une partie terminée : le tuto est passé, les aides suivantes seront pour rire.
     tutoPasse();
     const e = this.etat;
-    this.texte(
-      cx,
-      770,
-      TEXTES.fin.score(e.joueurs.rouge.bonsPoints, e.joueurs.bleu.bonsPoints),
-      22,
-      COULEURS.texteSombre,
-      { fontStyle: '500' },
-    ).setOrigin(0.5);
-    this.texte(cx, 804, TEXTES.fin.tours(e.tour), 20, '#6b6152').setOrigin(0.5);
+    const entree = !this.finMontree;
+    this.finMontree = true;
     this.ajouter(
-      creerBouton(
+      ecranFin(
         this,
-        cx,
-        900,
-        TEXTES.boutons.rejouer,
-        () =>
-          this.enLigne
-            ? this.scene.start('enLigne', { ...this.donnees, enLigne: { etape: 'menu' } })
-            : this.scene.restart({ ...this.donnees, graine: Date.now() }),
-        { largeur: 360, hauteur: 84, taille: 32, couleur: COULEURS.jaune },
+        {
+          gagnant: fin.gagnant,
+          raison: fin.raison,
+          vue,
+          gouters: { rouge: e.joueurs.rouge.bonsPoints, bleu: e.joueurs.bleu.bonsPoints },
+          objectif: this.cour.seuilBonsPoints,
+          tours: e.tour,
+          phrase: `${qui} ${raisonTexte}`,
+          cabane: this.visuel.cabane ?? { image: PLATEAU.cabaneBleue, murs: PLATEAU.mursBleue },
+        },
+        {
+          libelleRejouer: TEXTES.boutons.rejouer,
+          libelleAccueil: TEXTES.boutons.accueil,
+          rejouer: () =>
+            this.enLigne
+              ? this.scene.start('enLigne', { ...this.donnees, enLigne: { etape: 'menu' } })
+              : this.scene.restart({ ...this.donnees, graine: Date.now() }),
+          accueil: () => this.scene.start('accueil'),
+          bouton: (x, y, t, f, st) => creerBouton(this, x, y, t, f, st),
+        },
+        entree,
       ),
     );
-    this.ajouter(
-      creerBouton(this, cx, 1010, TEXTES.boutons.accueil, () => this.scene.start('accueil'), {
-        largeur: 360,
-        hauteur: 70,
-      }),
-    );
+  }
+
+  /** Là où la partie s'est gagnée : la cabane prise, la boîte à goûter pleine, la pendule. */
+  private lieuDeLaVictoire(gagnant: Bande, raison: 'cabane' | 'bonsPoints' | 'sonnerie'): Point {
+    if (raison === 'cabane') {
+      // La cabane où l'élève gagnant vient d'entrer (la dernière pose du journal).
+      const cabanes = this.cour.cabanes[adversaire(gagnant)];
+      const pose = [...this.etat.journal]
+        .reverse()
+        .find((ev) => ev.type === 'pose' && cabanes.includes(ev.cible));
+      const id = pose?.type === 'pose' ? pose.cible : cabanes[0];
+      if (id) return this.pos(id);
+    }
+    if (raison === 'bonsPoints') {
+      const boite = this.cartables[gagnant][0];
+      if (boite) return boite;
+    }
+    return { x: LARGEUR / 2, y: 24 };
   }
 }
