@@ -431,6 +431,7 @@ Demande de Clément : prendre le meilleur des trois tests (v2, main 4/5, règles
 - **DQ.5 — Le Délégué choisit le goûter** où va la surveillante (une option par autre goûter de sa ronde, toujours facultatif).
 - **DQ.6 — Sonnerie** : à égalité de goûters, gagne celui qui tient le plus d'îlots ; sinon, comme avant, le joueur bloqué perd.
 - **DQ.7 — Nouvelle piscine** : quatre coins (un bord + le flotteur voisin, 1 glace chacun) et le grand bain (2 glaces), objectif 3 ; Monsieur Yvon fait la ronde des quatre coins ; le courant tourne dans l'autre sens (F1 → F4 → F3 → F2), ce qui ramène le premier joueur de 42 % à 48 % entre IA difficiles avec la main 4/5.
+
 ## Goûter gardé visible sous la surveillante (28/11, demande de Clément)
 
 - **DG.1** — Le médaillon se posait 96 px au-dessus du goûter, mais sa banderole et ses rubans
@@ -440,3 +441,13 @@ Demande de Clément : prendre le meilleur des trois tests (v2, main 4/5, règles
 - **DG.2** — Le médaillon passe de 100 à 84 px de diamètre sur la cour : à 100, il ne tenait pas
   près de son goûter sur la cour et le camp scout (trop serrés) et partait loin. Ambiguïté notée :
   s'il paraît trop petit, on peut revenir à 92 en acceptant qu'il s'éloigne un peu sur ces cartes.
+
+## Goûters lisibles sur la piscine (28/11, demande de Clément : « illisibles »)
+
+- **DH.1** — Sur l'eau, le goûter n'avait pas de fond : petit (64 px), au milieu des pointillés,
+  sa pastille « +N » minuscule. Il flotte désormais sur une bouée-plateau crème au gros trait noir
+  (rayon 44, ombre d'autocollant), dessin 64 → 78 px, « +N » 22 → 28 px. Pris, la bouée prend la
+  couleur de l'équipe. Les goûters des quatre coins quittent l'allée en pointillés et se décalent de
+  70 px vers le milieu du bassin ; leur pastille va du côté du bassin, loin des îlots du bord. Le
+  médaillon de Monsieur Yvon tient compte de cette taille pour ne pas les cacher. La cour et le camp
+  scout ne changent pas.

@@ -115,6 +115,10 @@ const DUREE_ARRIVEE_CARTE = 650;
 type Texte = Phaser.GameObjects.Text;
 
 /** La partie à deux sur un même téléphone (étape 2 : formes simples). */
+/** Piscine (DH.1) : décalage du goûter vers l'eau libre, et tailles du goûter sur sa bouée. */
+const DECALAGE_GOUTER_EAU = 70;
+const GOUTER_EAU = { socle: 44, image: 78, texte: 28, badge: 23 } as const;
+
 export class PartieScene extends Phaser.Scene {
   private ctrl!: Controleur;
   private cour!: Cour;
@@ -1281,8 +1285,24 @@ export class PartieScene extends Phaser.Scene {
     // Goûter placé par le plan (piscine : sur le carrelage, entre la cabane et les deux îlots).
     if (r.gouter) return versEcran(r.gouter.x, r.gouter.y);
     const c = centreRegion(this.cour, r.ilots);
+    // Piscine : un goûter entre deux îlots du bord tomberait sur l'allée en pointillés ; il flotte
+    // un peu vers le milieu du bassin, dans l'eau libre (DH.1).
+    if (this.gouterSurLEau() && r.ilots.length === 2) {
+      const milieu = ZONE_COUR.x + ZONE_COUR.largeur / 2;
+      return { x: c.x + Math.sign(milieu - c.x) * DECALAGE_GOUTER_EAU, y: c.y };
+    }
     const decalage = r.id === 'haut' ? -18 : r.id === 'bas' ? -22 : 0;
     return { x: c.x, y: c.y + decalage };
+  }
+
+  /** Côté de la pastille « +N » d'un goûter sur l'eau : 1 à droite, -1 à gauche. */
+  private coteBadgeEau(x: number): number {
+    return x < ZONE_COUR.x + ZONE_COUR.largeur / 2 - 10 ? 1 : -1;
+  }
+
+  /** Les goûters posés sur l'eau (piscine) flottent sur une bouée-plateau (DH.1). */
+  private gouterSurLEau(): boolean {
+    return this.cour.id === 'piscine';
   }
 
   /**
@@ -1299,7 +1319,19 @@ export class PartieScene extends Phaser.Scene {
     // Le goûter gardé : son rond pointillé (36) et sa pastille « +N » en haut à gauche, plus un
     // peu d'air pour qu'on le voie bien détaché.
     const air = 6;
-    const gouter = { gauche: -50 - air, droite: 39 + air, haut: -48 - air, bas: 39 + air };
+    let gouter = { gauche: -50 - air, droite: 39 + air, haut: -48 - air, bas: 39 + air };
+    if (this.gouterSurLEau()) {
+      // Sur l'eau (DH.1) : bouée-plateau et rond pointillé plus grands, pastille côté bassin.
+      const rond = GOUTER_EAU.socle + 8;
+      const badge = GOUTER_EAU.socle * 0.78 + GOUTER_EAU.badge;
+      const d = this.coteBadgeEau(c.x);
+      gouter = {
+        gauche: -(d < 0 ? badge : rond) - air,
+        droite: (d > 0 ? badge : rond) + air,
+        haut: -badge - air,
+        bas: rond + air,
+      };
+    }
     const chevauche = (dx: number, dy: number): boolean =>
       dx + em.droite > gouter.gauche &&
       dx + em.gauche < gouter.droite &&
@@ -1310,7 +1342,7 @@ export class PartieScene extends Phaser.Scene {
       ...Object.keys(this.cour.noeuds).map((id) => ({ p: this.pos(id), r: 52 })),
       ...this.cour.regions
         .filter((r) => r.id !== regionId)
-        .map((r) => ({ p: this.positionGouter(r.id), r: 40 })),
+        .map((r) => ({ p: this.positionGouter(r.id), r: this.gouterSurLEau() ? 56 : 40 })),
       ...(['rouge', 'bleu'] as const).flatMap((b) =>
         (['portail', 'cpe'] as const).map((l) => ({ p: positionLieu(this.cour, b, l), r: 40 })),
       ),
@@ -1486,12 +1518,23 @@ export class PartieScene extends Phaser.Scene {
     garde: boolean,
   ): void {
     const g = this.ajouter(this.add.graphics());
-    if (prise) {
-      forme(g, contourRond(x, y, 30, graineDe(x, y)), {
+    // Sur l'eau, le goûter flotte sur une bouée-plateau crème au gros trait noir, plus grand, avec
+    // son « +N » plus gros : sans fond, il se perdait dans le bleu et les pointillés (DH.1).
+    const eau = this.gouterSurLEau();
+    const rayon = eau ? GOUTER_EAU.socle : 30;
+    if (eau) {
+      forme(g, contourRond(x, y, rayon, graineDe(x, y)), {
+        remplissage: prise ? equipeDe(prise).couleur : COULEURS.papier,
+        trait: 5,
+        ombre: 6,
+      });
+    } else if (prise) {
+      forme(g, contourRond(x, y, rayon, graineDe(x, y)), {
         remplissage: equipeDe(prise).couleur,
         trait: 3,
       });
-    } else if (garde) {
+    }
+    if (garde && !prise) {
       // Le goûter gardé : un rond en pointillés aux couleurs du médaillon (DS.1).
       const n = 14;
       for (let k = 0; k < n; k++) {
@@ -1501,29 +1544,38 @@ export class PartieScene extends Phaser.Scene {
           1,
         );
         g.beginPath();
-        g.arc(x, y, 36, (k / n) * Math.PI * 2, ((k + 1) / n) * Math.PI * 2);
+        g.arc(x, y, rayon + 6, (k / n) * Math.PI * 2, ((k + 1) / n) * Math.PI * 2);
         g.strokePath();
       }
     }
-    g.setAlpha(prise ? 0.8 : 1);
+    g.setAlpha(prise && !eau ? 0.8 : 1);
     const illu = cleGouter(index);
     if (this.textures.exists(illu)) {
       this.ajouter(
         this.add
           .image(x, y, illu)
-          .setScale(64 / 512)
+          .setScale((eau ? GOUTER_EAU.image : 64) / 512)
           .setAlpha(prise ? 0.85 : 1),
       );
     } else {
       this.dessinerFriandise(g, index, x, y);
     }
-    const t = this.texte(x - 28, y - 26, `+${points}`, 22, COULEURS.texteSombre, {
+    // Sur l'eau, la pastille va du côté du milieu du bassin, loin des îlots du bord.
+    const [bx, by, taille, rond] = eau
+      ? [
+          x + this.coteBadgeEau(x) * rayon * 0.78,
+          y - rayon * 0.78,
+          GOUTER_EAU.texte,
+          GOUTER_EAU.badge,
+        ]
+      : [x - 28, y - 26, 22, 19];
+    const t = this.texte(bx, by, `+${points}`, taille, COULEURS.texteSombre, {
       fontStyle: '700',
     }).setOrigin(0.5);
     const fond = this.add.graphics();
-    forme(fond, contourRond(t.x, t.y, 19, graineDe(x, y) + 5), {
+    forme(fond, contourRond(t.x, t.y, rond, graineDe(x, y) + 5), {
       remplissage: COULEURS.jaune,
-      trait: 3,
+      trait: eau ? 4 : 3,
     });
     this.dyn.addAt(fond, this.dyn.getIndex(t));
   }
