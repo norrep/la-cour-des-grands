@@ -1605,7 +1605,7 @@ export class PartieScene extends Phaser.Scene {
     if (!attente) return false;
     const touchables = new Map<string, () => void>();
     for (const o of attente.options) {
-      if (o.type === 'cpe' || o.type === 'rappeler' || o.type === 'echanger') {
+      if (o.type === 'cpe' || o.type === 'rappeler') {
         touchables.set(o.ilot, () => this.choisir(o));
       } else if (o.type === 'glisser') {
         if (this.departToboggan === null) {
@@ -2351,8 +2351,6 @@ export class PartieScene extends Phaser.Scene {
           return c.delegue;
         case 'bagarreur':
           return this.departToboggan ? c.bagarreurArrivee : c.bagarreurDepart;
-        case 'teleporteur':
-          return c.teleporteur;
         default:
           return '';
       }
@@ -2414,7 +2412,7 @@ export class PartieScene extends Phaser.Scene {
     const sansCible = attente.options.length === 0;
     // Le mot d'excuse du Délégué peut aussi se garder (demande de Clément) : éloigner Mme Josiane
     // n'arrange pas toujours.
-    // Même chose pour la bousculade et la téléportation, facultatives (DS.2, DS.3).
+    // Même chose pour la bousculade du Bagarreur, facultative (DS.2).
     const passerUtile = pouvoirFacultatif(attente.effet) || sansCible;
     const fin = passerUtile
       ? [

@@ -61,7 +61,7 @@ const POUVOIRS: Record<RoleId, string> = {
   bagarreur:
     '★ Rôle spécial des Écoliers. Bousculade : un adversaire voisin de 1 à 4 recule sur un îlot vide à côté de lui.',
   teleporteur:
-    '★ Rôle spécial des Aliens. Téléportation : il échange sa place avec un élève de ta bande, n’importe où (sauf le Petit).',
+    '★ Rôle spécial des Aliens. Téléportation : il se pose n’importe où sur un élève de ta bande, qui retourne dans ta main.',
 };
 
 /** Effet de chaque équipement spécial. */
@@ -264,7 +264,6 @@ export const TEXTES = {
     tobogganArrivee: '★ Toboggan : touche l’îlot d’arrivée.',
     bagarreurDepart: 'Bagarreur : touche l’adversaire à bousculer, ou passe.',
     bagarreurArrivee: 'Bagarreur : touche l’îlot vide où il recule.',
-    teleporteur: 'Téléporteur : touche l’élève de ta bande avec qui échanger, ou passe.',
     bulle: 'Pouvoir !',
   },
   fiche: {
@@ -479,11 +478,11 @@ export const TEXTES = {
       return `${surv.Role} poursuit sa ronde.`;
     },
     courant: 'Le courant fait tourner le grand bain d’un cran.',
-    rappel: (b: Bande) => `${BANDES_TITRE[b]} rappelle un élève dans son rang.`,
+    rappel: (b: Bande) =>
+      `Bzzzt ! Le Téléporteur (${BANDES[b]}) prend la place d’un copain, qui revient dans la main.`,
     repechage: (b: Bande) => `${BANDES_TITRE[b]} fait revenir un élève puni.`,
     glissade: (role: RoleId) => `${ROLES[role]} glisse sur le toboggan !`,
     bousculade: (role: RoleId) => `Bousculade ! ${ROLES[role]} recule d’un îlot.`,
-    teleportation: (role: RoleId) => `Bzzzt ! ${ROLES[role]} est téléporté.`,
     passe: (b: Bande) => `${BANDES_TITRE[b]} renonce à son pouvoir.`,
     region: (b: Bande, nom: string, n: number) =>
       `${BANDES_TITRE[b]} ramasse ${nom.charAt(0).toLowerCase()}${nom.slice(1)} : +${n} !`,

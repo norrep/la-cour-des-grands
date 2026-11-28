@@ -121,7 +121,7 @@ export function cinematiquesPour(
       liste.push(parRapporteuse ? { id: 'cpe', pouvoir: 'rapporteuse', ...auteur } : { id: 'cpe' });
     else if (ev.type === 'infirmerie')
       liste.push({ id: 'infirmerie', bande: adversaire(ev.bande) });
-    // Bousculade et téléportation se voient sur la cour : pas de panneau du toboggan (DS.6).
+    // La bousculade se voit sur la cour : pas de panneau du toboggan (DS.6).
     else if (ev.type === 'glissade' && !ev.par) liste.push({ id: 'toboggan' });
     else if (ev.type === 'surveillante' && ev.parDelegue) liste.push({ id: 'delegue', ...auteur });
     else if (ev.type === 'region' && !victoire) {

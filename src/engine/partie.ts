@@ -256,6 +256,9 @@ export function posePossible(
     if (!peutRecouvrir(eleve, dessus)) return false;
   }
   if (eleve.role === 'fouine') return true;
+  // Téléportation (DS.3) : n'importe où sur la cour, sur un élève de sa bande, qui lui laisse sa
+  // place et retourne dans la main.
+  if (eleve.role === 'teleporteur' && dessus?.bande === bande) return true;
   return relie();
 }
 
@@ -353,21 +356,6 @@ export function optionsEffet(e: EtatPartie, effet: Effet): Option[] {
         }
         return opts;
       }
-      case 'teleporteur':
-        // Téléportation (DS.3) : échange de place avec un élève de sa bande visible ailleurs sur
-        // la cour. Ni un planqué (banc), ni le Petit (demande de Clément) ; pas depuis le banc.
-        if (estPlanque(e, effet.ilot)) return [];
-        return cour.ilots
-          .filter((ilot) => {
-            const s = sommet(e, ilot);
-            return (
-              ilot !== effet.ilot &&
-              s?.bande === bande &&
-              s.role !== 'petit' &&
-              !estPlanque(e, ilot)
-            );
-          })
-          .map((ilot) => ({ type: 'echanger', ilot }));
       case 'fouine':
         // Passée par les buissons (hors du chemin), la Fouine ramène un copain.
         return effet.horsChemin && nombreAPiocher(moi, 1) > 0 ? [{ type: 'piocher' }] : [];
@@ -463,8 +451,6 @@ function memeOption(a: Option, b: Option): boolean {
       return b.type === 'repecher' && a.eleveId === b.eleveId;
     case 'glisser':
       return b.type === 'glisser' && a.depart === b.depart && a.arrivee === b.arrivee;
-    case 'echanger':
-      return b.type === 'echanger' && a.ilot === b.ilot;
   }
 }
 
@@ -560,6 +546,12 @@ function poser(e: EtatPartie, bande: Bande, eleve: Eleve, cible: string): void {
   }
 
   const dessous = sommet(e, cible);
+  if (eleve.role === 'teleporteur' && dessous?.bande === bande) {
+    // Téléportation (DS.3) : le copain déjà en place retourne dans la main.
+    (e.piles[cible] as Eleve[]).pop();
+    j.rang.push(dessous);
+    noter(e, { type: 'rappel', tour: e.tour, bande, eleveId: dessous.id, ilot: cible });
+  }
   (e.piles[cible] as Eleve[]).push(eleve);
   noter(e, {
     type: 'pose',
@@ -669,30 +661,6 @@ function appliquerOption(e: EtatPartie, effet: Effet, option: Option): void {
       verifierRegions(e);
       break;
     }
-    case 'echanger': {
-      const ici = e.piles[effet.ilot] as Eleve[];
-      const la = e.piles[option.ilot] as Eleve[];
-      const teleporteur = ici.pop() as Eleve;
-      const copain = la.pop() as Eleve;
-      ici.push(copain);
-      la.push(teleporteur);
-      for (const [el, depart, arrivee] of [
-        [teleporteur, effet.ilot, option.ilot],
-        [copain, option.ilot, effet.ilot],
-      ] as const) {
-        noter(e, {
-          type: 'glissade',
-          tour: e.tour,
-          eleveId: el.id,
-          role: el.role,
-          depart,
-          arrivee,
-          par: 'teleporteur',
-        });
-      }
-      verifierRegions(e);
-      break;
-    }
   }
 }
 
@@ -759,8 +727,6 @@ function cleOption(e: EtatPartie, o: Option): string {
       return `${o.type}:${o.ilot}`;
     case 'glisser':
       return `glisser:${o.depart}:${o.arrivee}`;
-    case 'echanger':
-      return `echanger:${o.ilot}`;
     default:
       return o.type;
   }
@@ -768,10 +734,7 @@ function cleOption(e: EtatPartie, o: Option): string {
 
 /** Pouvoirs facultatifs : on peut les garder (« Passer »), même avec une seule option. */
 export function pouvoirFacultatif(effet: Effet): boolean {
-  return (
-    effet.type === 'pouvoir' &&
-    (effet.role === 'delegue' || effet.role === 'bagarreur' || effet.role === 'teleporteur')
-  );
+  return effet.type === 'pouvoir' && (effet.role === 'delegue' || effet.role === 'bagarreur');
 }
 
 /**

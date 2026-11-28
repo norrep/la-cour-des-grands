@@ -33,9 +33,6 @@ export function phraseEvenement(ev: Evenement, cour: Cour, fun = false, graine =
     case 'repechage':
       return J.repechage(ev.bande);
     case 'glissade':
-      // Téléportation : une seule ligne, celle du Téléporteur (pas celle du copain échangé).
-      if (ev.par === 'teleporteur')
-        return ev.role === 'teleporteur' ? J.teleportation(ev.role) : null;
       return ev.par === 'bagarreur' ? J.bousculade(ev.role) : J.glissade(ev.role);
     case 'passe':
       return J.passe(ev.bande);
@@ -73,8 +70,6 @@ function phraseDrole(ev: Evenement, cour: Cour, g: number): string | null {
     case 'repechage':
       return v(F.repechage(ev.bande));
     case 'glissade':
-      if (ev.par === 'teleporteur')
-        return ev.role === 'teleporteur' ? v(F.teleportation(ev.role)) : null;
       return v(ev.par === 'bagarreur' ? F.bousculade(ev.role) : F.glissade(ev.role));
     case 'passe':
       return v(F.passe(ev.bande));

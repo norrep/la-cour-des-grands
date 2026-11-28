@@ -164,8 +164,6 @@ export function retournerOption(o: Option, m: Miroir): Option {
       return { type: 'glisser', depart: m.noeud(o.depart), arrivee: m.noeud(o.arrivee) };
     case 'surveillante':
       return { type: 'surveillante', position: m.ronde(o.position) };
-    case 'echanger':
-      return { type: 'echanger', ilot: m.noeud(o.ilot) };
     default:
       return o;
   }

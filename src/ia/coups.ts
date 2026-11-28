@@ -41,8 +41,6 @@ function cleOption(e: EtatPartie, o: Option): string {
       return `glisser:${o.depart}:${o.arrivee}`;
     case 'surveillante':
       return `surveillante:${o.position}`;
-    case 'echanger':
-      return `echanger:${o.ilot}`;
     default:
       return o.type;
   }

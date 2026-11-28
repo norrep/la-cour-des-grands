@@ -184,9 +184,7 @@ export type Option =
   | { type: 'surveillante'; position: number }
   | { type: 'rappeler'; ilot: string }
   | { type: 'repecher'; eleveId: string }
-  | { type: 'glisser'; depart: string; arrivee: string }
-  /** Téléportation : le Téléporteur échange sa place avec l'élève de sa bande visible sur `ilot`. */
-  | { type: 'echanger'; ilot: string };
+  | { type: 'glisser'; depart: string; arrivee: string };
 
 export interface Attente {
   effet: Effet;
@@ -225,6 +223,7 @@ export type Evenement =
   | { type: 'surveillante'; tour: number; position: number; pas: number; parDelegue: boolean }
   /** Le courant a fait tourner les piles de l'anneau d'un cran (piscine). */
   | { type: 'courant'; tour: number; anneau: string[] }
+  /** Élève repris de la cour dans le rang (le Téléporteur prend sa place, DS.3). */
   | { type: 'rappel'; tour: number; bande: Bande; eleveId: string; ilot: string }
   | { type: 'repechage'; tour: number; bande: Bande; eleveId: string }
   | {
@@ -234,8 +233,8 @@ export type Evenement =
       role: RoleId;
       depart: string;
       arrivee: string;
-      /** Déplacé par un pouvoir (bousculade, téléportation) plutôt que par le toboggan. */
-      par?: 'bagarreur' | 'teleporteur';
+      /** Déplacé par la bousculade du Bagarreur plutôt que par le toboggan. */
+      par?: 'bagarreur';
     }
   | { type: 'passe'; tour: number; bande: Bande; effet: RoleId | EquipementId }
   | { type: 'region'; tour: number; bande: Bande; region: string; bonsPoints: number }

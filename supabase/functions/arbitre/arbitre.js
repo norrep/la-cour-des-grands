@@ -32,7 +32,7 @@ var PAR_ID = Object.fromEntries(
 );
 var SIGNATURES = {
   bagarreur: { valeur: 5, remplace: "contagieux" },
-  teleporteur: { valeur: 6, remplace: "delegue" }
+  teleporteur: { valeur: 5, remplace: "contagieux" }
 };
 var VALEUR_MAX_BOUSCULE = 4;
 function valeur(role) {
@@ -368,6 +368,7 @@ function posePossible(e, bande, eleve2, cible, connectes) {
     if (!peutRecouvrir(eleve2, dessus)) return false;
   }
   if (eleve2.role === "fouine") return true;
+  if (eleve2.role === "teleporteur" && dessus?.bande === bande) return true;
   return relie();
 }
 function nombreAPiocher(j, voulu) {
@@ -438,12 +439,6 @@ function optionsEffet(e, effet2) {
         }
         return opts;
       }
-      case "teleporteur":
-        if (estPlanque(e, effet2.ilot)) return [];
-        return cour.ilots.filter((ilot) => {
-          const s = sommet(e, ilot);
-          return ilot !== effet2.ilot && s?.bande === bande && s.role !== "petit" && !estPlanque(e, ilot);
-        }).map((ilot) => ({ type: "echanger", ilot }));
       case "fouine":
         return effet2.horsChemin && nombreAPiocher(moi, 1) > 0 ? [{ type: "piocher" }] : [];
       default:
@@ -500,8 +495,6 @@ function memeOption(a, b) {
       return b.type === "repecher" && a.eleveId === b.eleveId;
     case "glisser":
       return b.type === "glisser" && a.depart === b.depart && a.arrivee === b.arrivee;
-    case "echanger":
-      return b.type === "echanger" && a.ilot === b.ilot;
   }
 }
 function jouer(etat, action) {
@@ -577,6 +570,11 @@ function poser(e, bande, eleve2, cible) {
     return;
   }
   const dessous = sommet(e, cible);
+  if (eleve2.role === "teleporteur" && dessous?.bande === bande) {
+    e.piles[cible].pop();
+    j.rang.push(dessous);
+    noter(e, { type: "rappel", tour: e.tour, bande, eleveId: dessous.id, ilot: cible });
+  }
   e.piles[cible].push(eleve2);
   noter(e, {
     type: "pose",
@@ -679,30 +677,6 @@ function appliquerOption(e, effet2, option) {
       verifierRegions(e);
       break;
     }
-    case "echanger": {
-      const ici = e.piles[effet2.ilot];
-      const la = e.piles[option.ilot];
-      const teleporteur = ici.pop();
-      const copain = la.pop();
-      ici.push(copain);
-      la.push(teleporteur);
-      for (const [el, depart, arrivee] of [
-        [teleporteur, effet2.ilot, option.ilot],
-        [copain, option.ilot, effet2.ilot]
-      ]) {
-        noter(e, {
-          type: "glissade",
-          tour: e.tour,
-          eleveId: el.id,
-          role: el.role,
-          depart,
-          arrivee,
-          par: "teleporteur"
-        });
-      }
-      verifierRegions(e);
-      break;
-    }
   }
 }
 function deplacerSurveillante(e, pas, parDelegue) {
@@ -760,14 +734,12 @@ function cleOption(e, o) {
       return `${o.type}:${o.ilot}`;
     case "glisser":
       return `glisser:${o.depart}:${o.arrivee}`;
-    case "echanger":
-      return `echanger:${o.ilot}`;
     default:
       return o.type;
   }
 }
 function pouvoirFacultatif(effet2) {
-  return effet2.type === "pouvoir" && (effet2.role === "delegue" || effet2.role === "bagarreur" || effet2.role === "teleporteur");
+  return effet2.type === "pouvoir" && (effet2.role === "delegue" || effet2.role === "bagarreur");
 }
 function choixUnique(e, effet2, options) {
   if (pouvoirFacultatif(effet2)) return false;
@@ -1648,8 +1620,6 @@ function retournerOption(o, m) {
       return { type: "glisser", depart: m.noeud(o.depart), arrivee: m.noeud(o.arrivee) };
     case "surveillante":
       return { type: "surveillante", position: m.ronde(o.position) };
-    case "echanger":
-      return { type: "echanger", ilot: m.noeud(o.ilot) };
     default:
       return o;
   }

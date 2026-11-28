@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   actionsLegales,
+  ciblesPossibles,
   creerPartie,
   estSignature,
   jouer,
@@ -22,11 +23,11 @@ function compter(e: EtatPartie, b: Bande, role: RoleId): number {
 }
 
 describe('DS.1 — Rôles signature des clans', () => {
-  it('gardent le chiffre du rôle qu’ils remplacent', () => {
+  it('sont tous des 5, à la place du Contagieux', () => {
     expect(valeur('bagarreur')).toBe(5);
     expect(roleRemplace('bagarreur')).toBe('contagieux');
-    expect(valeur('teleporteur')).toBe(6);
-    expect(roleRemplace('teleporteur')).toBe('delegue');
+    expect(valeur('teleporteur')).toBe(5);
+    expect(roleRemplace('teleporteur')).toBe('contagieux');
     expect(estSignature('bagarreur')).toBe(true);
     expect(estSignature('delegue')).toBe(false);
   });
@@ -40,8 +41,8 @@ describe('DS.1 — Rôles signature des clans', () => {
     expect(compter(e, 'rouge', 'contagieux')).toBe(0);
     expect(compter(e, 'rouge', 'delegue')).toBe(3);
     expect(compter(e, 'bleu', 'teleporteur')).toBe(3);
-    expect(compter(e, 'bleu', 'delegue')).toBe(0);
-    expect(compter(e, 'bleu', 'contagieux')).toBe(3);
+    expect(compter(e, 'bleu', 'contagieux')).toBe(0);
+    expect(compter(e, 'bleu', 'delegue')).toBe(3);
   });
 
   it('viennent du clan : Écoliers → Bagarreur, Aliens → Téléporteur, Vers → aucun', () => {
@@ -128,33 +129,33 @@ describe('DS.3 — Le Téléporteur', () => {
       rang: { rouge: ['teleporteur'] },
       piles: {
         P: [['rouge', 'populaire']],
-        D: [['rouge', 'chouchou']],
-        L: [['rouge', 'petit']],
+        X: [['rouge', 'chouchou']],
         S: [['bleu', 'grand']],
       },
     });
 
-  it('échange sa place avec un élève de sa bande, sauf le Petit', () => {
-    const e = envoyer(depart(), 'teleporteur', 'Q');
-    expect(e.attente?.options).toEqual([
-      { type: 'echanger', ilot: 'P' },
-      { type: 'echanger', ilot: 'D' },
-    ]);
-    const apres = jouer(e, { type: 'choisir', option: { type: 'echanger', ilot: 'D' } });
-    expect(pile(apres, 'Q')).toEqual(['rouge:chouchou']);
-    expect(pile(apres, 'D')).toEqual(['rouge:teleporteur']);
-    const glissades = apres.journal.filter((ev) => ev.type === 'glissade');
-    expect(glissades).toHaveLength(2);
-    expect(glissades.every((ev) => ev.type === 'glissade' && ev.par === 'teleporteur')).toBe(true);
+  it('se pose n’importe où sur un élève de sa bande, même loin du chemin', () => {
+    const e = depart();
+    const cibles = ciblesPossibles(e, idRang(e, 'rouge', 'teleporteur'));
+    // X n'est pas relié à la cabane rouge, mais un copain y est.
+    expect(cibles).toContain('X');
+    expect(cibles).toContain('P');
+    // Loin du chemin sur une case vide ou adverse : non.
+    expect(cibles).not.toContain('Y');
+    expect(cibles).not.toContain('S');
   });
 
-  it('est facultatif, même avec un seul copain (pouvoirs automatiques)', () => {
-    const s = situation({
-      rang: { rouge: ['teleporteur'] },
-      piles: { P: [['rouge', 'populaire']] },
-    });
-    const e = envoyer({ ...s, pouvoirsAuto: true }, 'teleporteur', 'Q');
-    expect(e.attente?.options).toEqual([{ type: 'echanger', ilot: 'P' }]);
-    expect(pile(jouer(e, { type: 'passer' }), 'Q')).toEqual(['rouge:teleporteur']);
+  it('le copain déjà en place retourne dans la main', () => {
+    const apres = envoyer(depart(), 'teleporteur', 'X');
+    expect(pile(apres, 'X')).toEqual(['rouge:teleporteur']);
+    expect(apres.joueurs.rouge.rang.map((el) => el.role)).toEqual(['chouchou']);
+    expect(apres.journal.find((ev) => ev.type === 'rappel')).toMatchObject({ ilot: 'X' });
+    expect(apres.courant).toBe('bleu');
+  });
+
+  it('sur un îlot vide relié, il se pose comme un 5 ordinaire', () => {
+    const apres = envoyer(depart(), 'teleporteur', 'Q');
+    expect(pile(apres, 'Q')).toEqual(['rouge:teleporteur']);
+    expect(apres.joueurs.rouge.rang).toHaveLength(0);
   });
 });

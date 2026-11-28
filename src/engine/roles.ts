@@ -33,12 +33,12 @@ const PAR_ID: Record<RoleId, DefinitionRole> = Object.fromEntries(
 ) as Record<RoleId, DefinitionRole>;
 
 /**
- * Rôles signature des clans (DS.1) : chacun remplace un rôle à « petit pouvoir », au même
- * chiffre (échelle de Clément : chiffre fort → petit pouvoir).
+ * Rôles signature des clans (DS.1) : tous des 5, à la place du Contagieux, le « petit pouvoir »
+ * du 5 (demande de Clément : le rôle spécial d'un clan porte toujours le 5).
  */
 export const SIGNATURES: Partial<Record<RoleId, { valeur: number; remplace: RoleOrigine }>> = {
   bagarreur: { valeur: 5, remplace: 'contagieux' },
-  teleporteur: { valeur: 6, remplace: 'delegue' },
+  teleporteur: { valeur: 5, remplace: 'contagieux' },
 };
 
 /** Le Bagarreur ne bouscule qu'un adversaire de valeur strictement inférieure. */
