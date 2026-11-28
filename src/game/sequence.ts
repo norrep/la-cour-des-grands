@@ -28,8 +28,6 @@ export const DUREE_COURANT = 1000;
  * avant de redessiner, sinon il est coupé en plein vol.
  */
 export const DUREE_PLAQUAGE = 1800;
-/** Le mégaphone des copains appelés (ms). */
-export const DUREE_COPAINS = 1450;
 
 /** Petit arrêt de la surveillante sur le goûter où elle arrive, avant la suite (ms). */
 export const PAUSE_SURVEILLANTE = 160;
@@ -106,8 +104,8 @@ export function dureeAnimations(nouveaux: readonly Evenement[]): number {
           : DUREE_ARRIVEE
         : ev.type === 'courant'
           ? DUREE_COURANT
-          : ev.type === 'appel' || ev.type === 'pioche'
-            ? DUREE_COPAINS
+          : ev.type === 'appel'
+            ? DUREE_CONSEQUENCE
             : estConsequence(ev)
               ? dureeConsequence(ev)
               : 0;
