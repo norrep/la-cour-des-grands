@@ -517,3 +517,12 @@ Trois maquettes (carrousel, billets empilés, plein écran) ; Clément choisit l
   sur fond gris et c'est notre bande qui boude. À deux sur le même téléphone, le titre est le nom
   de l'équipe gagnante (« ALIENS ! »). Les couleurs viennent de l'équipe (avant, rouge/bleu fixes,
   faux pour les Vers et les Aliens).
+- **DW.4 — Vidéos de victoire** (choisies par Clément, images clés validées) : le Grand de la bande
+  gagnante, seul, plante le drapeau sur la cabane (« We took the hut! ») ou se goinfre de goûters
+  (« All the snacks are mine! »). MAGI-2 1080p 4 s sur fond cyan, chasuble et drapeau bleu roi
+  recolorés par tenue (la casquette pervenche, peu saturée, est épargnée), fond manga animé à la
+  couleur de la tenue. Elles passent plein écran juste après le rond de la transition, puis
+  l'écran de fin ; toucher passe. `public/videos/cartoon/victoire-<tenue>-<cabane|gouters>.mp4`
+  (+ .m4a), tenues rouges, bleus, vers, vers2. Ambiguïté notée : les Aliens n'ont pas encore la
+  leur (dessin refait en cours, PR #50) ; sans vidéo, la transition va droit à l'écran de fin.
+  Pas de vidéo pour la sonnerie : le réveil de la transition suffit.

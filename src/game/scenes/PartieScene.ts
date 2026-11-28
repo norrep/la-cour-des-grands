@@ -254,6 +254,10 @@ export class PartieScene extends Phaser.Scene {
     const videosPartie = (['rouge', 'bleu'] as const).flatMap((b) =>
       ROLES.map(({ id }) => skin.videoPouvoir?.(b, id)),
     );
+    // Les vidéos de victoire viennent après celles des pouvoirs (DW.4).
+    for (const b of ['rouge', 'bleu'] as const)
+      for (const r of ['cabane', 'bonsPoints'] as const)
+        videosPartie.push(skin.videoVictoire?.(b, r));
     prechargerVideos(videosPartie);
     // Leurs bandes son, jouées à part pour ne pas être coupées par le téléphone (DV.9).
     for (let i = 0; i < 4; i++) videosPartie.push(skin.videoGouter?.(i)?.url);
@@ -4635,7 +4639,12 @@ export class PartieScene extends Phaser.Scene {
           lieu: this.lieuDeLaVictoire(fin.gagnant, raison),
           cri: TEXTES.fin.cri[raison],
         },
-        () => this.rafraichir(),
+        () => {
+          const url =
+            raison === 'sonnerie' ? undefined : skinActif().videoVictoire?.(fin.gagnant, raison);
+          if (url) this.videoVictoire(url, () => this.rafraichir());
+          else this.rafraichir();
+        },
       );
       return;
     }
@@ -4688,6 +4697,69 @@ export class PartieScene extends Phaser.Scene {
         entree,
       ),
     );
+  }
+
+  /**
+   * La vidéo de victoire (DW.4), plein écran, juste après le rond de la transition : son fond
+   * manga est déjà à la couleur de la bande, il prend la suite sans cassure. Toucher la passe.
+   * Si elle ne démarre pas vite (pas encore téléchargée, navigateur), on passe à l'écran de fin.
+   */
+  private videoVictoire(url: string, suite: () => void): void {
+    const couleur = equipeDe(this.etat.fin?.gagnant ?? 'rouge').couleur;
+    const fond = this.add
+      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, couleur, 1)
+      .setOrigin(0, 0)
+      .setInteractive();
+    const video = this.add.video(LARGEUR / 2, HAUTEUR / 2).setAlpha(0);
+    const tout = this.add.container(0, 0, [fond, video]).setDepth(890);
+    let fini = false;
+    let demarree = false;
+    let couperBande = (): void => undefined;
+    const finir = (): void => {
+      if (fini) return;
+      fini = true;
+      couperBande();
+      video.stop();
+      suite();
+      // L'écran de fin est dessous : la vidéo s'efface par-dessus.
+      this.tweens.add({
+        targets: tout,
+        alpha: 0,
+        duration: 260,
+        onComplete: () => tout.destroy(),
+      });
+    };
+    const attendre = (ms: number, fn: () => void): void => {
+      window.setTimeout(() => {
+        if (tout.scene) fn();
+      }, ms);
+    };
+    const bandeAPart = bandeSonPrete(url);
+    video.on(Phaser.GameObjects.Events.VIDEO_PLAY, () => {
+      if (demarree || fini) return;
+      demarree = true;
+      const w = video.width || LARGEUR;
+      const h = video.height || HAUTEUR;
+      video.setScale(Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
+      this.tweens.add({ targets: video, alpha: 1, duration: 160 });
+      if (bandeAPart) couperBande = jouerBandeSon(url);
+      attendre(Math.max(1, video.getDuration() || 4) * 1000 + 1500, finir);
+    });
+    video.on(Phaser.GameObjects.Events.VIDEO_COMPLETE, () => attendre(400, finir));
+    video.on(Phaser.GameObjects.Events.VIDEO_ERROR, finir);
+    video.on(Phaser.GameObjects.Events.VIDEO_LOCKED, () => {
+      video.setMute(true);
+      video.play();
+    });
+    fond.on('pointerup', finir);
+    const enMemoire = videoEnMemoire(url);
+    attendre(enMemoire ? 2000 : 3500, () => {
+      if (!demarree) finir();
+    });
+    const muette = bandeAPart || !lireSons();
+    if (enMemoire) video.loadHandler(enMemoire, muette);
+    else video.loadURL(url, muette);
+    video.play();
   }
 
   /** Là où la partie s'est gagnée : la cabane prise, la boîte à goûter pleine, la pendule. */

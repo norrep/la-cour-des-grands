@@ -131,12 +131,20 @@ const VIDEOS_GOUTERS = (
   ] as const
 ).map(([nom, haut, bas]) => ({ url: `videos/cartoon/gouter-${nom}.mp4`, haut, bas }));
 
+/** Tenues qui ont leur vidéo de victoire (DW.4) ; les Aliens attendent leur nouveau dessin. */
+const TENUES_VICTOIRE: readonly TenueId[] = ['rouges', 'bleus', 'vers', 'vers2'];
+
 export const SKIN_CARTOON: Skin = {
   id: 'cartoon',
   textures,
   texturesEquipe,
   videoPouvoir: (bande, role) => VIDEOS[equipeDe(bande).id]?.[role],
   videoGouter: (index) => (index >= 0 ? VIDEOS_GOUTERS[index % VIDEOS_GOUTERS.length] : undefined),
+  videoVictoire: (bande, raison) => {
+    const t = equipeDe(bande).id;
+    if (!TENUES_VICTOIRE.includes(t)) return undefined;
+    return `videos/cartoon/victoire-${t}-${raison === 'cabane' ? 'cabane' : 'gouters'}.mp4`;
+  },
   eleve(scene, bande, role, taille) {
     const r = rig(bande, role);
     const echelle = (HAUTEUR_REF * taille) / PIXELS_REF;
