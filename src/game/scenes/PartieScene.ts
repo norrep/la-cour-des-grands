@@ -60,6 +60,8 @@ import {
   DESCENTE,
   MONTEE,
   avecZonePunis,
+  CENTRE_APPEL,
+  PIOCHE_MIROIR,
   positionLieu,
   type Lieu,
   versEcran,
@@ -976,7 +978,9 @@ export class PartieScene extends Phaser.Scene {
         trait: 4,
       });
     }
-    const yTitre = illustre ? -58 : -36;
+    // Pioche du bas en miroir du rond « +2 copains » : étiquette en ruban dessous (DL.12).
+    const miroir = bande === 'rouge' && lieu === 'portail';
+    const yTitre = miroir ? 66 : illustre ? -58 : -36;
     const t = this.add
       .text(0, yTitre, titre, {
         fontFamily: POLICE,
@@ -995,6 +999,7 @@ export class PartieScene extends Phaser.Scene {
       illustre ? 0 : (bande === 'rouge' ? 1 : -1) * (lieu === 'portail' ? -0.04 : 0.04),
     );
     c.setSize(124, illustre ? 120 : 90);
+    if (miroir) c.setScale(PIOCHE_MIROIR.echelle);
     if (this.ctrl.phase === 'jeu') {
       c.setInteractive({ useHandCursor: true });
       c.on('pointerup', fiche);
@@ -1213,7 +1218,10 @@ export class PartieScene extends Phaser.Scene {
     c.addAt(g, 0);
     c.add(this.compteurLieu(36, 34, `×${n}`, bande));
     this.dessinerMalades(c, j.infirmerie.length);
-    if (punisIci > 0) c.add(this.pastillePunis(punisIci));
+    if (punisIci > 0) {
+      // En bas, le ruban « Pioche » est dessous : les punis passent au-dessus (DL.12).
+      c.add(this.pastillePunis(punisIci).setY(bande === 'rouge' ? -60 : 66));
+    }
   }
 
   /** Les punis comptés sous la pioche (DL.10) : une pastille rouge « N punis ». */
@@ -1232,7 +1240,7 @@ export class PartieScene extends Phaser.Scene {
       remplissage: 0xe8463c,
       trait: 3,
     });
-    return this.add.container(0, 66, [g, t]);
+    return this.add.container(0, 0, [g, t]);
   }
 
   /**
@@ -2399,7 +2407,7 @@ export class PartieScene extends Phaser.Scene {
       trait: 3,
       ombre: 3,
     });
-    const c = this.add.container(DROITE - 82, RANG.y - RANG.hauteurCarte / 2 - 70, [
+    const c = this.add.container(CENTRE_APPEL.x, CENTRE_APPEL.y, [
       halo,
       g,
       ...dos,

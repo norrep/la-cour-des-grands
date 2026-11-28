@@ -403,6 +403,10 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.11 — Rond « +2 copains » redessiné** : jeton jaune au trait épais avec reflet, deux cartes
   de la pioche en éventail qui se dandinent, « +2 » en autocollant blanc cerclé de noir, « copains »
   sur un ruban à la couleur de l'équipe, halo qui respire, et le rond s'enfonce sous le pouce.
+- **DL.12 — La pioche du bas en miroir du rond « +2 copains »** (choix A de Clément parmi trois
+  maquettes : miroir, duo à droite, pioche-bouton). Elle se range au-dessus du coin gauche de la
+  main, à la hauteur du rond et un peu agrandie (×1,22), son étiquette « Pioche » en ruban dessous
+  comme « copains », les punis au-dessus. La pioche du haut ne bouge pas.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 
