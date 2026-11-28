@@ -246,8 +246,6 @@ export const TEXTES = {
   region: (points: number, noms: string[]) =>
     `Occupe ${noms.join(', ')} (tous à la fois) pour le ramasser : +${points} goûter${points > 1 ? 's' : ''}.`,
   regionTitre: (nom: string, points: number) => `${nom} (+${points})`,
-  regionPrise: (b: Bande, points: number) =>
-    `Déjà ramassé par la ${BANDES[b]} (+${points}). Il n’y a plus rien à prendre ici.`,
   cinematiques: {
     cpe: { titre: 'Puni !', sous: 'Dénoncé par la Rapporteuse…' },
     infirmerie: { titre: 'Atchoum !', sous: 'Un élève file à l’infirmerie.' },

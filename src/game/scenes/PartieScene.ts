@@ -684,9 +684,11 @@ export class PartieScene extends Phaser.Scene {
 
     // Goûters, puis la surveillante qui en garde un.
     const garde = gouterSurveille(e);
+    // Un goûter pris disparaît de la cour : il s'est envolé dans le cartable (DQ.8).
     this.cour.regions.forEach((r, i) => {
+      if (e.regionsPrises[r.id]) return;
       const c = this.positionGouter(r.id);
-      this.dessinerGouter(i, c.x, c.y, r.bonsPoints, e.regionsPrises[r.id], r.id === garde);
+      this.dessinerGouter(i, c.x, c.y, r.bonsPoints, r.id === garde);
     });
 
     for (const b of ['rouge', 'bleu'] as const) {
@@ -833,18 +835,16 @@ export class PartieScene extends Phaser.Scene {
     }
     // Goûters : toucher montre les îlots de la zone.
     for (const r of this.cour.regions) {
+      if (this.etat.regionsPrises[r.id]) continue;
       const c = this.positionGouter(r.id);
       const zone = this.ajouter(this.add.circle(c.x, c.y, 34, 0xffffff, 0.001));
       zone.setInteractive();
       zone.on('pointerup', () => {
-        const prise = this.etat.regionsPrises[r.id];
         const noms = r.ilots.map((id) => this.cour.noeuds[id]?.nom ?? id);
         const gardé = gouterSurveille(this.etat) === r.id;
         this.montrerFiche(
           TEXTES.regionTitre(nomGouter(this.cour, r.id), r.bonsPoints),
-          prise
-            ? TEXTES.regionPrise(prise, r.bonsPoints)
-            : `${TEXTES.region(r.bonsPoints, noms)}${gardé ? ` ${TEXTES.fiche.garde}` : ''}`,
+          `${TEXTES.region(r.bonsPoints, noms)}${gardé ? ` ${TEXTES.fiche.garde}` : ''}`,
           c,
         );
       });
@@ -1455,16 +1455,10 @@ export class PartieScene extends Phaser.Scene {
     x: number,
     y: number,
     points: number,
-    prise: Bande | undefined,
     garde: boolean,
   ): void {
     const g = this.ajouter(this.add.graphics());
-    if (prise) {
-      forme(g, contourRond(x, y, 30, graineDe(x, y)), {
-        remplissage: equipeDe(prise).couleur,
-        trait: 3,
-      });
-    } else if (garde) {
+    if (garde) {
       // Le goûter gardé : un rond en pointillés aux couleurs du médaillon (DS.1).
       const n = 14;
       for (let k = 0; k < n; k++) {
@@ -1478,15 +1472,9 @@ export class PartieScene extends Phaser.Scene {
         g.strokePath();
       }
     }
-    g.setAlpha(prise ? 0.8 : 1);
     const illu = cleGouter(index);
     if (this.textures.exists(illu)) {
-      this.ajouter(
-        this.add
-          .image(x, y, illu)
-          .setScale(64 / 512)
-          .setAlpha(prise ? 0.85 : 1),
-      );
+      this.ajouter(this.add.image(x, y, illu).setScale(64 / 512));
     } else {
       this.dessinerFriandise(g, index, x, y);
     }
