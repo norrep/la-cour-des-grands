@@ -66,6 +66,8 @@ function textures(): TextureSkin[] {
 
 /** Haut de la tête, en pixels de texture depuis les pieds (négatif). */
 const hautTete = (r: Rig) => r.pieces.tete.pos[1] - r.pieces.tete.pivot[1];
+/** Largeur de case que la tête d'un buste peut occuper (DT.4). */
+const TETE_DEBORDE = 1.2;
 /** Bas du débardeur (un peu au-dessus des hanches), en pixels de texture depuis les pieds. */
 const basBuste = (r: Rig) => r.pieces.tronc.pos[1] - r.hauteur * 0.03;
 
@@ -170,15 +172,29 @@ export const SKIN_CARTOON: Skin = {
     const r = rig(bande, role);
     const haut = hautTete(r);
     const bas = basBuste(r);
-    const echelle = Math.min(hauteur / (bas - haut), (largeur * 0.95) / r.pieces.tronc.cadre[2]);
+    // La tête peut déborder un peu de la case (couettes, cheveux bouffants) : elle doit y tenir à
+    // 1,2 fois sa largeur, sans être rognée sur les côtés (DT.4).
+    const echelle = Math.min(
+      hauteur / (bas - haut),
+      (largeur * 0.95) / r.pieces.tronc.cadre[2],
+      (largeur * TETE_DEBORDE) / r.pieces.tete.cadre[2],
+    );
     const ver = estVer(bande) ? new Ver(scene, cleCorps(bande, role), echelle) : null;
     const m = ver ?? new Marionnette(scene, cle(bande, role), r, echelle);
     // Le bas du débardeur au bas de la carte.
     m.racine.setY(hauteur / 2 - bas * echelle);
     const buste = scene.add.container(0, 0, [m.racine]);
-    const masque = masqueQuiSuit(scene, buste, (g) =>
-      g.fillRect(-largeur / 2, -hauteur / 2 - hauteur, largeur, hauteur * 2),
-    );
+    // Au-dessus du menton, la case s'élargit pour la tête ; dessous, le corps reste dans sa case.
+    const menton = hauteur / 2 + (r.pieces.tete.pos[1] - bas) * echelle;
+    const masque = masqueQuiSuit(scene, buste, (g) => {
+      g.fillRect(-largeur / 2, -hauteur / 2 - hauteur, largeur, hauteur * 2);
+      g.fillRect(
+        (-largeur * TETE_DEBORDE) / 2,
+        -hauteur / 2 - hauteur,
+        largeur * TETE_DEBORDE,
+        menton + hauteur * 1.5,
+      );
+    });
     m.racine.setMask(masque);
     if (ver) animerVer(scene, ver, buste, { caractere: role, calme: true });
     else animerMarionnette(scene, m as Marionnette, buste, { caractere: role, calme: true });
