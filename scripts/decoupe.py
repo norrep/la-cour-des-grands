@@ -151,12 +151,50 @@ def humanoide(img):
         piece('tete', 0, menton + 1, 0, w, (milieu, menton), tete)
         # Le tronc et les bras ne gardent que le dessous de la tête (son intérieur est retiré).
         reste = ~(cv2.erode(tete.astype(np.uint8), noyau) > 0)
-        piece('tronc', by0 - marge, entre + marge, tx0, tx1, (milieu, entre), reste)
+        # Sous les bras, le corps garde toute sa largeur (écharpe, sweat, épaules plus larges que
+        # la taille) : la plage pleine qui contient le milieu, ligne par ligne (DT.5). Avant, il
+        # était coupé droit à la largeur de la taille, et les côtés du buste tombaient.
+        corps = np.zeros_like(a)
+        for y in range(by1 + marge, min(h, entre + marge)):
+            for r0, r1 in runs(a[y]):
+                # Une ligne encore reliée aux bras (leur trait du dessous) est bien plus large.
+                if r0 <= milieu < r1 and r1 - r0 <= 1.6 * (tx1 - tx0):
+                    corps[y, r0:r1] = True
+        dans_tronc = np.zeros_like(a)
+        dans_tronc[by0 - marge : entre + marge, tx0:tx1] = True
+        piece('tronc', by0 - marge, entre + marge, 0, w, (milieu, entre), (dans_tronc | corps) & reste)
         for nom in ['brasG', 'brasD']:
-            m, piv, abs_ = pieces[nom]
             pieces.pop(nom)
-        piece('brasG', by0 - marge, by1 + marge, 0, tx0 + marge, (tx0 + marge * 0.5, ym), reste)
-        piece('brasD', by0 - marge, by1 + marge, tx1 - marge, w, (tx1 - marge * 0.5, ym), reste)
+        bras_seuls = reste & ~corps
+        piece('brasG', by0 - marge, by1 + marge, 0, tx0 + marge, (tx0 + marge * 0.5, ym), bras_seuls)
+        piece('brasD', by0 - marge, by1 + marge, tx1 - marge, w, (tx1 - marge * 0.5, ym), bras_seuls)
+        # Bout du bras arrondi autour de l'épaule (DT.5) : coupé droit, ses coins dépassaient du
+        # tronc quand le bras pend. Arrondi et cerclé d'encre, il tourne sans rien montrer.
+        rayon = (by1 - by0) / 2 + TRAIT / 2
+        for nom, signe in [('brasG', 1), ('brasD', -1)]:
+            m, piv, abs_ = pieces[nom]
+            yy, xx = np.mgrid[: m.shape[0], : m.shape[1]]
+            bout = m.shape[1] - 1 if signe > 0 else 0
+            cx = bout - signe * rayon
+            d = np.hypot(xx - cx, yy - piv[1])
+            au_dela = (xx - cx) * signe > 0
+            plein = m[..., 3] > 0
+            m[..., 3] = np.where(au_dela & (d > rayon), 0, m[..., 3])
+            liseré = au_dela & (d > rayon - TRAIT) & (d <= rayon) & plein
+            m[liseré] = (25, 25, 25, 255)
+        # Le tronc aussi : ses épaules s'arrondissent là où le bras est coupé.
+        m, piv, abs_ = pieces['tronc']
+        ox, oy = abs_[0] - piv[0], abs_[1] - piv[1]
+        yy, xx = np.mgrid[: m.shape[0], : m.shape[1]]
+        xx, yy = xx + ox, yy + oy
+        plein = m[..., 3] > 0
+        bande = yy < by1 + marge
+        for bord, signe in [(tx0, 1), (tx1 - 1, -1)]:
+            cx = bord + signe * rayon
+            d = np.hypot(xx - cx, yy - ym)
+            dehors = bande & ((xx - cx) * signe < 0)
+            m[..., 3] = np.where(dehors & (d > rayon), 0, m[..., 3])
+            m[dehors & (d > rayon - TRAIT) & (d <= rayon) & plein] = (25, 25, 25, 255)
     else:
         piece('tete', 0, cou + 4, 0, w, (milieu, cou), sans_bras)
         piece('tronc', cou, entre + marge, tx0, tx1, (milieu, entre))

@@ -117,6 +117,8 @@ const RAYON_HORLOGE = 34;
 const Y_PASTILLE_TOUR = 102;
 /** Épaisseur du cadre à la couleur de l'équipe autour des cartes de la main (DL.15). */
 const MARGE_CADRE = 8;
+/** Hauteur du buste dans une carte de la main : la tête sort du haut de la carte. */
+const HAUTEUR_BUSTE = RANG.hauteurCarte + 10;
 /** Pastille d'un élève posé sur un îlot : un peu plus grande que l'îlot, la tête dépasse. */
 const DIAMETRE_PASTILLE = 112;
 const RAYON_DEPOT = 75;
@@ -2675,6 +2677,9 @@ export class PartieScene extends Phaser.Scene {
       ]);
       if (rayon.length > 2) g.fillPoints(rayon, true);
     }
+    // Reflet brillant sur le bord gauche.
+    g.fillStyle(0xffffff, 0.5);
+    g.fillRoundedRect(-l / 2 + 2, -h / 2 + 34, 4, 40, 2);
     return g;
   }
 
@@ -2682,38 +2687,20 @@ export class PartieScene extends Phaser.Scene {
    * Le cadre de la carte repasse sur le buste à gauche, en bas et à droite ; en haut, la tête sort
    * de la carte (DL.15).
    */
-  private cadreCollection(bande: Bande): Phaser.GameObjects.Graphics {
+  /**
+   * Le bas du cadre repasse sur le débardeur : l'élève s'appuie dessus (DL.18). Sur les côtés, le
+   * buste passe devant le cadre (bras et épaules ne sont pas coupés, DL.19) ; en haut, la tête sort.
+   */
+  private basCadreCollection(bande: Bande): Phaser.GameObjects.Graphics {
     const { largeurCarte: l, hauteurCarte: h } = RANG;
     const m = MARGE_CADRE;
-    const haut = -h / 2 + 24;
     const g = this.add.graphics();
     g.fillStyle(equipeDe(bande).couleur, 1);
-    g.fillRect(-l / 2 + 1, haut, m - 1, h / 2 - haut - 1);
-    g.fillRect(l / 2 - m, haut, m - 1, h / 2 - haut - 1);
     g.fillRect(-l / 2 + 1, h / 2 - m, l - 2, m - 1);
     g.lineStyle(2.5, COULEURS.encre, 1);
-    g.strokePoints(
-      [
-        { x: -l / 2 + m, y: haut },
-        { x: -l / 2 + m, y: h / 2 - m },
-        { x: l / 2 - m, y: h / 2 - m },
-        { x: l / 2 - m, y: haut },
-      ],
-      false,
-    );
+    g.lineBetween(-l / 2 + m, h / 2 - m, l / 2 - m, h / 2 - m);
     g.lineStyle(3.5, COULEURS.encre, 1);
-    g.strokePoints(
-      [
-        { x: -l / 2, y: haut },
-        { x: -l / 2, y: h / 2 },
-        { x: l / 2, y: h / 2 },
-        { x: l / 2, y: haut },
-      ],
-      false,
-    );
-    // Reflet brillant sur le bord gauche.
-    g.fillStyle(0xffffff, 0.5);
-    g.fillRoundedRect(-l / 2 + 2, haut + 10, 4, 40, 2);
+    g.lineBetween(-l / 2 - 1, h / 2, l / 2 + 1, h / 2);
     return g;
   }
 
@@ -2736,10 +2723,11 @@ export class PartieScene extends Phaser.Scene {
     // Plus de nom écrit sous le portrait (DL.1) : le visage et le chiffre suffisent, la loupe
     // montre le nom et le pouvoir en grand.
     const badge = skin.buste
-      ? skin.buste(this, el.bande, el.role, l - 8, h + 10)
+      ? skin.buste(this, el.bande, el.role, l - 8, HAUTEUR_BUSTE)
       : skin.eleve(this, el.bande, el.role, 84);
-    badge.setPosition(0, skin.buste ? -18 : -10);
-    const trait = this.cadreCollection(el.bande);
+    // Le bas du débardeur glisse juste sous le cadre du bas : l'élève s'appuie dessus (DL.18).
+    badge.setPosition(0, skin.buste ? h / 2 - m + 3 - HAUTEUR_BUSTE / 2 : -10);
+    const trait = this.basCadreCollection(el.bande);
     const enfants: Phaser.GameObjects.GameObject[] = [g, badge, trait];
     if (malade) {
       const voile = this.add.graphics();

@@ -443,6 +443,14 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   sont tirés, plein quand plus personne ne peut appeler de copains) : la sonnerie ne vient
   qu'ensuite, quand un joueur ne peut plus rien faire. La pastille « Au tour de… » passe sous la
   pendule, le « ? » à sa droite, le temps restant du jeu en ligne à sa gauche.
+- **DL.18 — L'élève s'appuie sur le bas du cadre** (Clément : « les persos ne touchent toujours
+  pas la bordure de la carte »). Le bas du débardeur était 5 px au-dessus du cadre, laissant une
+  bande claire. Il glisse maintenant juste sous le cadre du bas, qui le recouvre de 3 px ; la tête
+  sort toujours par le haut.
+- **DL.19 — Les bras ne sont plus coupés par les côtés du cadre** (Clément : « le corps des
+  aliens semble cropé sur les côtés »). Les côtés du cadre ne repassent plus sur le buste : bras
+  et épaules passent devant (les Aliens ont les bras les plus longs). Seul le bas du cadre recouvre
+  le débardeur (DL.18).
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 
@@ -564,3 +572,4 @@ Demande de Clément : « Je commence à avoir un doute avec le design de mes ali
 - **DT.3 — Tenue miroir orange refaite** à partir des nouveaux dessins (`scripts/tenue-miroir.py aliens`).
 - À suivre : les vidéos de pouvoir des Aliens (`public/videos/cartoon/aliens*-*.mp4`) montrent encore l'ancien dessin ; à refaire avec le fil des vidéos.
 - **DT.4 — Bustes de l'écran « Choisis ta bande » : coiffures et mains ne sont plus rognées** (Clément : « Sur les preview aliens les filles ont les cheveux cropés », puis la Rapporteuse des Vers, puis « les mains de la rapporteuse et de la fouine humaine »). Le masque du buste ne coupe plus que sous le débardeur ; sur les côtés il laisse 1,6 fois la case, pour une tête décentrée ou qui se balance et pour les gestes (la Rapporteuse qui pointe, la Populaire qui salue peuvent passer devant le voisin). Pour tenir, un buste se réduit si sa tête, ou son tronc avec les bras qui pendent, dépasse 1,2 fois la case.
+- **DT.5 — Les côtés du buste des Aliens ne sont plus coupés** (Clément : « le corps des aliens semble cropé sur les côtés », « les côtés du buste »). La découpe gardait le tronc à la largeur de la taille et coupait droit bras et épaules : l'écharpe, le sweat et les épaules tombaient, et les coins carrés du bras dépassaient quand il pend. Sous les bras, le tronc garde maintenant toute la largeur du corps ; le bout du bras et les épaules du tronc sont arrondis et cerclés d'encre, ce qui ne laisse plus de coupe visible (`scripts/decoupe.py --tete-encre`, les 8 Aliens et leur tenue miroir).
