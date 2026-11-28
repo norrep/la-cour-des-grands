@@ -19,6 +19,7 @@ import {
   lireConseils,
   lireNiveauOrdi,
   lireSons,
+  lireTutoAFaire,
 } from '../preferences';
 import { activerSons, jouerSon } from '../sons';
 import { creerBouton } from '../ui/bouton';
@@ -32,6 +33,7 @@ import { choisirCarte, type CarteId } from '../../data/cartes';
 import { choisirEquipes, type EquipeId } from '../../data/equipes';
 import type { Bande, EtatPartie } from '../../engine/index';
 import { lirePartieSauvee } from '../reprise';
+import { TEXTES_TUTO } from '../../data/textesTuto';
 import { preparerCarte } from '../cartes';
 import { preparerEquipes } from '../skins/index';
 import { tenuesPour } from '../../data/equipes';
@@ -57,6 +59,8 @@ export interface DonneesPartie {
   revanche?: boolean;
   /** Reprise d'une partie sauvée sur ce téléphone (`reprise.ts`) : l'état où on l'a laissée. */
   reprise?: Omit<EtatPartie, 'cour'>;
+  /** Tutoriel jouable : la leçon à jouer, de 0 à 2 (DJ.1). */
+  tuto?: number;
 }
 
 /** Largeur commune du bloc des boutons. */
@@ -267,7 +271,10 @@ export class AccueilScene extends Phaser.Scene {
       this.scene.start('choix', donnees);
     };
 
-    creerBouton(this, cx, 716, TEXTES.accueil.contreOrdi, () => lancer(lireNiveauOrdi()), {
+    // La toute première partie contre l'ordi commence par le tuto (on peut le passer, DJ.4).
+    const contreOrdi = (): void =>
+      lireTutoAFaire() ? this.lancerTuto() : lancer(lireNiveauOrdi());
+    creerBouton(this, cx, 716, TEXTES.accueil.contreOrdi, contreOrdi, {
       largeur: BLOC,
       hauteur: 100,
       taille: 38,
@@ -334,13 +341,49 @@ export class AccueilScene extends Phaser.Scene {
     };
   }
 
-  /** Un bouton « Réglages » avec sa roue dentée, sous les boutons de jeu. */
+  /** Le tutoriel jouable, leçon 1, sur la cour du premier jour (DJ.1). */
+  private tutoEnCours = false;
+  private lancerTuto(): void {
+    if (this.tutoEnCours) return;
+    this.tutoEnCours = true;
+    const carte = 'cour-premier-jour';
+    const equipes: Record<Bande, EquipeId> = { rouge: 'ecoliers', bleu: 'vers' };
+    void Promise.all([
+      preparerEquipes(this, Object.values(tenuesPour(equipes))).catch(() => undefined),
+      preparerCarte(this, carte),
+    ]).then(() =>
+      this.scene.start('partie', {
+        equipements: false,
+        conseils: false,
+        graine: Date.now(),
+        ordi: 'facile',
+        carte,
+        equipes,
+        tuto: 0,
+      } satisfies DonneesPartie),
+    );
+  }
+
+  /** « Réglages » avec sa roue dentée et « Apprendre à jouer », sous les boutons de jeu. */
   private dessinerBoutonReglages(cx: number): void {
-    const b = creerBouton(this, cx, 1040, TEXTES.accueil.reglages, () => this.ouvrirReglages(), {
-      largeur: 250,
+    creerBouton(this, cx + 132, 1040, TEXTES_TUTO.accueil, () => this.lancerTuto(), {
+      largeur: 236,
       hauteur: 60,
-      taille: 24,
+      taille: 22,
+      couleur: COULEURS.jaune,
     });
+    const b = creerBouton(
+      this,
+      cx - 125,
+      1040,
+      TEXTES.accueil.reglages,
+      () => this.ouvrirReglages(),
+      {
+        largeur: 222,
+        hauteur: 60,
+        taille: 24,
+      },
+    );
     const roue = this.add.graphics();
     dessinerRoue(roue, 0, 0, 17);
     const face = b.list.find((o) => o instanceof Phaser.GameObjects.Container) as

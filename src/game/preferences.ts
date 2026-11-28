@@ -83,3 +83,9 @@ export function ecrireNiveauOrdi(n: Niveau): void {
     // Stockage indisponible : le choix vaut pour cette visite seulement.
   }
 }
+
+const CLE_TUTO = 'cour-des-grands.tuto-a-faire';
+
+/** Le tutoriel jouable n'a pas encore été fini ni passé sur ce téléphone (DJ.1). */
+export const lireTutoAFaire = (): boolean => lire(CLE_TUTO);
+export const ecrireTutoAFaire = (oui: boolean): void => ecrire(CLE_TUTO, oui);

@@ -11,6 +11,8 @@ import { debloquerAudioAuPremierGeste } from '../sons';
 export const DECOR = 'decor-cour';
 /** Mme Josiane, la surveillante, et les illustrations des îlots spéciaux (par équipement). */
 export const JOSIANE = 'decor-josiane';
+/** La main dessinée du guide du tuto (DJ.2). */
+export const MAIN_TUTO = 'tuto-main';
 /** Pièces illustrées du plateau (phase 2) : sans elles, le plateau est dessiné en code. */
 export const PLATEAU = {
   ilot: 'plateau-ilot',
@@ -56,6 +58,7 @@ export class ChargementScene extends Phaser.Scene {
     debloquerAudioAuPremierGeste();
     this.load.image(DECOR, avecVersion('decor/cour.jpg'));
     this.load.image(JOSIANE, avecVersion('skins/dodu/josiane.png'));
+    this.load.image(MAIN_TUTO, avecVersion('tuto/main.png'));
     const fichiers: Record<keyof typeof PLATEAU, string> = {
       ilot: 'ilot',
       ilotSpecial: 'ilot-special',
