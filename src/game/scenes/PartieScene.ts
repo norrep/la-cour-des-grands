@@ -75,7 +75,14 @@ import { poseRepos } from '../ui/marionnette';
 import { creerBouton } from '../ui/bouton';
 import { contourRect, contourRond, forme, graineDe, panneau } from '../ui/style';
 import { ecrireConseils, lireSons } from '../preferences';
-import { activerSons, jouerSon, type SonId } from '../sons';
+import {
+  activerSons,
+  bandeSonPrete,
+  chargerBandeSon,
+  jouerBandeSon,
+  jouerSon,
+  type SonId,
+} from '../sons';
 import { HAUTEUR_PRISE, PantinVisuel, VISEE } from '../ui/pantin';
 import type { DonneesPartie } from './AccueilScene';
 import { cleGouter, DECOR, ILLUSTRATIONS, PLATEAU } from './ChargementScene';
@@ -238,11 +245,13 @@ export class PartieScene extends Phaser.Scene {
     choisirEquipes(donnees.equipes ?? { rouge: 'ecoliers', bleu: 'ecoliers' });
     // Les vidéos des deux équipes de cette partie passent en tête des téléchargements (DV.6).
     const skin = skinActif();
-    prechargerVideos(
-      (['rouge', 'bleu'] as const).flatMap((b) =>
-        ROLES.map(({ id }) => skin.videoPouvoir?.(b, id)),
-      ),
+    const videosPartie = (['rouge', 'bleu'] as const).flatMap((b) =>
+      ROLES.map(({ id }) => skin.videoPouvoir?.(b, id)),
     );
+    prechargerVideos(videosPartie);
+    // Leurs bandes son, jouées à part pour ne pas être coupées par le téléphone (DV.9).
+    for (let i = 0; i < 4; i++) videosPartie.push(skin.videoGouter?.(i)?.url);
+    for (const url of videosPartie) if (url) chargerBandeSon(url);
     this.visuel = visuelCarte(carte);
     this.cour = chargerCour(COURS[carte] as CourData);
     const enLigne = donnees.enLigne?.etape === 'partie' ? donnees.enLigne : null;
@@ -4485,6 +4494,18 @@ export class PartieScene extends Phaser.Scene {
       if (!fini) attendre(700, () => finir());
     });
     video.on(Phaser.GameObjects.Events.VIDEO_ERROR, () => finir(!demarree));
+    // La vidéo est toujours muette : sa bande son passe à part (DV.9). Si la bande n'est pas
+    // encore prête, on garde le son de la vidéo quand le navigateur l'accepte.
+    const bandeAPart = bandeSonPrete(url);
+    let couperBande = (): void => undefined;
+    let bandeLancee = false;
+    video.on(Phaser.GameObjects.Events.VIDEO_PLAY, () => {
+      if (bandeAPart && !bandeLancee) {
+        bandeLancee = true;
+        couperBande = jouerBandeSon(url);
+      }
+    });
+    tout.once(Phaser.GameObjects.Events.DESTROY, () => couperBande());
     // Le navigateur refuse le son sans geste récent : on rejoue la vidéo en muet.
     video.on(Phaser.GameObjects.Events.VIDEO_LOCKED, () => {
       video.setMute(true);
@@ -4498,8 +4519,9 @@ export class PartieScene extends Phaser.Scene {
     attendre(enMemoire ? 2500 : 5000, () => {
       if (!demarree) finir(true);
     });
-    if (enMemoire) video.loadHandler(enMemoire, !lireSons());
-    else video.loadURL(url, !lireSons());
+    const muette = bandeAPart || !lireSons();
+    if (enMemoire) video.loadHandler(enMemoire, muette);
+    else video.loadURL(url, muette);
     video.play();
     return true;
   }

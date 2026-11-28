@@ -7,6 +7,7 @@ import { ROLES } from '../../engine/index';
 import { avecVersion } from '../../version';
 import { chargerIncrustations } from '../ui/incrust';
 import { prechargerVideos } from '../videos';
+import { debloquerAudioAuPremierGeste } from '../sons';
 
 /** Clé du décor de la cour (image plein écran derrière le plateau). */
 export const DECOR = 'decor-cour';
@@ -69,6 +70,8 @@ export class ChargementScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // Le son des vidéos de pouvoir passe par le contexte audio du jeu (DV.9).
+    debloquerAudioAuPremierGeste();
     this.load.image(DECOR, avecVersion('decor/cour.jpg'));
     this.load.image(JOSIANE, avecVersion('skins/dodu/josiane.png'));
     const fichiers: Record<keyof typeof PLATEAU, string> = {

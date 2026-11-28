@@ -1,6 +1,7 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { TENUES } from '../../src/data/equipes';
+import { bandeSonDe } from '../../src/game/sons';
 
 const ROLES_VIDEO = [
   'chouchou',
@@ -24,5 +25,15 @@ describe('Vidéos de pouvoir en style du jeu (DV.8)', () => {
   it('les quatre goûters ont leur vidéo', () => {
     for (const g of ['chocolat', 'biscuits', 'bonbon', 'sucette'])
       expect(existsSync(`public/videos/cartoon/gouter-${g}.mp4`), g).toBe(true);
+  });
+
+  it('chaque vidéo a sa bande son à côté (DV.9)', () => {
+    const videos = readdirSync('public/videos/cartoon').filter((f) => f.endsWith('.mp4'));
+    expect(videos.length).toBeGreaterThan(40);
+    for (const v of videos) {
+      const bande = bandeSonDe(`public/videos/cartoon/${v}`);
+      expect(bande.endsWith('.m4a')).toBe(true);
+      expect(existsSync(bande), bande).toBe(true);
+    }
   });
 });

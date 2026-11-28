@@ -205,3 +205,103 @@ export function jouerSon(id: SonId): void {
     // Audio indisponible : le jeu continue en silence.
   }
 }
+
+/**
+ * Bandes son des vidéos de pouvoir (DV.9).
+ *
+ * Un téléphone refuse le son d'une vidéo lancée sans geste récent du joueur : c'est le cas
+ * de toutes les vidéos de l'adversaire, qui partaient donc muettes. La vidéo reste muette et sa
+ * bande son, livrée à côté (même nom, en .m4a), passe par le contexte audio du jeu, débloqué
+ * une fois pour toutes au premier toucher.
+ */
+const bandes = new Map<string, AudioBuffer>();
+const bandesDemandees = new Set<string>();
+
+function contexteAudio(): AudioContext | null {
+  const Ctx =
+    globalThis.AudioContext ??
+    (globalThis as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) return null;
+  contexte ??= new Ctx();
+  return contexte;
+}
+
+/** Débloque l'audio au premier toucher de l'écran (une seule fois). */
+export function debloquerAudioAuPremierGeste(): void {
+  if (typeof window === 'undefined') return;
+  const debloquer = (): void => {
+    try {
+      const ctx = contexteAudio();
+      if (ctx && ctx.state === 'suspended') void ctx.resume();
+      // Un son vide joué pendant le geste finit de débloquer Safari.
+      if (ctx) {
+        const src = ctx.createBufferSource();
+        src.buffer = ctx.createBuffer(1, 1, 22050);
+        src.connect(ctx.destination);
+        src.start(0);
+      }
+    } catch {
+      // Audio indisponible.
+    }
+    window.removeEventListener('pointerdown', debloquer, true);
+    window.removeEventListener('touchend', debloquer, true);
+  };
+  window.addEventListener('pointerdown', debloquer, true);
+  window.addEventListener('touchend', debloquer, true);
+}
+
+/** L'adresse de la bande son d'une vidéo. */
+export function bandeSonDe(urlVideo: string): string {
+  return urlVideo.replace(/\.mp4$/, '.m4a');
+}
+
+/** Télécharge et décode la bande son de cette vidéo, une seule fois. */
+export function chargerBandeSon(urlVideo: string): void {
+  const url = bandeSonDe(urlVideo);
+  if (bandesDemandees.has(url) || typeof fetch !== 'function') return;
+  const ctx = contexteAudio();
+  if (!ctx) return;
+  bandesDemandees.add(url);
+  fetch(url)
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+    .then((donnees) => ctx.decodeAudioData(donnees))
+    .then((buffer) => {
+      bandes.set(url, buffer);
+    })
+    .catch(() => {
+      bandesDemandees.delete(url);
+    });
+}
+
+/**
+ * Joue la bande son de cette vidéo, si elle est prête et si le son est actif. Renvoie de quoi
+ * la couper (la vidéo est fermée avant la fin, par un toucher).
+ */
+export function jouerBandeSon(urlVideo: string): () => void {
+  const rien = (): void => undefined;
+  if (!actifs) return rien;
+  const buffer = bandes.get(bandeSonDe(urlVideo));
+  const ctx = contexte;
+  if (!buffer || !ctx) return rien;
+  try {
+    if (ctx.state === 'suspended') void ctx.resume();
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ctx.destination);
+    src.start(0);
+    return () => {
+      try {
+        src.stop();
+      } catch {
+        // Déjà finie.
+      }
+    };
+  } catch {
+    return rien;
+  }
+}
+
+/** La bande son de cette vidéo est-elle prête ? */
+export function bandeSonPrete(urlVideo: string): boolean {
+  return bandes.has(bandeSonDe(urlVideo));
+}
