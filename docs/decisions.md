@@ -442,12 +442,12 @@ Demande de Clément : prendre le meilleur des trois tests (v2, main 4/5, règles
   près de son goûter sur la cour et le camp scout (trop serrés) et partait loin. Ambiguïté notée :
   s'il paraît trop petit, on peut revenir à 92 en acceptant qu'il s'éloigne un peu sur ces cartes.
 
-## Goûters lisibles sur la piscine (28/11, demande de Clément : « illisibles »)
+## Goûters de la piscine dégagés (28/11, demande de Clément : « illisibles, plein d'informations se superposent »)
 
-- **DH.1** — Sur l'eau, le goûter n'avait pas de fond : petit (64 px), au milieu des pointillés,
-  sa pastille « +N » minuscule. Il flotte désormais sur une bouée-plateau crème au gros trait noir
-  (rayon 44, ombre d'autocollant), dessin 64 → 78 px, « +N » 22 → 28 px. Pris, la bouée prend la
-  couleur de l'équipe. Les goûters des quatre coins quittent l'allée en pointillés et se décalent de
-  70 px vers le milieu du bassin ; leur pastille va du côté du bassin, loin des îlots du bord. Le
-  médaillon de Monsieur Yvon tient compte de cette taille pour ne pas les cacher. La cour et le camp
-  scout ne changent pas.
+- **DH.1** — Les goûters des quatre coins étaient au milieu de deux îlots du bord, donc sous
+  l'élève posé (sa tête), sa pile « ×2 » et les étiquettes. Ils se posent 105 px plus près du milieu
+  du bassin, dans l'eau libre. Dessin et pastille « +N » inchangés (une bouée-plateau plus grande a
+  été essayée puis refusée : « revenir au goûter d'origine »).
+- **DH.2** — Mot d'excuse du Délégué : plus d'étiquette « Mot d'excuse ! » sur chaque goûter visé
+  (la consigne le dit déjà, et elles se recouvraient). La bulle de consigne passe sous l'îlot quand,
+  au-dessus, elle cacherait un goûter (sur toutes les cartes).
