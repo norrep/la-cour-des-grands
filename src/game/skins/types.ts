@@ -116,4 +116,10 @@ export interface Skin {
    * jusqu'aux bords de l'écran sans cassure.
    */
   videoGouter?(index: number): { url: string; haut: number; bas: number } | undefined;
+  /**
+   * Courte vidéo de victoire (DW.4) : le Grand de la bande plante son drapeau sur la cabane
+   * prise, ou se goinfre de goûters. Plein écran, fond manga déjà à la couleur de la bande.
+   * Facultatif : sans vidéo, la transition passe directement à l'écran de fin.
+   */
+  videoVictoire?(bande: Bande, raison: 'cabane' | 'bonsPoints'): string | undefined;
 }
