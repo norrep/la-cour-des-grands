@@ -114,3 +114,29 @@ export function cadreManga(
   g.strokeRect(-cote / 2 - 7, -cote / 2 - 7, cote + 14, cote + 14);
   return g;
 }
+
+/** Cadre de case de manga autour d'un rectangle centré de largeur `l` et hauteur `h` (DU.9). */
+export function cadreMangaRect(
+  scene: Phaser.Scene,
+  l: number,
+  h: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+  g.lineStyle(22, COULEURS.encre, 1);
+  g.strokeRect(-l / 2 - 11, -h / 2 - 11, l + 22, h + 22);
+  g.lineStyle(12, 0xffffff, 1);
+  g.strokeRect(-l / 2 - 6, -h / 2 - 6, l + 12, h + 12);
+  return g;
+}
+
+/** L'ombre pleine de la case, à poser sous la vidéo (DU.9). */
+export function ombreCaseManga(
+  scene: Phaser.Scene,
+  l: number,
+  h: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+  g.fillStyle(COULEURS.encre, 1);
+  g.fillRect(-l / 2 - 4, -h / 2 + 4, l + 30, h + 30);
+  return g;
+}

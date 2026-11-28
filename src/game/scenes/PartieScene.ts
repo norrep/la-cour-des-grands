@@ -28,7 +28,7 @@ import {
   adversaire,
 } from '../../engine/index';
 import { apercu } from '../apercu';
-import { cadreManga, fondManga } from '../ui/fondManga';
+import { cadreManga, cadreMangaRect, fondManga, ombreCaseManga } from '../ui/fondManga';
 import { ecranFin } from '../ui/ecranFin';
 import { jouerTransitionFin } from '../ui/transitionFin';
 import { DUREE_CONSEQUENCE, dureeAnimations, planAnimations, rondeParcourue } from '../sequence';
@@ -619,6 +619,9 @@ export class PartieScene extends Phaser.Scene {
       }),
     );
   }
+
+  /** Où vient d'être posé l'élève dont on montre le pouvoir : la case de BD va à côté (DU.9). */
+  private lieuPouvoir: Point | null = null;
 
   private pos(id: string): Point {
     return positionNoeud(this.cour, id);
@@ -3678,6 +3681,8 @@ export class PartieScene extends Phaser.Scene {
   private videoALaPose(nouveaux: Evenement[], suite: Cinematique[]): Cinematique | undefined {
     const pose = nouveaux.find((ev) => ev.type === 'pose');
     if (pose?.type !== 'pose') return undefined;
+    // La case de BD du pouvoir se pose à côté de cet élève (DU.9).
+    this.lieuPouvoir = this.cour.noeuds[pose.cible] ? this.pos(pose.cible) : null;
     const skin = skinActif();
     const aUneVideo = (c: Cinematique): boolean => {
       const role = roleDuPouvoir(c);
@@ -4461,15 +4466,31 @@ export class PartieScene extends Phaser.Scene {
     // Les goûters sont filmés en carré : on les montre entiers dans une case de manga, sur un
     // fond manga animé à la couleur de la bande (DV.3).
     const yVideo = creme ? HAUTEUR / 2 - 90 : HAUTEUR / 2;
+    // Pouvoir : plus de plein écran (DU.9). La vidéo joue dans une case de BD penchée, posée à
+    // côté de l'élève, sur la cour juste assombrie ; toucher n'importe où la passe.
+    const enCase = !creme;
     const fond = this.add
-      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 1)
+      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, enCase ? 0.35 : 1)
       .setOrigin(0, 0)
       .setInteractive();
     const video = this.add.video(0, 0);
     const COTE_CASE = 600;
+    const CASE_L = 420;
+    const CASE_H = 560;
+    const placeCase = this.placeCasePouvoir(CASE_L, CASE_H);
+    this.lieuPouvoir = null;
     const decor: Phaser.GameObjects.GameObject[] = [];
     let laCase: Phaser.GameObjects.Container | undefined;
-    if (creme) {
+    if (enCase) {
+      laCase = this.add
+        .container(placeCase.x, placeCase.y, [
+          ombreCaseManga(this, CASE_L, CASE_H),
+          video,
+          cadreMangaRect(this, CASE_L, CASE_H),
+        ])
+        .setAngle(placeCase.angle);
+      decor.push(laCase);
+    } else if (creme) {
       decor.push(
         fondManga(
           this,
@@ -4496,8 +4517,9 @@ export class PartieScene extends Phaser.Scene {
           )
         : T[cin.id];
     const style = { fontFamily: POLICE, color: COULEURS.texteClair, align: 'center' };
+    const yTitre = enCase ? placeCase.y + CASE_H / 2 + 70 : 1010;
     const titre = this.add
-      .text(LARGEUR / 2, 1010, C.titre, {
+      .text(LARGEUR / 2, yTitre, C.titre, {
         ...style,
         fontSize: '64px',
         fontStyle: '700',
@@ -4507,7 +4529,7 @@ export class PartieScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
     const sous = this.add
-      .text(LARGEUR / 2, 1090, C.sous, {
+      .text(LARGEUR / 2, yTitre + 80, C.sous, {
         ...style,
         fontSize: '30px',
         fontStyle: '600',
@@ -4518,12 +4540,17 @@ export class PartieScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
     const passer = this.add
-      .text(LARGEUR / 2, 1190, TEXTES.cinematiques.passer, {
-        ...style,
-        fontSize: '18px',
-        stroke: '#1d1a16',
-        strokeThickness: 4,
-      })
+      .text(
+        LARGEUR / 2,
+        enCase ? placeCase.y - CASE_H / 2 - 40 : 1190,
+        TEXTES.cinematiques.passer,
+        {
+          ...style,
+          fontSize: '18px',
+          stroke: '#1d1a16',
+          strokeThickness: 4,
+        },
+      )
       .setOrigin(0.5)
       .setAlpha(0.7);
     const tout = this.add
@@ -4579,13 +4606,22 @@ export class PartieScene extends Phaser.Scene {
       // La vidéo couvre tout l'écran, quelle que soit sa forme, sans être déformée.
       const w = video.width || LARGEUR;
       const h = video.height || HAUTEUR;
-      video.setScale(laCase ? COTE_CASE / w : Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
-      // La case du goûter arrive d'un coup, en se penchant, comme une case de manga.
+      if (enCase) {
+        // La vidéo remplit la case en largeur ; on n'en garde que le haut (tête et buste).
+        const echelle = CASE_L / w;
+        const hVisible = Math.min(h, CASE_H / echelle);
+        const haut = Math.min(h - hVisible, h * 0.04);
+        video.setScale(echelle).setCrop(0, haut, w, hVisible);
+        video.setPosition(0, -(haut + hVisible / 2 - h / 2) * echelle);
+      } else {
+        video.setScale(laCase ? COTE_CASE / w : Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
+      }
+      // La case arrive d'un coup, en se penchant, comme une case de manga.
       if (laCase)
         this.tweenCinematique({
           targets: laCase,
           scale: { from: 1.35, to: 1 },
-          angle: { from: 6, to: -3 },
+          angle: { from: enCase ? -placeCase.angle * 2 : 6, to: enCase ? placeCase.angle : -3 },
           duration: 320,
           ease: 'Back.easeOut',
         });
@@ -4648,6 +4684,32 @@ export class PartieScene extends Phaser.Scene {
     else video.loadURL(url, muette);
     video.play();
     return true;
+  }
+
+  /**
+   * Où poser la case de BD d'un pouvoir (DU.9) : à côté de l'élève qui vient d'arriver, sans le
+   * cacher. Loin du milieu, la case va de l'autre côté ; au milieu, au-dessus ou en dessous.
+   * Elle reste entre le haut de l'écran et la main.
+   */
+  private placeCasePouvoir(l: number, h: number): Point & { angle: number } {
+    const p = this.lieuPouvoir ?? { x: LARGEUR / 2, y: HAUTEUR / 2 };
+    const yMin = HAUT + h / 2 + 90;
+    const yMax = RANG.y - RANG.hauteurCarte / 2 - h / 2 - 150;
+    const borne = (v: number, a: number, b: number): number => Math.min(Math.max(v, a), b);
+    if (Math.abs(p.x - LARGEUR / 2) > 110) {
+      const droite = p.x < LARGEUR / 2;
+      return {
+        x: droite ? Math.min(LARGEUR, DROITE) - l / 2 - 26 : Math.max(0, GAUCHE) + l / 2 + 26,
+        y: borne(p.y, yMin, Math.max(yMin, yMax)),
+        angle: droite ? 3 : -3,
+      };
+    }
+    const dessous = p.y < HAUTEUR / 2;
+    return {
+      x: LARGEUR / 2,
+      y: borne(dessous ? p.y + h / 2 + 90 : p.y - h / 2 - 90, yMin, Math.max(yMin, yMax)),
+      angle: -3,
+    };
   }
 
   /** Emplacement de l'animation de chaque cinématique : pictogramme provisoire. */
