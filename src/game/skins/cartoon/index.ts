@@ -66,8 +66,10 @@ function textures(): TextureSkin[] {
 
 /** Haut de la tête, en pixels de texture depuis les pieds (négatif). */
 const hautTete = (r: Rig) => r.pieces.tete.pos[1] - r.pieces.tete.pivot[1];
-/** Largeur de case que la tête d'un buste peut occuper (DT.4). */
-const TETE_DEBORDE = 1.2;
+/** Largeur de case que la tête d'un buste peut occuper (DT.4) ; le masque laisse en plus du jeu
+ * pour une tête décentrée ou qui se balance (couettes des Vers). */
+const TETE_DEBORDE = 1.15;
+const MASQUE_TETE = 1.6;
 /** Bas du débardeur (un peu au-dessus des hanches), en pixels de texture depuis les pieds. */
 const basBuste = (r: Rig) => r.pieces.tronc.pos[1] - r.hauteur * 0.03;
 
@@ -173,7 +175,7 @@ export const SKIN_CARTOON: Skin = {
     const haut = hautTete(r);
     const bas = basBuste(r);
     // La tête peut déborder un peu de la case (couettes, cheveux bouffants) : elle doit y tenir à
-    // 1,2 fois sa largeur, sans être rognée sur les côtés (DT.4).
+    // 1,15 fois sa largeur, sans être rognée sur les côtés (DT.4).
     const echelle = Math.min(
       hauteur / (bas - haut),
       (largeur * 0.95) / r.pieces.tronc.cadre[2],
@@ -189,9 +191,9 @@ export const SKIN_CARTOON: Skin = {
     const masque = masqueQuiSuit(scene, buste, (g) => {
       g.fillRect(-largeur / 2, -hauteur / 2 - hauteur, largeur, hauteur * 2);
       g.fillRect(
-        (-largeur * TETE_DEBORDE) / 2,
+        (-largeur * MASQUE_TETE) / 2,
         -hauteur / 2 - hauteur,
-        largeur * TETE_DEBORDE,
+        largeur * MASQUE_TETE,
         menton + hauteur * 1.5,
       );
     });
