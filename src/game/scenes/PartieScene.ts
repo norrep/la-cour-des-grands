@@ -2677,6 +2677,9 @@ export class PartieScene extends Phaser.Scene {
       ]);
       if (rayon.length > 2) g.fillPoints(rayon, true);
     }
+    // Reflet brillant sur le bord gauche.
+    g.fillStyle(0xffffff, 0.5);
+    g.fillRoundedRect(-l / 2 + 2, -h / 2 + 34, 4, 40, 2);
     return g;
   }
 
@@ -2684,38 +2687,20 @@ export class PartieScene extends Phaser.Scene {
    * Le cadre de la carte repasse sur le buste à gauche, en bas et à droite ; en haut, la tête sort
    * de la carte (DL.15).
    */
-  private cadreCollection(bande: Bande): Phaser.GameObjects.Graphics {
+  /**
+   * Le bas du cadre repasse sur le débardeur : l'élève s'appuie dessus (DL.18). Sur les côtés, le
+   * buste passe devant le cadre (bras et épaules ne sont pas coupés, DL.19) ; en haut, la tête sort.
+   */
+  private basCadreCollection(bande: Bande): Phaser.GameObjects.Graphics {
     const { largeurCarte: l, hauteurCarte: h } = RANG;
     const m = MARGE_CADRE;
-    const haut = -h / 2 + 24;
     const g = this.add.graphics();
     g.fillStyle(equipeDe(bande).couleur, 1);
-    g.fillRect(-l / 2 + 1, haut, m - 1, h / 2 - haut - 1);
-    g.fillRect(l / 2 - m, haut, m - 1, h / 2 - haut - 1);
     g.fillRect(-l / 2 + 1, h / 2 - m, l - 2, m - 1);
     g.lineStyle(2.5, COULEURS.encre, 1);
-    g.strokePoints(
-      [
-        { x: -l / 2 + m, y: haut },
-        { x: -l / 2 + m, y: h / 2 - m },
-        { x: l / 2 - m, y: h / 2 - m },
-        { x: l / 2 - m, y: haut },
-      ],
-      false,
-    );
+    g.lineBetween(-l / 2 + m, h / 2 - m, l / 2 - m, h / 2 - m);
     g.lineStyle(3.5, COULEURS.encre, 1);
-    g.strokePoints(
-      [
-        { x: -l / 2, y: haut },
-        { x: -l / 2, y: h / 2 },
-        { x: l / 2, y: h / 2 },
-        { x: l / 2, y: haut },
-      ],
-      false,
-    );
-    // Reflet brillant sur le bord gauche.
-    g.fillStyle(0xffffff, 0.5);
-    g.fillRoundedRect(-l / 2 + 2, haut + 10, 4, 40, 2);
+    g.lineBetween(-l / 2 - 1, h / 2, l / 2 + 1, h / 2);
     return g;
   }
 
@@ -2742,7 +2727,7 @@ export class PartieScene extends Phaser.Scene {
       : skin.eleve(this, el.bande, el.role, 84);
     // Le bas du débardeur glisse juste sous le cadre du bas : l'élève s'appuie dessus (DL.18).
     badge.setPosition(0, skin.buste ? h / 2 - m + 3 - HAUTEUR_BUSTE / 2 : -10);
-    const trait = this.cadreCollection(el.bande);
+    const trait = this.basCadreCollection(el.bande);
     const enfants: Phaser.GameObjects.GameObject[] = [g, badge, trait];
     if (malade) {
       const voile = this.add.graphics();

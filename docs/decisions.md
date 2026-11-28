@@ -444,6 +444,10 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   pas la bordure de la carte »). Le bas du débardeur était 5 px au-dessus du cadre, laissant une
   bande claire. Il glisse maintenant juste sous le cadre du bas, qui le recouvre de 3 px ; la tête
   sort toujours par le haut.
+- **DL.19 — Les bras ne sont plus coupés par les côtés du cadre** (Clément : « le corps des
+  aliens semble cropé sur les côtés »). Les côtés du cadre ne repassent plus sur le buste : bras
+  et épaules passent devant (les Aliens ont les bras les plus longs). Seul le bas du cadre recouvre
+  le débardeur (DL.18).
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 
