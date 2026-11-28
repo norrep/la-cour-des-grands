@@ -723,14 +723,134 @@ export class PartieScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Tracé d'une allée : un segment droit, sauf si elle frôle un autre îlot (raccourcis de la
+   * piscine, DK.1) ; elle s'arrondit alors vers l'extérieur de la cour pour le contourner.
+   */
+  private trajetAllee(a: string, b: string): Point[] {
+    const pa = this.pos(a);
+    const pb = this.pos(b);
+    const dx = pb.x - pa.x;
+    const dy = pb.y - pa.y;
+    const l2 = dx * dx + dy * dy;
+    const frole = this.cour.ilots.some((id) => {
+      if (id === a || id === b) return false;
+      const p = this.pos(id);
+      const t = ((p.x - pa.x) * dx + (p.y - pa.y) * dy) / l2;
+      if (t <= 0.05 || t >= 0.95) return false;
+      return Math.hypot(pa.x + t * dx - p.x, pa.y + t * dy - p.y) < 110;
+    });
+    if (!frole) return [pa, pb];
+    const milieu = { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 };
+    const centre = this.cour.ilots.reduce(
+      (c, id) => ({
+        x: c.x + this.pos(id).x / this.cour.ilots.length,
+        y: c.y + this.pos(id).y / this.cour.ilots.length,
+      }),
+      { x: 0, y: 0 },
+    );
+    const l = Math.sqrt(l2);
+    let nx = -dy / l;
+    let ny = dx / l;
+    if (nx * (milieu.x - centre.x) + ny * (milieu.y - centre.y) < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    const bombe = l * 0.42;
+    const ctrl = { x: milieu.x + nx * bombe, y: milieu.y + ny * bombe };
+    const pts: Point[] = [];
+    for (let i = 0; i <= 32; i++) {
+      const t = i / 32;
+      const u = 1 - t;
+      pts.push({
+        x: u * u * pa.x + 2 * u * t * ctrl.x + t * t * pb.x,
+        y: u * u * pa.y + 2 * u * t * ctrl.y + t * t * pb.y,
+      });
+    }
+    return pts;
+  }
+
+  /** Pointillés le long d'un tracé (droit ou courbe). */
+  private pointillesTrajet(
+    g: Phaser.GameObjects.Graphics,
+    pts: Point[],
+    trait = 12,
+    espace = 10,
+  ): void {
+    if (pts.length === 2) {
+      this.pointilles(g, pts[0] as Point, pts[1] as Point, trait, espace);
+      return;
+    }
+    let reste = 0;
+    let dessine = true;
+    for (let i = 1; i < pts.length; i++) {
+      let a = pts[i - 1] as Point;
+      const b = pts[i] as Point;
+      let d = Math.hypot(b.x - a.x, b.y - a.y);
+      while (d > 0) {
+        if (reste <= 0) {
+          dessine = !dessine;
+          reste = dessine ? trait : espace;
+        }
+        const pas = Math.min(reste, d);
+        const f = pas / d;
+        const c = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+        if (dessine) g.lineBetween(a.x, a.y, c.x, c.y);
+        a = c;
+        d -= pas;
+        reste -= pas;
+      }
+    }
+  }
+
+  /** Raccourci de la piscine : une ligne d'eau, corde d'encre et bouchons jaunes et blancs (DK.2). */
+  private ligneDEau(g: Phaser.GameObjects.Graphics, pts: Point[]): void {
+    g.lineStyle(5, COULEURS.encre, 0.8);
+    g.strokePoints(pts as Phaser.Types.Math.Vector2Like[], false);
+    let acc = 0;
+    let k = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1] as Point;
+      const b = pts[i] as Point;
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      for (let t = (26 - acc) % 26; t < d; t += 26) {
+        const x = a.x + ((b.x - a.x) * t) / d;
+        const y = a.y + ((b.y - a.y) * t) / d;
+        const r = 11;
+        g.fillStyle(k % 2 === 0 ? 0xf2c23a : 0xffffff, 1);
+        g.lineStyle(4, COULEURS.encre, 1);
+        const c = Math.cos(ang);
+        const sn = Math.sin(ang);
+        const poly: Phaser.Types.Math.Vector2Like[] = [];
+        for (let j = 0; j < 16; j++) {
+          const th = (j / 16) * Math.PI * 2;
+          const ex = Math.cos(th) * r * 1.15;
+          const ey = Math.sin(th) * r * 0.85;
+          poly.push({ x: x + ex * c - ey * sn, y: y + ex * sn + ey * c });
+        }
+        g.fillPoints(poly, true);
+        g.strokePoints(poly, true);
+        k++;
+      }
+      acc = (acc + d) % 26;
+    }
+  }
+
   private dessinerCour(): void {
     const e = this.etat;
     const g = this.ajouter(this.add.graphics());
 
     // Allées en pointillés d'encre, comme tracées à la craie grasse sur le goudron.
     for (const [a, b] of this.cour.allees) {
+      const trajet = this.trajetAllee(a, b);
+      // Les raccourcis de la piscine (allées courbes) sont des lignes d'eau (DK.2).
+      if (trajet.length > 2) {
+        this.ligneDEau(g, trajet);
+        continue;
+      }
       g.lineStyle(7, COULEURS.encre, 0.55);
-      this.pointilles(g, this.pos(a), this.pos(b), 14, 10);
+      this.pointillesTrajet(g, trajet, 14, 10);
     }
     // Sentiers à sens unique (camp scout, DB.2) : des flèches dans le sens où l'on passe.
     for (const [i, depuis] of Object.entries(this.cour.sensUnique)) {
@@ -747,9 +867,17 @@ export class PartieScene extends Phaser.Scene {
       ] as const) {
         g.lineStyle(largeur, couleur, 1);
         for (const [a, c] of segments) {
-          const pa = this.pos(a);
-          const pc = this.pos(c);
-          g.lineBetween(pa.x, pa.y, pc.x, pc.y);
+          const pts = this.trajetAllee(a, c);
+          if (pts.length === 2) {
+            g.lineBetween(
+              (pts[0] as Point).x,
+              (pts[0] as Point).y,
+              (pts[1] as Point).x,
+              (pts[1] as Point).y,
+            );
+          } else {
+            g.strokePoints(pts as Phaser.Types.Math.Vector2Like[], false);
+          }
         }
       }
     }
@@ -3001,7 +3129,7 @@ export class PartieScene extends Phaser.Scene {
       g.lineStyle(14, couleur, 0.85);
       for (const i of a.nouvellesAllees) {
         const [u, v] = this.cour.allees[i] as [string, string];
-        this.pointilles(g, this.pos(u), this.pos(v), 16, 12);
+        this.pointillesTrajet(g, this.trajetAllee(u, v), 16, 12);
       }
       this.tweens.add({ targets: g, alpha: 0.4, duration: 380, yoyo: true, repeat: -1 });
       objets.push(g);
