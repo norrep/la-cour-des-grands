@@ -23,8 +23,9 @@ var ROLES = [
 var EXEMPLAIRES_PAR_ROLE = 3;
 var TAILLE_RANG = 8;
 var ABSENTS_A_L_APPEL = 4;
-var RANG_DEPART_PREMIER = 3;
-var RANG_DEPART_SECOND = 4;
+var RANG_DEPART_PREMIER = 4;
+var RANG_DEPART_SECOND = 5;
+var PIOCHE_POPULAIRE = 3;
 var VALEUR_MIN_CHOUCHOU = 5;
 var PAR_ID = Object.fromEntries(
   ROLES.map((r) => [r.id, r])
@@ -354,6 +355,7 @@ function posePossible(e, bande, eleve, cible, connectes) {
   const dessus = sommet(e, cible);
   if (dessus && dessus.bande !== bande) {
     if (estPlanque(e, cible)) return false;
+    if (dessus.role === "petit") return false;
     if (!peutRecouvrir(eleve, dessus)) return false;
   }
   if (eleve.role === "fouine") return true;
@@ -382,7 +384,7 @@ function optionsEffet(e, effet) {
   if (effet.type === "pouvoir") {
     switch (effet.role) {
       case "populaire":
-        return nombreAPiocher(moi, 2) > 0 ? [{ type: "piocher" }] : [];
+        return nombreAPiocher(moi, PIOCHE_POPULAIRE) > 0 ? [{ type: "piocher" }] : [];
       case "chouchou": {
         const options = [];
         const connectes = noeudsConnectes(e, bande);
@@ -403,8 +405,19 @@ function optionsEffet(e, effet) {
         const j = e.joueurs[adv];
         return j.rang.some((el) => !j.infirmerie.includes(el.id)) ? [{ type: "infirmerie" }] : [];
       }
-      case "delegue":
-        return e.cour.ronde.length > 1 ? [{ type: "surveillante" }] : [];
+      case "delegue": {
+        if (e.cour.ronde.length <= 1) return [];
+        const vus = /* @__PURE__ */ new Set([e.cour.ronde[e.surveillante]]);
+        const opts = [];
+        e.cour.ronde.forEach((region, position) => {
+          if (vus.has(region)) return;
+          vus.add(region);
+          opts.push({ type: "surveillante", position });
+        });
+        return opts;
+      }
+      case "fouine":
+        return effet.horsChemin && nombreAPiocher(moi, 1) > 0 ? [{ type: "piocher" }] : [];
       default:
         return [];
     }
@@ -452,7 +465,7 @@ function memeOption(a, b) {
     case "cpe":
       return b.type === "cpe" && a.ilot === b.ilot;
     case "surveillante":
-      return b.type === "surveillante";
+      return b.type === "surveillante" && a.position === b.position;
     case "rappeler":
       return b.type === "rappeler" && a.ilot === b.ilot;
     case "repecher":
@@ -524,6 +537,7 @@ function terminer(e, gagnant, raison) {
   noter(e, { type: "fin", tour: e.tour, gagnant, raison });
 }
 function poser(e, bande, eleve, cible) {
+  const horsChemin = eleve.role === "fouine" && !noeudsConnectes(e, bande).has(cible);
   const j = e.joueurs[bande];
   j.rang = j.rang.filter((el) => el.id !== eleve.id);
   const noeud = e.cour.noeuds[cible];
@@ -550,7 +564,13 @@ function poser(e, bande, eleve, cible) {
     e.effets.push({ type: "equipement", equipement, ilot: cible, eleveId: eleve.id });
   }
   if (equipement !== "bancMaitresses") {
-    e.effets.push({ type: "pouvoir", role: eleve.role, ilot: cible, eleveId: eleve.id });
+    e.effets.push({
+      type: "pouvoir",
+      role: eleve.role,
+      ilot: cible,
+      eleveId: eleve.id,
+      ...horsChemin ? { horsChemin } : {}
+    });
   }
 }
 function envoyerCpe(e, ilot) {
@@ -571,7 +591,7 @@ function appliquerOption(e, effet, option) {
   const source = sourceEffet(effet);
   switch (option.type) {
     case "piocher": {
-      const n = nombreAPiocher(moi, source === "populaire" ? 2 : 1);
+      const n = nombreAPiocher(moi, source === "populaire" ? PIOCHE_POPULAIRE : 1);
       piocher(e, bande, n);
       noter(e, { type: "pioche", tour: e.tour, bande, nombre: n, source });
       break;
@@ -596,9 +616,8 @@ function appliquerOption(e, effet, option) {
       break;
     }
     case "surveillante": {
-      const [i, suivant] = tirerEntier(e.rng, 2);
-      e.rng = suivant;
-      deplacerSurveillante(e, i + 1, true);
+      const n = e.cour.ronde.length;
+      deplacerSurveillante(e, ((option.position - e.surveillante) % n + n) % n, true);
       break;
     }
     case "rappeler": {
@@ -730,7 +749,12 @@ function finirTour(e) {
     const autre = adversaire(suivant);
     const ptsSuivant = e.joueurs[suivant].bonsPoints;
     const ptsAutre = e.joueurs[autre].bonsPoints;
-    terminer(e, ptsSuivant > ptsAutre ? suivant : autre, "sonnerie");
+    if (ptsSuivant !== ptsAutre) {
+      terminer(e, ptsSuivant > ptsAutre ? suivant : autre, "sonnerie");
+      return;
+    }
+    const tenus = (b) => e.cour.ilots.filter((i) => sommet(e, i)?.bande === b).length;
+    terminer(e, tenus(suivant) > tenus(autre) ? suivant : autre, "sonnerie");
   }
 }
 
@@ -904,18 +928,76 @@ var piscine_default = {
   id: "piscine",
   nom: "La piscine",
   cabanes: [
-    { id: "CabBleue", bande: "bleu", x: 0.5, y: 0.05 },
-    { id: "CabRouge", bande: "rouge", x: 0.5, y: 0.88 }
+    {
+      id: "CabBleue",
+      bande: "bleu",
+      x: 0.5,
+      y: 0.05
+    },
+    {
+      id: "CabRouge",
+      bande: "rouge",
+      x: 0.5,
+      y: 0.88
+    }
   ],
   ilots: [
-    { id: "H1", nom: "Les douches", x: 0.2, y: 0.22, decor: "douches" },
-    { id: "H2", nom: "Le plongeoir", x: 0.8, y: 0.22, decor: "plongeoir" },
-    { id: "F1", nom: "Le beignet", x: 0.27, y: 0.4, decor: "beignet" },
-    { id: "F2", nom: "Le matelas", x: 0.73, y: 0.4, decor: "matelas" },
-    { id: "F3", nom: "La bou\xE9e", x: 0.73, y: 0.58, decor: "bouee" },
-    { id: "F4", nom: "Le canard", x: 0.27, y: 0.58, decor: "canard" },
-    { id: "B1", nom: "L\u2019\xE9chelle", x: 0.2, y: 0.74, decor: "echelle" },
-    { id: "B2", nom: "Le bord", x: 0.8, y: 0.74, decor: "bord" }
+    {
+      id: "H1",
+      nom: "Les douches",
+      x: 0.2,
+      y: 0.22,
+      decor: "douches"
+    },
+    {
+      id: "H2",
+      nom: "Le plongeoir",
+      x: 0.8,
+      y: 0.22,
+      decor: "plongeoir"
+    },
+    {
+      id: "F1",
+      nom: "Le beignet",
+      x: 0.27,
+      y: 0.4,
+      decor: "beignet"
+    },
+    {
+      id: "F2",
+      nom: "Le matelas",
+      x: 0.73,
+      y: 0.4,
+      decor: "matelas"
+    },
+    {
+      id: "F3",
+      nom: "La bou\xE9e",
+      x: 0.73,
+      y: 0.58,
+      decor: "bouee"
+    },
+    {
+      id: "F4",
+      nom: "Le canard",
+      x: 0.27,
+      y: 0.58,
+      decor: "canard"
+    },
+    {
+      id: "B1",
+      nom: "L\u2019\xE9chelle",
+      x: 0.2,
+      y: 0.74,
+      decor: "echelle"
+    },
+    {
+      id: "B2",
+      nom: "Le bord",
+      x: 0.8,
+      y: 0.74,
+      decor: "bord"
+    }
   ],
   allees: [
     ["CabBleue", "H1"],
@@ -935,30 +1017,40 @@ var piscine_default = {
   ],
   regions: [
     {
-      id: "bordBleu",
-      nom: "Le bord du haut",
-      ilots: ["H1", "H2"],
-      bonsPoints: 1,
-      gouter: { x: 0.5, y: 0.155 }
+      id: "nordOuest",
+      nom: "Le coin des douches",
+      ilots: ["H1", "F1"],
+      bonsPoints: 1
+    },
+    {
+      id: "nordEst",
+      nom: "Le coin du plongeoir",
+      ilots: ["H2", "F2"],
+      bonsPoints: 1
     },
     {
       id: "grandBain",
       nom: "Le grand bain",
       ilots: ["F1", "F2", "F3", "F4"],
-      bonsPoints: 3
+      bonsPoints: 2
     },
     {
-      id: "bordRouge",
-      nom: "Le bord du bas",
-      ilots: ["B1", "B2"],
-      bonsPoints: 1,
-      gouter: { x: 0.5, y: 0.805 }
+      id: "sudEst",
+      nom: "Le coin du bord",
+      ilots: ["B2", "F3"],
+      bonsPoints: 1
+    },
+    {
+      id: "sudOuest",
+      nom: "Le coin de l\u2019\xE9chelle",
+      ilots: ["B1", "F4"],
+      bonsPoints: 1
     }
   ],
-  seuilBonsPoints: 4,
-  ronde: ["bordBleu", "grandBain", "bordRouge", "grandBain"],
-  departRonde: 1,
-  courant: ["F1", "F2", "F3", "F4"]
+  seuilBonsPoints: 3,
+  ronde: ["nordOuest", "nordEst", "sudEst", "sudOuest"],
+  departRonde: 0,
+  courant: ["F1", "F4", "F3", "F2"]
 };
 
 // src/data/boards/index.ts

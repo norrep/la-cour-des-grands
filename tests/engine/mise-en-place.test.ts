@@ -22,14 +22,14 @@ describe('Mise en place', () => {
     expect(e.joueurs.bleu.absents).toHaveLength(4);
   });
 
-  it('le premier joueur a 3 élèves dans son rang, le second 4', () => {
+  it('le premier joueur a 4 élèves dans son rang, le second 5 (DQ.1)', () => {
     for (let g = 0; g < 20; g++) {
       const e = creerPartie(cour, { graine: g });
       const second = e.premier === 'rouge' ? 'bleu' : 'rouge';
-      expect(e.joueurs[e.premier].rang).toHaveLength(3);
-      expect(e.joueurs[e.premier].couloir).toHaveLength(17);
-      expect(e.joueurs[second].rang).toHaveLength(4);
-      expect(e.joueurs[second].couloir).toHaveLength(16);
+      expect(e.joueurs[e.premier].rang).toHaveLength(4);
+      expect(e.joueurs[e.premier].couloir).toHaveLength(16);
+      expect(e.joueurs[second].rang).toHaveLength(5);
+      expect(e.joueurs[second].couloir).toHaveLength(15);
       expect(e.courant).toBe(e.premier);
     }
   });

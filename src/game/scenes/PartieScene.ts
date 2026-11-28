@@ -1577,10 +1577,11 @@ export class PartieScene extends Phaser.Scene {
           this.choisir(o),
         );
       } else if (o.type === 'surveillante') {
-        const garde = gouterSurveille(this.etat);
-        if (garde) {
-          const m = this.positionSurveillante(garde);
-          this.cibleLieu(source, { x: m.x, y: m.y - 6 }, 54, T.motExcuse, () => this.choisir(o));
+        // Mot d'excuse : on touche le goûter où envoyer la surveillante (DQ.5).
+        const region = this.cour.regions.at(this.cour.ronde[o.position] as number);
+        if (region) {
+          const g = this.positionGouter(region.id);
+          this.cibleLieu(source, g, 54, T.motExcuse, () => this.choisir(o));
         }
       } else if (o.type === 'repecher') {
         repeches.push(o);
@@ -2230,6 +2231,8 @@ export class PartieScene extends Phaser.Scene {
           return c.rapporteuse;
         case 'contagieux':
           return c.contagieux;
+        case 'fouine':
+          return c.fouine;
         case 'delegue':
           return c.delegue;
         default:
@@ -2290,8 +2293,7 @@ export class PartieScene extends Phaser.Scene {
     // « Passer » ne sert presque jamais (demande de Clément) : on le garde pour le Délégué.
     // Ailleurs, on touche la cible.
     // Filet de sécurité : sans surveillante à toucher, le mot d'excuse se passe aussi.
-    const sansCible =
-      attente.options.every((o) => o.type === 'surveillante') && !gouterSurveille(this.etat);
+    const sansCible = attente.options.length === 0;
     // Le mot d'excuse du Délégué peut aussi se garder (demande de Clément) : éloigner Mme Josiane
     // n'arrange pas toujours.
     const passerUtile =
@@ -3514,6 +3516,11 @@ export class PartieScene extends Phaser.Scene {
     const cx = pts.reduce((t, p) => t + p.x, 0) / pts.length;
     const cy = pts.reduce((t, p) => t + p.y, 0) / pts.length;
     const r = Math.max(...pts.map((p) => Math.hypot(p.x - cx, p.y - cy))) * 0.62;
+    // Sens du courant (DQ.7) : 1 = sens des aiguilles d'une montre à l'écran, -1 = sens inverse.
+    const [p0, p1] = pts as [Point, Point];
+    const sens = (p0.x - cx) * (p1.y - cy) - (p0.y - cy) * (p1.x - cx) >= 0 ? 1 : -1;
+    // Le tourbillon dessiné dans le sens horaire, retourné en miroir pour le sens inverse.
+    const m = (x: number, y: number) => ({ x: sens * x, y });
     // Dans le calque du plateau : redessiner l'écran l'efface (sinon, ses tweens arrêtés, il restait
     // affiché pour toujours, jusque sur l'écran de fin).
     const g = this.ajouter(this.add.graphics()).setPosition(cx, cy);
@@ -3526,21 +3533,29 @@ export class PartieScene extends Phaser.Scene {
       ] as const) {
         g.lineStyle(l, c, 1);
         g.beginPath();
-        g.arc(0, 0, r, a0, a1);
+        for (let s = 0; s <= 16; s++) {
+          const a = a0 + ((a1 - a0) * s) / 16;
+          const q = m(Math.cos(a) * r, Math.sin(a) * r);
+          if (s === 0) g.moveTo(q.x, q.y);
+          else g.lineTo(q.x, q.y);
+        }
         g.strokePath();
         const bout = { x: Math.cos(a1) * r, y: Math.sin(a1) * r };
         const t = { x: -Math.sin(a1), y: Math.cos(a1) };
         const n = { x: Math.cos(a1), y: Math.sin(a1) };
+        const q1 = m(bout.x - t.x * 14 + n.x * 12, bout.y - t.y * 14 + n.y * 12);
+        const q2 = m(bout.x + t.x * 6, bout.y + t.y * 6);
+        const q3 = m(bout.x - t.x * 14 - n.x * 12, bout.y - t.y * 14 - n.y * 12);
         g.beginPath();
-        g.moveTo(bout.x - t.x * 14 + n.x * 12, bout.y - t.y * 14 + n.y * 12);
-        g.lineTo(bout.x + t.x * 6, bout.y + t.y * 6);
-        g.lineTo(bout.x - t.x * 14 - n.x * 12, bout.y - t.y * 14 - n.y * 12);
+        g.moveTo(q1.x, q1.y);
+        g.lineTo(q2.x, q2.y);
+        g.lineTo(q3.x, q3.y);
         g.strokePath();
       }
     }
     g.setScale(0.6).setAlpha(0);
     this.tweens.add({ targets: g, alpha: 1, scale: 1, duration: 220, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: g, angle: 120, duration: 900, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: g, angle: 120 * sens, duration: 900, ease: 'Sine.easeInOut' });
     this.tweens.add({
       targets: g,
       alpha: 0,
