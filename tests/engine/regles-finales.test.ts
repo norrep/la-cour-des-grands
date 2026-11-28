@@ -1,4 +1,4 @@
-/** Règles finales de l'audit d'équilibrage (DR.1 à DR.6). */
+/** Règles finales de l'audit d'équilibrage (DQ.1 à DQ.6). */
 import { describe, expect, it } from 'vitest';
 import { ciblesPossibles, jouer, type EtatPartie, type RoleId } from '../../src/engine/index';
 import { idRang, situation } from './aide';
@@ -6,7 +6,7 @@ import { idRang, situation } from './aide';
 const envoyer = (e: EtatPartie, role: RoleId, cible: string) =>
   jouer(e, { type: 'envoyer', eleveId: idRang(e, e.courant, role), cible });
 
-describe('DR.3 — Le Petit intouchable', () => {
+describe('DQ.3 — Le Petit intouchable', () => {
   it('aucun adversaire ne peut le recouvrir, même un Grand', () => {
     const e = situation({ rang: { rouge: ['grand'] }, piles: { P: [['bleu', 'petit']] } });
     expect(ciblesPossibles(e, idRang(e, 'rouge', 'grand'))).not.toContain('P');
@@ -23,7 +23,7 @@ describe('DR.3 — Le Petit intouchable', () => {
   });
 });
 
-describe('DR.4 — La Fouine passe par les buissons', () => {
+describe('DQ.4 — La Fouine passe par les buissons', () => {
   it('posée hors du chemin, elle pioche 1 élève', () => {
     const e = envoyer(situation({ rang: { rouge: ['fouine'] } }), 'fouine', 'Y');
     expect(e.attente?.options).toEqual([{ type: 'piocher' }]);
@@ -41,7 +41,7 @@ describe('DR.4 — La Fouine passe par les buissons', () => {
   });
 });
 
-describe('DR.6 — La sonnerie se départage aux îlots tenus', () => {
+describe('DQ.6 — La sonnerie se départage aux îlots tenus', () => {
   it('à égalité de goûters, gagne celui qui tient le plus d’îlots', () => {
     const e = situation({
       couloir: { bleu: [] },

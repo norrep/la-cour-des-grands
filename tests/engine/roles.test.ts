@@ -297,7 +297,7 @@ describe('5 — Le Contagieux', () => {
 });
 
 describe('6 — Le Délégué', () => {
-  it('envoie la surveillante au goûter choisi, un choix par autre goûter de sa ronde (DR.5)', () => {
+  it('envoie la surveillante au goûter choisi, un choix par autre goûter de sa ronde (DQ.5)', () => {
     const base = situation({ cour: cour1(), rang: { rouge: ['delegue'] } });
     const e = envoyer(base, 'delegue', 'B1');
     const n = base.cour.ronde.length;

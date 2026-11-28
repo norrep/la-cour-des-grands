@@ -59,6 +59,7 @@ import {
   type Point,
   DESCENTE,
   MONTEE,
+  avecZonePunis,
   positionLieu,
   type Lieu,
   versEcran,
@@ -694,7 +695,8 @@ export class PartieScene extends Phaser.Scene {
     this.panneauxLieux.clear();
     for (const b of ['rouge', 'bleu'] as const) {
       this.dessinerPortail(b);
-      this.dessinerBureauCpe(b);
+      // Zone des punis seulement là où une porte de la vie scolaire peut en faire revenir (DL.10).
+      if (avecZonePunis(this.cour)) this.dessinerBureauCpe(b);
     }
 
     // Îlots : des pastilles molles au trait noir, avec leur nom sur une étiquette.
@@ -1148,10 +1150,12 @@ export class PartieScene extends Phaser.Scene {
   private dessinerPortail(bande: Bande): void {
     const j = this.etat.joueurs[bande];
     const n = j.couloir.length;
+    const punisIci = avecZonePunis(this.cour) ? 0 : j.cpe.length;
     const c = this.panneauLieu(bande, 'portail', TEXTES.lieux.portail, () =>
       this.montrerFiche(
         TEXTES.lieux.fichePortail(bande),
-        TEXTES.lieux.texteCouloir(n),
+        TEXTES.lieux.texteCouloir(n) +
+          (punisIci > 0 ? ` ${TEXTES.lieux.textePunisPioche(punisIci)}` : ''),
         positionLieu(this.cour, bande, 'portail'),
       ),
     );
@@ -1209,6 +1213,26 @@ export class PartieScene extends Phaser.Scene {
     c.addAt(g, 0);
     c.add(this.compteurLieu(36, 34, `×${n}`, bande));
     this.dessinerMalades(c, j.infirmerie.length);
+    if (punisIci > 0) c.add(this.pastillePunis(punisIci));
+  }
+
+  /** Les punis comptés sous la pioche (DL.10) : une pastille rouge « N punis ». */
+  private pastillePunis(n: number): Phaser.GameObjects.Container {
+    const t = this.add
+      .text(0, 0, TEXTES.lieux.punisPioche(n), {
+        fontFamily: POLICE,
+        fontSize: '22px',
+        color: '#ffffff',
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const g = this.add.graphics();
+    const l = t.width + 22;
+    forme(g, contourRect(-l / 2, -17, l, 34, 17, graineDe(n, 31), 0.5), {
+      remplissage: 0xe8463c,
+      trait: 3,
+    });
+    return this.add.container(0, 66, [g, t]);
   }
 
   /**
@@ -1553,7 +1577,7 @@ export class PartieScene extends Phaser.Scene {
           this.choisir(o),
         );
       } else if (o.type === 'surveillante') {
-        // Mot d'excuse : on touche le goûter où envoyer la surveillante (DR.5).
+        // Mot d'excuse : on touche le goûter où envoyer la surveillante (DQ.5).
         const region = this.cour.regions.at(this.cour.ronde[o.position] as number);
         if (region) {
           const g = this.positionGouter(region.id);
@@ -2257,53 +2281,9 @@ export class PartieScene extends Phaser.Scene {
     const ctrl = this.ctrl;
 
     const attente = this.etat.attente;
-    if (!attente) {
-      const boutons: { texte: string; action: () => void; couleur?: number }[] = [];
-      const n = ctrl.nombreAppel;
-      if (n > 0) {
-        boutons.push({
-          texte: TEXTES.boutons.appeler(n),
-          couleur: COULEURS.allume,
-          action: () => {
-            this.agir(() => ctrl.appeler());
-          },
-        });
-      }
-      if (boutons.length === 1 && n > 0) {
-        // Plus de feuille de cahier (demande de Clément) : le bouton est posé seul sur le décor.
-        // Le bouton est posé sur la pioche de la bande (DL.2) : on pioche là où sont les cartes,
-        // et la bande du bas reste à la main.
-        const b = boutons[0] as (typeof boutons)[number];
-        const pioche = positionLieu(this.cour, this.bandeActive, 'portail');
-        const bouton = creerBouton(
-          this,
-          // À droite du paquet, entre la pioche et la cabane : le compteur reste visible.
-          pioche.x + 96,
-          pioche.y + 6,
-          TEXTES.boutons.appelerCourt(n),
-          b.action,
-          {
-            largeur: 100,
-            hauteur: 78,
-            taille: 23,
-            couleur: COULEURS.jaune,
-          },
-        );
-        this.ajouter(bouton);
-        // Il respire doucement pour qu'on le remarque.
-        this.tweens.add({
-          targets: bouton,
-          scale: 1.06,
-          duration: 700,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-        return;
-      }
-      this.rangeeBoutons(Y_ACTIONS, boutons);
-      return;
-    }
+    // Hors choix, plus de bouton ici : appeler des copains se fait par la carte « +2 copains »
+    // au début de la main (DL.8), dessinée avec le rang.
+    if (!attente) return;
 
     // Choix d'un pouvoir ou d'un équipement : il se joue en touchant sa cible sur la cour
     // (voir `ciblesDesPouvoirs`) ; il ne reste ici que « Passer ».
@@ -2343,6 +2323,121 @@ export class PartieScene extends Phaser.Scene {
   // -------------------------------------------------------------------------
 
   /**
+   * Le bouton « +2 copains » (DL.8) : un gros rond jaune qui respire, juste au-dessus du coin droit
+   * de la main, sous le pouce. Le toucher appelle les copains.
+   */
+  /**
+   * Le rond « +2 copains » (DL.11) : un gros jeton jaune au trait noir, deux cartes de la pioche en
+   * éventail qui en sortent, le « +2 » en autocollant et « copains » sur un ruban à la couleur de
+   * l'équipe. Un halo respire autour tant qu'on peut appeler ; il s'enfonce sous le pouce.
+   */
+  private boutonAppel(n: number): Phaser.GameObjects.Container {
+    const rayon = 60;
+    const bande = this.bandeActive;
+    const couleur = equipeDe(bande).couleur;
+    const halo = this.add.graphics();
+    halo.fillStyle(COULEURS.jaune, 0.45);
+    halo.fillCircle(0, 0, rayon + 10);
+    const g = this.add.graphics();
+    forme(g, contourRond(0, 0, rayon, graineDe(n, 41)), {
+      remplissage: COULEURS.jaune,
+      trait: 5,
+      ombre: 7,
+    });
+    // Reflet en haut à gauche, comme sur un bouton en plastique.
+    g.fillStyle(0xffffff, 0.55);
+    g.fillEllipse(-26, -34, 30, 14);
+    // Deux cartes de la pioche, face cachée, en éventail.
+    const L = 34;
+    const H = 48;
+    const dos = (
+      [
+        [-14, -16, -0.32],
+        [8, -20, 0.18],
+      ] as const
+    ).map(([x, y, r], k) => {
+      const d = this.add.graphics();
+      forme(d, contourRect(-L / 2, -H / 2, L, H, 6, graineDe(k, 53), 0.4), {
+        remplissage: couleur,
+        trait: 3,
+      });
+      forme(d, contourRect(-L / 2 + 5, -H / 2 + 5, L - 10, H - 10, 4, graineDe(k, 54), 0.3), {
+        remplissage: bande === 'rouge' ? 0xf4a29b : 0xa9bdf0,
+        trait: 2,
+      });
+      d.fillStyle(0xffffff, 0.9);
+      d.fillCircle(0, -2, 7);
+      d.lineStyle(2, COULEURS.encre, 1);
+      d.strokeCircle(0, -2, 7);
+      return d.setPosition(x, y).setRotation(r);
+    });
+    // Le « +2 » en autocollant : blanc, gros trait noir.
+    const nombre = this.add
+      .text(14, 10, `+${n}`, {
+        fontFamily: POLICE,
+        fontSize: '46px',
+        color: '#ffffff',
+        fontStyle: '700',
+        stroke: '#1d1d1b',
+        strokeThickness: 10,
+      })
+      .setOrigin(0.5)
+      .setRotation(-0.08);
+    // « copains » sur un ruban à la couleur de l'équipe, à cheval sur le bas du rond.
+    const mot = this.add
+      .text(0, rayon - 4, TEXTES.boutons.appelerBas(n), {
+        fontFamily: POLICE,
+        fontSize: '21px',
+        color: COULEURS.texteSombre,
+        fontStyle: '700',
+      })
+      .setOrigin(0.5);
+    const ruban = this.add.graphics();
+    const lr = mot.width + 26;
+    forme(ruban, contourRect(-lr / 2, rayon - 21, lr, 34, 12, graineDe(n, 47), 0.5), {
+      remplissage: couleur,
+      trait: 3,
+      ombre: 3,
+    });
+    const c = this.add.container(DROITE - 82, RANG.y - RANG.hauteurCarte / 2 - 70, [
+      halo,
+      g,
+      ...dos,
+      nombre,
+      ruban,
+      mot,
+    ]);
+    c.setSize(rayon * 2 + 10, rayon * 2 + 30);
+    c.setInteractive({ useHandCursor: true });
+    c.on('pointerdown', () => c.setScale(0.9));
+    c.on('pointerout', () => c.setScale(1));
+    c.on('pointerup', () => {
+      c.setScale(1);
+      jouerSon('bouton');
+      this.agir(() => this.ctrl.appeler());
+    });
+    this.ajouter(c);
+    // Le halo respire ; les deux cartes se dandinent un peu, comme si elles voulaient sortir.
+    this.tweens.add({
+      targets: halo,
+      scale: 1.22,
+      alpha: 0,
+      duration: 1100,
+      repeat: -1,
+      ease: 'Sine.easeOut',
+    });
+    this.tweens.add({
+      targets: dos,
+      y: '-=5',
+      duration: 520,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+    return c;
+  }
+
+  /**
    * Le rang d'une bande, en bas. `interactif` : ses cartes se touchent et se glissent ; sinon il
    * reste juste visible (pendant un choix hors du rang, ou le temps de voir la fin de son coup).
    */
@@ -2352,10 +2447,17 @@ export class PartieScene extends Phaser.Scene {
     const j = e.joueurs[bande];
     // Le couloir et la CPE sont dessinés autour de la cour (portail, bureau) : plus de compteurs ici.
     // Plus de « Touche un élève » au-dessus du rang (DF.24) : le tuto l'expliquera.
+    // Appeler des copains (DL.8, DL.11) : un rond « +2 copains » au-dessus du coin droit de la main,
+    // là où le pouce cherche ses cartes.
+    const appel =
+      interactif && !e.attente && this.ctrl.phase === 'jeu' && bande === this.bandeActive
+        ? this.ctrl.nombreAppel
+        : 0;
+    if (appel > 0) this.boutonAppel(appel);
     if (j.rang.length === 0 && interactif) {
       this.texte(
         LARGEUR / 2,
-        RANG.y,
+        appel > 0 ? RANG.y - RANG.hauteurCarte / 2 - 40 : RANG.y,
         aide(TEXTES.hud.rangVide, FUN.hud.rangVide, this.etat.tour),
         22,
         COULEURS.texteSombre,
@@ -3414,7 +3516,7 @@ export class PartieScene extends Phaser.Scene {
     const cx = pts.reduce((t, p) => t + p.x, 0) / pts.length;
     const cy = pts.reduce((t, p) => t + p.y, 0) / pts.length;
     const r = Math.max(...pts.map((p) => Math.hypot(p.x - cx, p.y - cy))) * 0.62;
-    // Sens du courant (DR.7) : 1 = sens des aiguilles d'une montre à l'écran, -1 = sens inverse.
+    // Sens du courant (DQ.7) : 1 = sens des aiguilles d'une montre à l'écran, -1 = sens inverse.
     const [p0, p1] = pts as [Point, Point];
     const sens = (p0.x - cx) * (p1.y - cy) - (p0.y - cy) * (p1.x - cx) >= 0 ? 1 : -1;
     // Le tourbillon dessiné dans le sens horaire, retourné en miroir pour le sens inverse.
@@ -3658,7 +3760,8 @@ export class PartieScene extends Phaser.Scene {
 
   /** Le panneau d'un lieu fait un petit bond : quelqu'un vient d'y arriver ou d'en partir. */
   private rebondLieu(bande: Bande, lieu: Lieu): void {
-    const c = this.panneauxLieux.get(`${bande}:${lieu}`);
+    const c =
+      this.panneauxLieux.get(`${bande}:${lieu}`) ?? this.panneauxLieux.get(`${bande}:portail`);
     if (!c) return;
     this.tweens.add({
       targets: c,

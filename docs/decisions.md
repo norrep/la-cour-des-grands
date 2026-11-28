@@ -387,15 +387,47 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
 - **DL.7 — Tour d'en face bien visible.** Pendant le tour de l'ordi (ou de l'ami en ligne), la main
   descend et pâlit, un bandeau à la couleur d'en face dit « L'ordi réfléchit… » et un cadre de sa
   couleur borde l'écran. Quand le tour revient : un tampon « À toi ! » et un petit son.
+- **DL.8 — « +2 copains » devient un gros rond jaune au-dessus du coin droit de la main**
+  (retour de Clément : le bouton à côté de la pioche n'était pas clair). Essayée d'abord, une carte
+  au début de la main serrait trop les élèves ; parmi trois maquettes (rond flottant, onglet sur la
+  main, pioche qui s'allume), Clément a choisi le rond : sous le pouce, il respire et dit « +2
+  copains ».
+- **DL.9 — Les punis passent à côté de la pioche**, à gauche de la cabane (essai demandé par
+  Clément), pour les deux bandes et sur toutes les cartes. La droite de la cabane reste libre pour
+  le rond « +2 copains » en bas et le rang adverse en haut.
+- **DL.10 — La zone des punis disparaît quand la cour n'a pas de porte de la vie scolaire** (aucune
+  des trois cartes actuelles) : elle ne faisait qu'afficher les exclus. Les punis sont comptés par
+  une pastille rouge « N punis » sous la pioche (le détail est dans la fiche de la pioche), et
+  l'exclu vole jusqu'à la pioche. La pioche reste au bord de l'écran : rapprochée de la cabane, elle touchait des îlots (piscine surtout). Le code de
+  la zone reste : elle revient d'elle-même sur une cour qui a la porte (`avecZonePunis`).
+- **DL.11 — Rond « +2 copains » redessiné** : jeton jaune au trait épais avec reflet, deux cartes
+  de la pioche en éventail qui se dandinent, « +2 » en autocollant blanc cerclé de noir, « copains »
+  sur un ruban à la couleur de l'équipe, halo qui respire, et le rond s'enfonce sous le pouce.
+
+## Pastilles de valeur retirées (27/11, demande de Clément)
+
+- **DP.1 — Plus de pastille de valeur à côté des élèves** (skin Cartoon) : ni sur les cartes de la
+  main, ni sur les pastilles de la cour, ni sur l'élève en entier. « Le chasuble porte déjà le
+  numéro. » Remplace DG.3 : depuis la main XXL et les pastilles 112 (DL.1, DL.5), le numéro de la
+  chasuble se lit à taille téléphone, y compris le « J » du joker et le jaune des Vers. Rond ou
+  carré pour distinguer les bandes sans les couleurs : c'est la forme de la pastille de cour qui
+  le garde. Ambiguïté : « sur les cartes » lu comme « partout où l'élève porte sa chasuble » ; les
+  badges seuls (punis au bureau de la CPE, élève plaqué, skin « Jetons ») restent,
+  car il n'y a pas d'élève dessiné à côté.
+- **DP.2 — « J » blanc sur la chasuble du Petit des Vers** (et de sa tenue miroir), comme les
+  autres numéros : le bleu marine du dessin est passé en blanc, trait noir inchangé.
+- **DP.3 — Contour noir autour des numéros des Vers**, comme chez les autres équipes (16 dessins,
+  tenue miroir comprise) : trait de 8 px de texture, la même épaisseur que les chiffres des
+  écoliers. Le « 2 » du Chouchou, crème (ou bleu pâle en miroir), passe en blanc comme les autres.
 
 ## Règles finales de l'audit (27/11, version d'essai)
 
 Demande de Clément : prendre le meilleur des trois tests (v2, main 4/5, règles strictes du jeu d'origine), puis « si on doit modifier quelque chose c'est la map de piscine, pas les règles ». Testé par simulation (`scripts/audit.ts`) avant d'être codé ; version d'essai séparée, pas fusionnée sans son accord.
 
-- **DR.1 — Main de départ 4 et 5** (au lieu de 3 et 4), sur toutes les cartes.
-- **DR.2 — La Populaire pioche 3** (au lieu de 2).
-- **DR.3 — Le Petit est intouchable** : aucun adversaire ne peut le recouvrir, et il prolonge le chemin comme les autres (choix de Clément le 28/11 : avec la main 4/5, les victoires à la cabane montent à 74 % sur la cour et 68 % au camp, parties plus courtes, équité gardée).
-- **DR.4 — La Fouine posée hors du chemin pioche 1** (« par les buissons, elle ramène un copain »). Le chemin est mesuré avant la pose.
-- **DR.5 — Le Délégué choisit le goûter** où va la surveillante (une option par autre goûter de sa ronde, toujours facultatif).
-- **DR.6 — Sonnerie** : à égalité de goûters, gagne celui qui tient le plus d'îlots ; sinon, comme avant, le joueur bloqué perd.
-- **DR.7 — Nouvelle piscine** : quatre coins (un bord + le flotteur voisin, 1 glace chacun) et le grand bain (2 glaces), objectif 3 ; Monsieur Yvon fait la ronde des quatre coins ; le courant tourne dans l'autre sens (F1 → F4 → F3 → F2), ce qui ramène le premier joueur de 42 % à 48 % entre IA difficiles avec la main 4/5.
+- **DQ.1 — Main de départ 4 et 5** (au lieu de 3 et 4), sur toutes les cartes.
+- **DQ.2 — La Populaire pioche 3** (au lieu de 2).
+- **DQ.3 — Le Petit est intouchable** : aucun adversaire ne peut le recouvrir, et il prolonge le chemin comme les autres (choix de Clément le 28/11 : avec la main 4/5, les victoires à la cabane montent à 74 % sur la cour et 68 % au camp, parties plus courtes, équité gardée).
+- **DQ.4 — La Fouine posée hors du chemin pioche 1** (« par les buissons, elle ramène un copain »). Le chemin est mesuré avant la pose.
+- **DQ.5 — Le Délégué choisit le goûter** où va la surveillante (une option par autre goûter de sa ronde, toujours facultatif).
+- **DQ.6 — Sonnerie** : à égalité de goûters, gagne celui qui tient le plus d'îlots ; sinon, comme avant, le joueur bloqué perd.
+- **DQ.7 — Nouvelle piscine** : quatre coins (un bord + le flotteur voisin, 1 glace chacun) et le grand bain (2 glaces), objectif 3 ; Monsieur Yvon fait la ronde des quatre coins ; le courant tourne dans l'autre sens (F1 → F4 → F3 → F2), ce qui ramène le premier joueur de 42 % à 48 % entre IA difficiles avec la main 4/5.

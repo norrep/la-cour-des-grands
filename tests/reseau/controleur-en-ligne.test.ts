@@ -58,10 +58,13 @@ describe('Contrôleur en ligne', () => {
 
   it('montre d’avance un coup sans pioche, et attend le serveur pour un appel', async () => {
     const { ami, ctrl, id, animes } = await deuxTelephones();
-    if (ctrl.tourAdverse) {
+    // Le premier coup de l’ami peut demander une suite (un choix de pouvoir) : il joue jusqu’à
+    // nous rendre la main.
+    for (let i = 0; i < 10 && ctrl.tourAdverse; i++) {
       await faireJouerAmi(ami, id, (a) => a.find((x) => x.type === 'envoyer') ?? (a[0] as Action));
       await attendre();
     }
+    expect(ctrl.tourAdverse).toBe(false);
     animes.length = 0;
     expect(ctrl.jouer({ type: 'appeler' })).toBe(false);
     await attendre();

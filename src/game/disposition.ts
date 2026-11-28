@@ -78,21 +78,33 @@ export const RANG = {
 /** Largeur que le rang peut occuper (centres de la première à la dernière carte). */
 const ETENDUE_RANG = 570;
 
+/** Partie de l'écran où s'étale la main : centre et étendue (centres de la première à la dernière). */
+export interface ZoneMain {
+  centre: number;
+  etendue: number;
+}
+
+const ZONE_MAIN: ZoneMain = { centre: LARGEUR / 2, etendue: ETENDUE_RANG };
+
 /** Abscisse de la carte `i` sur `n` dans le rang : au-delà de 6 cartes, elles se chevauchent. */
-export function xCarteRang(i: number, n: number): number {
-  const ecart = n > 1 ? Math.min(RANG.ecart, ETENDUE_RANG / (n - 1)) : RANG.ecart;
-  return LARGEUR / 2 + (i - (n - 1) / 2) * ecart;
+export function xCarteRang(i: number, n: number, zone: ZoneMain = ZONE_MAIN): number {
+  const ecart = n > 1 ? Math.min(RANG.ecart, zone.etendue / (n - 1)) : RANG.ecart;
+  return zone.centre + (i - (n - 1) / 2) * ecart;
 }
 
 /**
  * Place de la carte `i` sur `n` dans le rang, tenu en léger éventail (demande de Clément) : les
  * cartes s'inclinent vers l'extérieur et les bords descendent un peu, comme dans une main.
  */
-export function poseCarteRang(i: number, n: number): { x: number; y: number; rotation: number } {
+export function poseCarteRang(
+  i: number,
+  n: number,
+  zone: ZoneMain = ZONE_MAIN,
+): { x: number; y: number; rotation: number } {
   const t = i - (n - 1) / 2;
   const demi = Math.max(1, (n - 1) / 2);
   return {
-    x: xCarteRang(i, n),
+    x: xCarteRang(i, n, zone),
     y: RANG.y + t * t * Math.min(4, 14 / (demi * demi)),
     rotation: t * Math.min(0.055, 0.15 / demi),
   };
@@ -101,17 +113,32 @@ export function poseCarteRang(i: number, n: number): { x: number; y: number; rot
 /** Les lieux d'une bande autour de sa cabane : son portail (le couloir) et son bureau de CPE. */
 export type Lieu = 'portail' | 'cpe';
 
-/** Écart horizontal entre la cabane et ses lieux. */
-const ECART_LIEU = 205;
-/** Piscine : les îlots des bords sont plus écartés, la pioche et les punis vont vers les bords (DP.9, DP.10). */
-const ECART_LIEU_PISCINE = 290;
+/**
+ * Écart horizontal entre la cabane et ses lieux. Pioche et punis sont côte à côte, à gauche de la
+ * cabane (DL.9, essai demandé par Clément) : la droite reste libre pour le rond « +2 copains ».
+ */
+const ECARTS_LIEUX: Record<Lieu, number> = { portail: 265, cpe: 140 };
+/** Piscine : les îlots des bords sont plus écartés, les lieux vont vers le bord (DP.9, DP.10). */
+const ECARTS_LIEUX_PISCINE: Record<Lieu, number> = { portail: 295, cpe: 172 };
 
-/** Centre d'un lieu : de part et d'autre de la cabane de la bande, portail à gauche, CPE à droite. */
+/**
+ * La zone des punis n'a d'utilité que si la cour a une porte de la vie scolaire (on peut en faire
+ * revenir). Sans elle, les punis sont seulement comptés sur la pioche (DL.10).
+ */
+export function avecZonePunis(cour: Cour): boolean {
+  return Object.values(cour.noeuds).some((n) => n.equipement === 'porteVieScolaire');
+}
+
+/**
+ * Centre d'un lieu : à gauche de la cabane de la bande, la pioche au bord, les punis à côté.
+ */
 export function positionLieu(cour: Cour, bande: 'rouge' | 'bleu', lieu: Lieu): Point {
   const cabane = cour.cabanes[bande][0];
   const c = cabane ? positionNoeud(cour, cabane) : { x: LARGEUR / 2, y: ZONE_COUR.y };
   // En bas (bande rouge), on remonte un peu pour laisser la place au journal.
   const dy = bande === 'rouge' ? -22 : 14;
-  const ecart = cour.id === 'piscine' ? ECART_LIEU_PISCINE : ECART_LIEU;
-  return { x: c.x + (lieu === 'portail' ? -ecart : ecart), y: c.y + dy };
+  const ecarts = cour.id === 'piscine' ? ECARTS_LIEUX_PISCINE : ECARTS_LIEUX;
+  // Sans zone des punis, la pioche reste au bord (loin des îlots) et les punis y volent.
+  const ecart = avecZonePunis(cour) ? ecarts[lieu] : ecarts.portail;
+  return { x: c.x - ecart, y: c.y + dy };
 }

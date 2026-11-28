@@ -57,7 +57,7 @@ describe('Camp scout : sentiers à sens unique', () => {
 });
 
 describe('Piscine : le courant', () => {
-  it('après un tour complet, les piles du grand bain tournent d’un cran (sens DR.7)', () => {
+  it('après un tour complet, les piles du grand bain tournent d’un cran (sens DQ.7)', () => {
     const e = situation({
       cour: piscine(),
       premier: 'rouge',

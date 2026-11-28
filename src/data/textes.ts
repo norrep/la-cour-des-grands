@@ -153,6 +153,9 @@ export const TEXTES = {
       partie_pleine: 'Cette partie a déjà commencé.',
       deja_dedans: 'C’est ta propre partie !',
       reseau: 'Pas de réseau. On réessaie dès que ça revient.',
+      delai: 'Le serveur ne répond pas. Vérifie ta connexion et réessaie.',
+      connexion_fermee:
+        'Le jeu en ligne n’est pas encore ouvert (connexion sans compte désactivée).',
       autre: 'Oups, le serveur n’a pas répondu. Réessaie.',
     } as Record<string, string>,
   },
@@ -189,8 +192,8 @@ export const TEXTES = {
   },
   boutons: {
     appeler: (n: number) => (n > 1 ? `Appeler ${n} copains` : 'Appeler 1 copain'),
-    /** Sur la pioche (DL.2) : la place est comptée. */
-    appelerCourt: (n: number) => (n > 1 ? `+${n} copains` : '+1 copain'),
+    /** Le rond jaune au-dessus de la main (DL.8) : « +2 / copains ». */
+    appelerBas: (n: number) => (n > 1 ? 'copains' : 'copain'),
     passer: 'Passer',
     motExcuse: 'Mot d’excuse !',
     piocher: 'Piocher',
@@ -287,7 +290,7 @@ export const TEXTES = {
     glisser:
       'Glisse un élève de ton rang vers la cour. Il ne peut aller que sur un îlot touchant ta cabane ou ton chemin.',
     appeler:
-      'Le bouton « +2 copains », à côté de ta pioche, fait venir 2 élèves. Ton tour s’arrête là.',
+      'Le rond jaune « +2 copains », au-dessus de ta main, fait venir 2 élèves. Ton tour s’arrête là.',
     chemin:
       'Le trait de couleur, c’est ton chemin depuis ta cabane. Tu peux poser sur tout îlot qui touche ce chemin.',
     plaquer:
@@ -391,7 +394,10 @@ export const TEXTES = {
     texteCouloir: (n: number) =>
       n === 0
         ? 'La pioche est vide : on ne peut plus appeler de copains.'
-        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. Le bouton « +2 copains » en fait venir 2 dans le rang.`,
+        : `${n} copain${n > 1 ? 's attendent' : ' attend'} dans la pioche. Le rond jaune « +2 copains », au-dessus de ta main, en fait venir 2.`,
+    punisPioche: (n: number) => `${n} puni${n > 1 ? 's' : ''}`,
+    textePunisPioche: (n: number) =>
+      `${n} élève${n > 1 ? 's ont été punis' : ' a été puni'} : ${n > 1 ? 'ils sont sortis' : 'il est sorti'} du jeu.`,
     ficheCpe: (b: Bande) => `Les punis (${BANDES[b]})`,
     texteCpe: (n: number) =>
       n === 0

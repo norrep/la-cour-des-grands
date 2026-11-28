@@ -22,7 +22,7 @@ describe('Mise en place', () => {
     expect(e.joueurs.bleu.absents).toHaveLength(4);
   });
 
-  it('le premier joueur a 4 élèves dans son rang, le second 5 (DR.1)', () => {
+  it('le premier joueur a 4 élèves dans son rang, le second 5 (DQ.1)', () => {
     for (let g = 0; g < 20; g++) {
       const e = creerPartie(cour, { graine: g });
       const second = e.premier === 'rouge' ? 'bleu' : 'rouge';
