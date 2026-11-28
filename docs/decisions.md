@@ -420,6 +420,13 @@ léger éventail, puis demandé qu'on voie mieux quand c'est à l'autre de jouer
   bords, étoile « pop » derrière la tête et gros trait noir ; la tête de l'élève sort du haut de
   la case, le visage garde sa taille. La loupe montre la même case en grand. Pour laisser passer
   les têtes, la pioche du bas et le rond « +2 copains » remontent de 22 px.
+- **DL.15 — Cartes de la main : cadre de carte de collection, têtes qui débordent** (Clément :
+  « le pire des deux mondes », garder les têtes qui sortent, reprendre le contour et le fond de la
+  carte de collection, retirer les lignes blanches). Remplace le fond de DL.14 : cadre épais à la
+  couleur de l'équipe, panneau clair avec un éclat (rayons coupés au bord du panneau) et un rond
+  blanc derrière la tête, reflet sur le bord gauche. Plus de lignes de vitesse, de trame ni
+  d'étoile. La tête sort toujours par le haut ; le cadre repasse sur le buste à gauche, à droite
+  et en bas.
 
 ## Pastilles de valeur retirées (27/11, demande de Clément)
 
