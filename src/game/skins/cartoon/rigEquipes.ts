@@ -72,15 +72,15 @@ export const RIGS_EQUIPES: Record<string, Rig> = {
   },
   'aliens-petit': {
     hauteur: 581,
-    bras: 45.0,
-    main: [-122.5, 0.0],
+    bras: 47.0,
+    main: [-120.5, 0.0],
     pieces: {
-      jambeG: { cadre: [0, 0, 126, 128], pivot: [63.0, 9.0], pos: [-63.0, -119.0] },
-      jambeD: { cadre: [142, 0, 128, 128], pivot: [63.0, 9.0], pos: [63.0, -119.0] },
-      brasG: { cadre: [286, 0, 127, 52], pivot: [122.5, 24.0], pos: [-120.5, -260.0] },
-      brasD: { cadre: [429, 0, 127, 52], pivot: [4.5, 26.0], pos: [121.5, -260.0] },
-      tronc: { cadre: [572, 0, 251, 372], pivot: [125.0, 363.0], pos: [0.0, -119.0] },
-      tete: { cadre: [839, 0, 139, 108], pivot: [69.0, 99.0], pos: [0.0, -482.0] },
+      jambeG: { cadre: [0, 0, 127, 127], pivot: [63.0, 9.0], pos: [-64.0, -118.0] },
+      jambeD: { cadre: [143, 0, 127, 127], pivot: [63.0, 9.0], pos: [63.0, -118.0] },
+      brasG: { cadre: [286, 0, 125, 54], pivot: [120.5, 25.0], pos: [-122.5, -260.0] },
+      brasD: { cadre: [427, 0, 125, 54], pivot: [4.5, 28.0], pos: [122.5, -260.0] },
+      tronc: { cadre: [568, 0, 254, 184], pivot: [127.0, 175.0], pos: [0.0, -118.0] },
+      tete: { cadre: [838, 0, 272, 297], pivot: [136.0, 288.0], pos: [0.0, -293.0] },
     },
   },
   'aliens-populaire': {
