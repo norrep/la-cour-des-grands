@@ -1,10 +1,23 @@
 import Phaser from 'phaser';
 import { COULEURS, LARGEUR, POLICE } from '../config';
 import { contourRect, forme, graineDe, panneau } from './style';
+import { MAIN_TUTO } from '../scenes/ChargementScene';
 
 /**
- * Le guide du tutoriel (DJ.2) : une bulle de papier au trait d'encre, et l'onde d'un toucher.
+ * Le guide du tutoriel (DJ.2) : une bulle de papier au trait d'encre, et une main dessinée qui
+ * montre le geste à faire (glisser un élève, toucher un bouton).
  */
+
+/**
+ * La main qui montre, dessinée au trait des élèves (`public/tuto/main.png`, peau du Grand,
+ * manchette rouge). Le bout de l'index est en (0, 0) ; la main est un peu penchée.
+ */
+export function creerMain(scene: Phaser.Scene): Phaser.GameObjects.Container {
+  const image = scene.add.image(0, 0, MAIN_TUTO);
+  // Bout de l'index dans le dessin (600 × 720), ramené à 150 px de haut à l'écran.
+  image.setOrigin(216 / 600, 30 / 720).setScale(180 / 720);
+  return scene.add.container(0, 0, [image]).setRotation(-0.28);
+}
 
 /** Un rond d'onde là où le doigt touche. */
 export function onde(scene: Phaser.Scene, x: number, y: number): Phaser.GameObjects.Arc {

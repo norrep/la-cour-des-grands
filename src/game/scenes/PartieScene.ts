@@ -61,7 +61,7 @@ import type { EtapeEnLigne } from '../enLigne/etapes';
 import { oublierPartie, sauverPartie } from '../reprise';
 import { ciblesTuto, coupOrdiTuto, etatLecon, guideTuto, NB_LECONS, type Geste } from '../tuto';
 import { TEXTES_TUTO } from '../../data/textesTuto';
-import { bulleGuide, onde } from '../ui/guideTuto';
+import { bulleGuide, creerMain, onde } from '../ui/guideTuto';
 import { ecrireTutoAFaire } from '../preferences';
 import {
   centreRegion,
@@ -4959,150 +4959,75 @@ export class PartieScene extends Phaser.Scene {
     });
   }
 
-  /**
-   * Le guide montre le geste attendu, en boucle (DJ.2). Variantes à l'essai (`window.__guide`) :
-   * A l'élève fantôme fait le trajet, B fantôme + flèche à la craie, C flèche à la craie seule.
-   */
+  /** La main du guide fait le geste attendu, en boucle. */
   private gesteGuide(geste: Geste): void {
     if (geste.type === 'regarder') return;
-    const variante = (window as unknown as { __guide?: 'A' | 'B' | 'C' }).__guide ?? 'B';
-    const groupe = this.ajouter(this.add.container(0, 0));
-    this.mainGuide = groupe;
+    const main = this.ajouter(creerMain(this));
+    this.mainGuide = main;
     if (geste.type === 'appeler') {
-      // Le rond « +2 copains » saute sur place, une flèche de craie le montre.
       const p = CENTRE_APPEL;
-      const de = { x: p.x - 150, y: p.y - 190 };
-      const fleche = this.add.graphics();
-      groupe.add(fleche);
-      const rond = onde(this, p.x, p.y).setAlpha(0);
-      groupe.add(rond);
-      if (!this.animations) {
-        this.flecheTuto(fleche, de, p, 1, 70);
-        return;
-      }
+      main.setPosition(p.x + 10, p.y + 10);
+      if (!this.animations) return;
+      const rond = this.ajouter(onde(this, p.x, p.y)).setAlpha(0);
+      this.dyn.bringToTop(main);
       this.tweens.addCounter({
         from: 0,
         to: 1,
-        duration: 1500,
+        duration: 1300,
         repeat: -1,
         onUpdate: (tw) => {
           const t = tw.getValue() ?? 0;
-          this.flecheTuto(fleche, de, p, Math.min(1, t / 0.45), 70);
-          fleche.setAlpha(t > 0.85 ? 1 - (t - 0.85) / 0.15 : 1);
-          const o = Math.max(0, (t - 0.45) / 0.55);
-          rond.setScale(1 + o * 3.2).setAlpha(t > 0.45 ? 1 - o : 0);
+          const appui = Math.sin(Math.min(1, t / 0.4) * Math.PI);
+          main.setPosition(p.x + 10, p.y + 34 - appui * 24);
+          main.setScale(1 - appui * 0.08);
+          const o = Math.max(0, (t - 0.2) / 0.8);
+          rond.setScale(1 + o * 3).setAlpha(t > 0.2 ? 1 - o : 0);
         },
       });
       return;
     }
     const rang = this.etat.joueurs.rouge.rang;
     const i = rang.findIndex((el) => el.id === geste.eleveId);
-    const eleve = rang[i];
-    if (!eleve) return;
+    if (i < 0) return;
     const pose = poseCarteRang(i, rang.length);
-    const de = { x: pose.x, y: pose.y - 40 };
+    const de = { x: pose.x, y: pose.y - 30 };
     const vers = this.pos(geste.vers);
-    const fleche = this.add.graphics();
-    groupe.add(fleche);
-    const avecFleche = variante !== 'A';
-    const avecFantome = variante !== 'C';
+    main.setPosition(de.x, de.y);
     if (!this.animations) {
-      if (avecFleche) this.flecheTuto(fleche, de, vers, 1, 60);
+      main.setPosition(vers.x, vers.y);
       return;
     }
-    const rond = onde(this, vers.x, vers.y).setAlpha(0);
-    groupe.add(rond);
-    // L'élève fantôme : le même pantin que sous le doigt, tenu par le col, en transparence.
-    let fantome: PantinVisuel | null = null;
-    // À chaque tour de boucle, un pantin neuf repart de la carte, immobile.
-    const nouveauFantome = (): void => {
-      fantome?.destroy();
-      fantome = new PantinVisuel(this, eleve, de.x, de.y);
-      fantome.conteneur.setAlpha(0);
-      groupe.add(fantome.conteneur);
-    };
-    if (avecFantome) nouveauFantome();
+    const rond = this.ajouter(onde(this, vers.x, vers.y)).setAlpha(0);
+    this.dyn.bringToTop(main);
     const doux = Phaser.Math.Easing.Sine.InOut;
-    // Le doigt vise au-dessus de l'îlot : l'élève pend sous lui (comme au vrai glisser).
-    const arrivee = { x: vers.x, y: vers.y + VISEE };
-    let avant = this.time.now;
     this.tweens.addCounter({
       from: 0,
       to: 1,
-      duration: 3200,
+      duration: 2400,
       repeat: -1,
-      onRepeat: () => {
-        if (avecFantome) nouveauFantome();
-      },
       onUpdate: (tw) => {
         const t = tw.getValue() ?? 0;
-        const dt = Math.min(50, Math.max(1, this.time.now - avant)) / 1000;
-        avant = this.time.now;
-        if (avecFleche) {
-          this.flecheTuto(fleche, de, vers, Math.min(1, t / 0.5), 60);
-          fleche.setAlpha(t > 0.85 ? 1 - (t - 0.85) / 0.15 : 1);
+        if (t < 0.14) {
+          // Le doigt se pose sur la carte et appuie.
+          main.setPosition(de.x, de.y).setAlpha(Math.min(1, t / 0.07));
+          main.setScale(1 - Math.sin((t / 0.14) * Math.PI) * 0.1);
+        } else if (t < 0.62) {
+          const k = doux((t - 0.14) / 0.48);
+          // Une petite courbe, comme un vrai geste.
+          main.setPosition(
+            de.x + (vers.x - de.x) * k + Math.sin(k * Math.PI) * 40,
+            de.y + (vers.y - de.y) * k,
+          );
+          main.setScale(0.92).setAlpha(1);
+        } else if (t < 0.8) {
+          main.setPosition(vers.x, vers.y).setScale(1);
+          const o = (t - 0.62) / 0.18;
+          rond.setScale(1 + o * 3).setAlpha(1 - o);
+        } else {
+          main.setAlpha(1 - (t - 0.8) / 0.2);
+          rond.setAlpha(0);
         }
-        if (fantome) {
-          const k = t < 0.1 ? 0 : t < 0.64 ? doux((t - 0.1) / 0.54) : 1;
-          const x = de.x + (arrivee.x - de.x) * k;
-          const y = de.y + (arrivee.y - de.y) * k;
-          fantome.suivre(x, y, dt);
-          const a = t < 0.12 ? t / 0.12 : t < 0.78 ? 1 : Math.max(0, 1 - (t - 0.78) / 0.14);
-          fantome.conteneur.setAlpha(a * 0.85);
-        }
-        const o = (t - 0.62) / 0.25;
-        rond.setScale(1 + Math.max(0, o) * 3).setAlpha(o > 0 && o < 1 ? 1 - o : 0);
       },
-    });
-  }
-
-  /**
-   * Une flèche à la craie, tracée jusqu'à `part` (0 à 1) : pointillés blancs tremblés cernés
-   * d'encre, en légère courbe, et une pointe au bout. `marge` : où elle s'arrête avant la cible.
-   */
-  private flecheTuto(
-    g: Phaser.GameObjects.Graphics,
-    de: Point,
-    vers: Point,
-    part: number,
-    marge: number,
-  ): void {
-    g.clear();
-    const d = Math.hypot(vers.x - de.x, vers.y - de.y);
-    const fin = Math.max(0, 1 - marge / d);
-    const nx = -(vers.y - de.y) / d;
-    const ny = (vers.x - de.x) / d;
-    const courbe = Math.min(70, d * 0.18);
-    const point = (u: number): Point => ({
-      x: de.x + (vers.x - de.x) * u + nx * Math.sin(u * Math.PI) * courbe,
-      y: de.y + (vers.y - de.y) * u + ny * Math.sin(u * Math.PI) * courbe,
-    });
-    const bout = fin * part;
-    const pas = 1 / Math.max(8, Math.round(d / 9));
-    const traits: [Point, Point][] = [];
-    for (let u = 0; u < bout; u += pas * 2.6) {
-      traits.push([point(u), point(Math.min(bout, u + pas * 1.6))]);
-    }
-    for (const [largeur, couleur] of [
-      [17, COULEURS.encre],
-      [10, COULEURS.craie],
-    ] as const) {
-      g.lineStyle(largeur, couleur, 1);
-      for (const [a, b] of traits) g.lineBetween(a.x, a.y, b.x, b.y);
-    }
-    if (part < 1) return;
-    // La pointe, dans l'axe de la fin du trait.
-    const p = point(fin);
-    const q = point(fin - pas);
-    const ang = Math.atan2(p.y - q.y, p.x - q.x);
-    const pointe = (r: number, a: number): Point => ({
-      x: p.x + Math.cos(ang + a) * r,
-      y: p.y + Math.sin(ang + a) * r,
-    });
-    const tri = [pointe(16, 0), pointe(26, 2.5), pointe(26, -2.5)];
-    forme(g, tri, {
-      remplissage: COULEURS.craie,
-      trait: 5,
     });
   }
 
