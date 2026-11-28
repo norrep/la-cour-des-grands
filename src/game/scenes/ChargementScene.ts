@@ -3,10 +3,8 @@ import { COULEURS, HAUTEUR, LARGEUR, POLICE } from '../config';
 import { preparerSkin, choisirSkin, skinActif } from '../skins/index';
 import { cadrer } from '../ui/ecran';
 import { TEXTES } from '../../data/textes';
-import { ROLES } from '../../engine/index';
 import { avecVersion } from '../../version';
 import { chargerIncrustations } from '../ui/incrust';
-import { prechargerVideos } from '../videos';
 import { debloquerAudioAuPremierGeste } from '../sons';
 
 /** Clé du décor de la cour (image plein écran derrière le plateau). */
@@ -45,22 +43,6 @@ function chargerPolice(): Promise<unknown> {
     ['500', '600', '700'].map((poids) => fonts.load(`${poids} 24px Fredoka`)),
   );
   return Promise.race([attente, new Promise((ok) => setTimeout(ok, 2000))]);
-}
-
-/**
- * Les vidéos de pouvoir et de goûter du skin se téléchargent en fond, gardées en mémoire : elles
- * seront prêtes en partie (DV.6). Les Rouges d'abord (l'équipe proposée), puis les goûters.
- */
-function prechargerToutesLesVideos(): void {
-  const skin = skinActif();
-  if (!skin.videoPouvoir && !skin.videoGouter) return;
-  const urls: (string | undefined)[] = [];
-  for (const b of ['rouge', 'bleu'] as const) {
-    urls.push(...ROLES.map(({ id }) => skin.videoPouvoir?.(b, id)));
-    if (b === 'rouge' && skin.videoGouter)
-      for (let i = 0; i < GOUTERS.length; i++) urls.push(skin.videoGouter(i)?.url);
-  }
-  prechargerVideos(urls);
 }
 
 /** Prépare la police, le décor et les images du skin actif, puis ouvre l'accueil. */
@@ -107,7 +89,6 @@ export class ChargementScene extends Phaser.Scene {
       choisirSkin('classique');
     });
     void Promise.all([skin, chargerPolice()]).finally(() => {
-      prechargerToutesLesVideos();
       this.scene.start('accueil');
     });
   }

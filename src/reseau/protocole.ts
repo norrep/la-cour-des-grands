@@ -128,6 +128,8 @@ export type CodeRefus =
   | 'ami_introuvable'
   | 'soi_meme'
   | 'pas_ami'
+  /** Trop de parties ouvertes qui attendent encore un ami (anti-abus). */
+  | 'trop_de_parties'
   /** Le serveur refuse les connexions sans compte (réglage du projet). */
   | 'connexion_fermee';
 

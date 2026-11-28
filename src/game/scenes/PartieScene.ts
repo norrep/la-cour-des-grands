@@ -15,6 +15,7 @@ import {
   type Cour,
   type CourData,
   type Eleve,
+  type EtatPartie,
   type Evenement,
   estPlanque,
   type Action,
@@ -27,7 +28,7 @@ import {
   adversaire,
 } from '../../engine/index';
 import { apercu } from '../apercu';
-import { cadreManga, fondManga } from '../ui/fondManga';
+import { cadreManga, cadreMangaRect, fondManga, ombreCaseManga } from '../ui/fondManga';
 import { ecranFin } from '../ui/ecranFin';
 import { jouerTransitionFin } from '../ui/transitionFin';
 import { DUREE_CONSEQUENCE, dureeAnimations, planAnimations, rondeParcourue } from '../sequence';
@@ -55,7 +56,9 @@ import { NB_CONSEILS, prochainConseil, type ConseilId } from '../conseils';
 import { Controleur } from '../controleur';
 import { Ordi } from '../ordi';
 import { ControleurEnLigne } from '../enLigne/controleurEnLigne';
-import { ecrirePartieEnCours, serveurPret } from '../enLigne/session';
+import { ecrirePartieEnCours, serveurParties, serveurPret } from '../enLigne/session';
+import type { EtapeEnLigne } from '../enLigne/etapes';
+import { oublierPartie, sauverPartie } from '../reprise';
 import {
   centreRegion,
   noeudSous,
@@ -268,13 +271,14 @@ export class PartieScene extends Phaser.Scene {
     const videosPartie = (['rouge', 'bleu'] as const).flatMap((b) =>
       ROLES.map(({ id }) => skin.videoPouvoir?.(b, id)),
     );
-    // Les vidéos de victoire viennent après celles des pouvoirs (DW.4).
+    // Puis celles des goûters, et enfin celles de victoire (DW.4). Rien n'est plus téléchargé
+    // au lancement du jeu : seulement les vidéos des équipes de la partie.
+    for (let i = 0; i < 4; i++) videosPartie.push(skin.videoGouter?.(i)?.url);
     for (const b of ['rouge', 'bleu'] as const)
       for (const r of ['cabane', 'bonsPoints'] as const)
         videosPartie.push(skin.videoVictoire?.(b, r));
     prechargerVideos(videosPartie);
     // Leurs bandes son, jouées à part pour ne pas être coupées par le téléphone (DV.9).
-    for (let i = 0; i < 4; i++) videosPartie.push(skin.videoGouter?.(i)?.url);
     for (const url of videosPartie) if (url) chargerBandeSon(url);
     this.visuel = visuelCarte(carte);
     this.cour = chargerCour(COURS[carte] as CourData);
@@ -288,6 +292,10 @@ export class PartieScene extends Phaser.Scene {
         graine: donnees.graine,
         equipements: donnees.equipements,
       });
+    // Une partie reprise là où on l'avait laissée (`reprise.ts`).
+    if (!this.enLigne && donnees.reprise) {
+      this.ctrl.etat = { ...donnees.reprise, cour: this.cour } as EtatPartie;
+    }
     this.texteTemps = null;
     this.reclameLe = 0;
     this.departToboggan = null;
@@ -308,10 +316,11 @@ export class PartieScene extends Phaser.Scene {
     // En ligne, pas de fiche de la cour : la partie commence tout de suite (phase « jeu »), et le
     // surveillant doit être à sa place sur la cour dès le départ, sinon on ne voit que le rond
     // pointillé de son goûter (DR.12).
-    this.presentation = !this.enLigne;
+    // Une revanche (même carte, mêmes bandes) saute aussi la fiche : on la connaît déjà.
+    this.presentation = !this.enLigne && !donnees.revanche && !donnees.reprise;
     this.enPied = null;
     this.placesMedaillon = new Map();
-    this.medaillonArrive = this.enLigne !== null;
+    this.medaillonArrive = !this.presentation;
     this.rangement = false;
     this.attenteAdversaire = false;
     this.tourHorloge = 0;
@@ -409,6 +418,11 @@ export class PartieScene extends Phaser.Scene {
   /** Redessine tout l'écran à partir de l'état. La fiche ouverte est fermée, sauf demande. */
   rafraichir(garderFiche = false): void {
     if (!garderFiche) this.fiche = null;
+    // Sur ce téléphone, la partie est gardée à chaque coup pour pouvoir la reprendre.
+    if (!this.enLigne) {
+      if (this.ctrl.phase === 'fin') oublierPartie();
+      else if (!this.presentation) sauverPartie(this.donnees, this.ctrl.etat);
+    }
     // En solo, pas de « Passe le téléphone » : le téléphone reste dans les mêmes mains.
     if (
       (this.ordi || this.enLigne) &&
@@ -540,7 +554,7 @@ export class PartieScene extends Phaser.Scene {
     bord.lineStyle(8, equipeDe(bande).couleur, 1);
     bord.strokeRoundedRect(-l / 2 + 10, -46, l - 20, 92, 22);
     const c = this.add
-      .container(LARGEUR / 2, RANG.y - RANG.hauteurCarte / 2 - 120, [fond, bord, t])
+      .container(LARGEUR / 2, RANG.y - RANG.hauteurCarte / 2 - 40, [fond, bord, t])
       .setDepth(900)
       .setRotation(-0.06);
     if (!this.animations) {
@@ -548,7 +562,13 @@ export class PartieScene extends Phaser.Scene {
       return;
     }
     c.setScale(0.2).setAlpha(0);
-    this.tweenCinematique({ targets: c, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
+    this.tweenCinematique({
+      targets: c,
+      scale: 0.85,
+      alpha: 1,
+      duration: 260,
+      ease: 'Back.easeOut',
+    });
     this.tweenCinematique({
       targets: c,
       alpha: 0,
@@ -599,6 +619,9 @@ export class PartieScene extends Phaser.Scene {
       }),
     );
   }
+
+  /** Où vient d'être posé l'élève dont on montre le pouvoir : la case de BD va à côté (DU.9). */
+  private lieuPouvoir: Point | null = null;
 
   private pos(id: string): Point {
     return positionNoeud(this.cour, id);
@@ -1328,6 +1351,9 @@ export class PartieScene extends Phaser.Scene {
    * les cartes du rang. Le nombre est dans une pastille ; le paquet maigrit quand il se vide.
    */
   private dessinerPortail(bande: Bande): void {
+    // Sur la fiche de la cour, les pioches n'ont rien à expliquer et le surveillant en pied
+    // recouvrait celle du bas sur les petits écrans.
+    if (this.presentation && this.ctrl.phase === 'passe') return;
     const j = this.etat.joueurs[bande];
     const n = j.couloir.length;
     const punisIci = avecZonePunis(this.cour) ? 0 : j.cpe.length;
@@ -2027,7 +2053,11 @@ export class PartieScene extends Phaser.Scene {
         ? b === this.enLigne.bande
           ? TEXTES.enLigne.aToi
           : TEXTES.enLigne.auTourAmi(this.enLigne.vue.adversaire)
-        : TEXTES.hud.tourDe(b);
+        : this.ordi
+          ? b === this.ordi.humain
+            ? TEXTES.hud.tonTour
+            : TEXTES.hud.tourOrdi
+          : TEXTES.hud.tourDe(b);
       const t = this.texte(LARGEUR / 2, Y_PASTILLE_TOUR, qui, 21, COULEURS.texteSombre, {
         fontStyle: '700',
       }).setOrigin(0.5);
@@ -3177,7 +3207,13 @@ export class PartieScene extends Phaser.Scene {
     // La bande qui vient de jouer voit encore son rang (le téléphone est toujours dans ses mains) :
     // les copains appelés y arrivent.
     this.dessinerRang(this.bandeVue, false, true);
-    this.bandeauTour(TEXTES.passe.bientot(this.etat.courant), this.etat.courant, false);
+    const suivante = this.etat.courant;
+    const annonce = this.ordi
+      ? suivante === this.ordi.humain
+        ? TEXTES.passe.bientotToi
+        : TEXTES.passe.bientotOrdi
+      : TEXTES.passe.bientot(suivante);
+    this.bandeauTour(annonce, suivante, false);
     const bloc = this.ajouter(
       this.add.rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 0.001),
     );
@@ -3773,6 +3809,8 @@ export class PartieScene extends Phaser.Scene {
   private videoALaPose(nouveaux: Evenement[], suite: Cinematique[]): Cinematique | undefined {
     const pose = nouveaux.find((ev) => ev.type === 'pose');
     if (pose?.type !== 'pose') return undefined;
+    // La case de BD du pouvoir se pose à côté de cet élève (DU.9).
+    this.lieuPouvoir = this.cour.noeuds[pose.cible] ? this.pos(pose.cible) : null;
     const skin = skinActif();
     const aUneVideo = (c: Cinematique): boolean => {
       const role = roleDuPouvoir(c);
@@ -4556,15 +4594,31 @@ export class PartieScene extends Phaser.Scene {
     // Les goûters sont filmés en carré : on les montre entiers dans une case de manga, sur un
     // fond manga animé à la couleur de la bande (DV.3).
     const yVideo = creme ? HAUTEUR / 2 - 90 : HAUTEUR / 2;
+    // Pouvoir : plus de plein écran (DU.9). La vidéo joue dans une case de BD penchée, posée à
+    // côté de l'élève, sur la cour juste assombrie ; toucher n'importe où la passe.
+    const enCase = !creme;
     const fond = this.add
-      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, 1)
+      .rectangle(GAUCHE, HAUT, DROITE - GAUCHE, BAS - HAUT, 0x000000, enCase ? 0.35 : 1)
       .setOrigin(0, 0)
       .setInteractive();
     const video = this.add.video(0, 0);
     const COTE_CASE = 600;
+    const CASE_L = 420;
+    const CASE_H = 560;
+    const placeCase = this.placeCasePouvoir(CASE_L, CASE_H);
+    this.lieuPouvoir = null;
     const decor: Phaser.GameObjects.GameObject[] = [];
     let laCase: Phaser.GameObjects.Container | undefined;
-    if (creme) {
+    if (enCase) {
+      laCase = this.add
+        .container(placeCase.x, placeCase.y, [
+          ombreCaseManga(this, CASE_L, CASE_H),
+          video,
+          cadreMangaRect(this, CASE_L, CASE_H),
+        ])
+        .setAngle(placeCase.angle);
+      decor.push(laCase);
+    } else if (creme) {
       decor.push(
         fondManga(
           this,
@@ -4591,8 +4645,9 @@ export class PartieScene extends Phaser.Scene {
           )
         : T[cin.id];
     const style = { fontFamily: POLICE, color: COULEURS.texteClair, align: 'center' };
+    const yTitre = enCase ? placeCase.y + CASE_H / 2 + 70 : 1010;
     const titre = this.add
-      .text(LARGEUR / 2, 1010, C.titre, {
+      .text(LARGEUR / 2, yTitre, C.titre, {
         ...style,
         fontSize: '64px',
         fontStyle: '700',
@@ -4602,7 +4657,7 @@ export class PartieScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
     const sous = this.add
-      .text(LARGEUR / 2, 1090, C.sous, {
+      .text(LARGEUR / 2, yTitre + 80, C.sous, {
         ...style,
         fontSize: '30px',
         fontStyle: '600',
@@ -4613,12 +4668,17 @@ export class PartieScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
     const passer = this.add
-      .text(LARGEUR / 2, 1190, TEXTES.cinematiques.passer, {
-        ...style,
-        fontSize: '18px',
-        stroke: '#1d1a16',
-        strokeThickness: 4,
-      })
+      .text(
+        LARGEUR / 2,
+        enCase ? placeCase.y - CASE_H / 2 - 40 : 1190,
+        TEXTES.cinematiques.passer,
+        {
+          ...style,
+          fontSize: '18px',
+          stroke: '#1d1a16',
+          strokeThickness: 4,
+        },
+      )
       .setOrigin(0.5)
       .setAlpha(0.7);
     const tout = this.add
@@ -4674,13 +4734,22 @@ export class PartieScene extends Phaser.Scene {
       // La vidéo couvre tout l'écran, quelle que soit sa forme, sans être déformée.
       const w = video.width || LARGEUR;
       const h = video.height || HAUTEUR;
-      video.setScale(laCase ? COTE_CASE / w : Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
-      // La case du goûter arrive d'un coup, en se penchant, comme une case de manga.
+      if (enCase) {
+        // La vidéo remplit la case en largeur ; on n'en garde que le haut (tête et buste).
+        const echelle = CASE_L / w;
+        const hVisible = Math.min(h, CASE_H / echelle);
+        const haut = Math.min(h - hVisible, h * 0.04);
+        video.setScale(echelle).setCrop(0, haut, w, hVisible);
+        video.setPosition(0, -(haut + hVisible / 2 - h / 2) * echelle);
+      } else {
+        video.setScale(laCase ? COTE_CASE / w : Math.max((DROITE - GAUCHE) / w, (BAS - HAUT) / h));
+      }
+      // La case arrive d'un coup, en se penchant, comme une case de manga.
       if (laCase)
         this.tweenCinematique({
           targets: laCase,
           scale: { from: 1.35, to: 1 },
-          angle: { from: 6, to: -3 },
+          angle: { from: enCase ? -placeCase.angle * 2 : 6, to: enCase ? placeCase.angle : -3 },
           duration: 320,
           ease: 'Back.easeOut',
         });
@@ -4743,6 +4812,32 @@ export class PartieScene extends Phaser.Scene {
     else video.loadURL(url, muette);
     video.play();
     return true;
+  }
+
+  /**
+   * Où poser la case de BD d'un pouvoir (DU.9) : à côté de l'élève qui vient d'arriver, sans le
+   * cacher. Loin du milieu, la case va de l'autre côté ; au milieu, au-dessus ou en dessous.
+   * Elle reste entre le haut de l'écran et la main.
+   */
+  private placeCasePouvoir(l: number, h: number): Point & { angle: number } {
+    const p = this.lieuPouvoir ?? { x: LARGEUR / 2, y: HAUTEUR / 2 };
+    const yMin = HAUT + h / 2 + 90;
+    const yMax = RANG.y - RANG.hauteurCarte / 2 - h / 2 - 150;
+    const borne = (v: number, a: number, b: number): number => Math.min(Math.max(v, a), b);
+    if (Math.abs(p.x - LARGEUR / 2) > 110) {
+      const droite = p.x < LARGEUR / 2;
+      return {
+        x: droite ? Math.min(LARGEUR, DROITE) - l / 2 - 26 : Math.max(0, GAUCHE) + l / 2 + 26,
+        y: borne(p.y, yMin, Math.max(yMin, yMax)),
+        angle: droite ? 3 : -3,
+      };
+    }
+    const dessous = p.y < HAUTEUR / 2;
+    return {
+      x: LARGEUR / 2,
+      y: borne(dessous ? p.y + h / 2 + 90 : p.y - h / 2 - 90, yMin, Math.max(yMin, yMax)),
+      angle: -3,
+    };
   }
 
   /** Emplacement de l'animation de chaque cinématique : pictogramme provisoire. */
@@ -4892,18 +4987,43 @@ export class PartieScene extends Phaser.Scene {
           cabane: this.visuel.cabane ?? { image: PLATEAU.cabaneBleue, murs: PLATEAU.mursBleue },
         },
         {
-          libelleRejouer: TEXTES.boutons.rejouer,
+          libelleRejouer: TEXTES.boutons.revanche,
           libelleAccueil: TEXTES.boutons.accueil,
-          rejouer: () =>
-            this.enLigne
-              ? this.scene.start('enLigne', { ...this.donnees, enLigne: { etape: 'menu' } })
-              : this.scene.restart({ ...this.donnees, graine: Date.now() }),
+          // Revanche : même carte, mêmes bandes, sans repasser par la fiche. En ligne, on
+          // rouvre une partie et on la propose au même ami (choix de la carte et de la bande).
+          rejouer: () => (this.enLigne ? void this.revancheEnLigne() : this.revanche()),
           accueil: () => this.scene.start('accueil'),
           bouton: (x, y, t, f, st) => creerBouton(this, x, y, t, f, st),
         },
         entree,
       ),
     );
+  }
+
+  /** Revanche en solo ou à deux : la même partie, nouvelle donne, tout de suite. */
+  private revanche(): void {
+    const donnees: DonneesPartie = { ...this.donnees, graine: Date.now(), revanche: true };
+    delete donnees.reprise;
+    this.scene.restart(donnees);
+  }
+
+  /**
+   * Revanche en ligne : l'adversaire est devenu un ami en jouant ensemble (DR.12). On retrouve
+   * son nom dans la liste d'amis et on lui propose une nouvelle partie ; s'il est introuvable
+   * (ou deux amis portent ce nom), on retombe sur le menu en ligne.
+   */
+  private async revancheEnLigne(): Promise<void> {
+    const pseudo = this.enLigne?.vue.adversaire ?? null;
+    let ami: { id: string; pseudo: string } | undefined;
+    try {
+      const serveur = await serveurParties();
+      const amis = (await serveur.amis()).filter((a) => a.pseudo === pseudo);
+      if (amis.length === 1 && amis[0]) ami = { id: amis[0].id, pseudo: amis[0].pseudo };
+    } catch {
+      ami = undefined;
+    }
+    const enLigne: EtapeEnLigne = ami ? { etape: 'hote', ami } : { etape: 'menu' };
+    this.scene.start(ami ? 'choix' : 'enLigne', { ...this.donnees, enLigne });
   }
 
   /**

@@ -41,6 +41,8 @@ export interface ServeurParties {
   amis(): Promise<Ami[]>;
   /** Devient ami avec le joueur de ce code ami (dans les deux sens). */
   ajouterAmi(codeAmi: string): Promise<Ami>;
+  /** Retire cet ami de la liste (dans les deux sens). Rejouer ensemble les relie de nouveau. */
+  retirerAmi(id: string): Promise<void>;
   /** Les parties qu'un ami a ouvertes pour ce joueur, et qui l'attendent encore. */
   invitations(): Promise<Invitation[]>;
   /** Prévient quand une invitation arrive ou disparaît. Rend la fonction qui arrête le suivi. */
@@ -217,6 +219,14 @@ export class SalleMemoire {
         if (ami.id === compte) throw new Refus('soi_meme', 'C’est ton propre code !');
         salle.lier(compte, ami.id);
         return ami;
+      },
+      async retirerAmi(id) {
+        salle.liens.get(compte)?.delete(id);
+        salle.liens.get(id)?.delete(compte);
+        for (const [cle, i] of salle.invites)
+          if ((i.pour === id && i.de === compte) || (i.pour === compte && i.de === id))
+            salle.invites.delete(cle);
+        for (const g of salle.guetteurs) g();
       },
       async invitations() {
         const limite = salle.horloge() - DUREE_INVITATION;

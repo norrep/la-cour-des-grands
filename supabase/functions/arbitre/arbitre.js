@@ -1266,6 +1266,96 @@ function normaliserCode(saisie) {
   return code;
 }
 
+// src/reseau/moderation.ts
+var RACINES = [
+  "connard",
+  "connasse",
+  "salope",
+  "salaud",
+  "encul",
+  "putain",
+  "merde",
+  "batard",
+  "couill",
+  "enfoir",
+  "bougnoul",
+  "youpin",
+  "pedophil",
+  "nazi",
+  "hitler",
+  "porno",
+  "branleu",
+  "niktamer",
+  "fuck",
+  "shit",
+  "bitch",
+  "cunt",
+  "nigg",
+  "negro",
+  "whore",
+  "slut",
+  "asshole",
+  "penis",
+  "vagin",
+  "pussy"
+];
+var MOTS = [
+  "con",
+  "cons",
+  "conne",
+  "cul",
+  "bite",
+  "pute",
+  "putes",
+  "pd",
+  "tg",
+  "fdp",
+  "ntm",
+  "viol",
+  "violeur",
+  "suce",
+  "suceur",
+  "chatte",
+  "tapette",
+  "nique",
+  "niquer",
+  "zob",
+  "teub",
+  "sex",
+  "sexe",
+  "negre",
+  "dick",
+  "cock",
+  "porn"
+];
+var CHIFFRES = {
+  "0": "o",
+  "1": "i",
+  "3": "e",
+  "4": "a",
+  "5": "s",
+  "7": "t",
+  "8": "b",
+  "@": "a",
+  $: "s",
+  "\u20AC": "e",
+  "!": "i"
+};
+function aplatir(texte) {
+  return texte.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[0134578@$€!]/g, (c) => CHIFFRES[c] ?? c).replace(/(.)\1+/g, "$1");
+}
+var RACINES_PLATES = RACINES.map(aplatir);
+var MOTS_PLATS = new Set(MOTS.map(aplatir));
+function pseudoInterdit(pseudo) {
+  const plat = aplatir(pseudo);
+  const colle = plat.replace(/[^a-z]/g, "");
+  if (RACINES_PLATES.some((r) => colle.includes(r))) return true;
+  const mots = plat.split(/[^a-z]+/).filter(Boolean);
+  if (mots.some((m) => MOTS_PLATS.has(m))) return true;
+  if (mots.length > 1 && mots.every((m) => m.length === 1) && MOTS_PLATS.has(colle)) return true;
+  return MOTS_PLATS.has(colle);
+}
+
 // src/reseau/amis.ts
 var PSEUDO_MIN = 2;
 var PSEUDO_MAX = 16;
@@ -1274,6 +1364,9 @@ function validerPseudo(saisie) {
   const longueur = [...propre].length;
   if (longueur < PSEUDO_MIN || longueur > PSEUDO_MAX) {
     throw new Refus("pseudo_invalide", `Un pseudo de ${PSEUDO_MIN} \xE0 ${PSEUDO_MAX} lettres.`);
+  }
+  if (pseudoInterdit(propre)) {
+    throw new Refus("pseudo_invalide", "Ce pseudo n\u2019est pas permis. Choisis-en un autre !");
   }
   return propre;
 }
@@ -1429,6 +1522,14 @@ var SalleMemoire = class {
         if (ami.id === compte) throw new Refus("soi_meme", "C\u2019est ton propre code !");
         salle.lier(compte, ami.id);
         return ami;
+      },
+      async retirerAmi(id) {
+        salle.liens.get(compte)?.delete(id);
+        salle.liens.get(id)?.delete(compte);
+        for (const [cle, i] of salle.invites)
+          if (i.pour === id && i.de === compte || i.pour === compte && i.de === id)
+            salle.invites.delete(cle);
+        for (const g of salle.guetteurs) g();
       },
       async invitations() {
         const limite = salle.horloge() - DUREE_INVITATION;
