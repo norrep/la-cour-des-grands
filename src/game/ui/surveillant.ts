@@ -2,7 +2,8 @@
  * Le surveillant de la carte (Mme Josiane, Monsieur Yvon, Babette), en deux tenues (DS.1) :
  *
  * - **Sur la cour, un médaillon** : sa grosse tête et ses épaules dans une rosette festonnée
- *   jaune à cœur bleu nuit, avec deux rubans et son nom sur une banderole. Rien à voir avec les
+ *   jaune à cœur bleu nuit, sans rubans ni nom (la cour est assez chargée : on l'a présenté
+ *   par son nom à l'arrivée sur la carte). Rien à voir avec les
  *   pastilles des élèves (rondes ou carrées, fond clair, chiffre) : on le repère d'un coup d'œil.
  *   Sans corps, c'est la tête qui joue : elle ne tient pas en place (tics propres à chacun) et
  *   réagit au jeu (sifflet, colère, surprise, indignation, satisfaction), avec des accessoires
@@ -26,9 +27,6 @@ export const COULEURS_SURVEILLANT = {
   coeur: 0x34405c,
   coeurClair: 0x47577a,
   feston: 0xffd84d,
-  ruban: 0xff9f43,
-  rubanOmbre: 0xd97a22,
-  banderole: 0xfff4dc,
 } as const;
 
 /** Repères de chaque tête, en pixels de texture au-dessus du cou : yeux et bouche. */
@@ -644,8 +642,8 @@ class Tetes {
 /* Le médaillon sur la cour                                                                     */
 /* ------------------------------------------------------------------------------------------ */
 
-/** Diamètre du cœur du médaillon (les pastilles d'élèves font 92). */
-export const DIAMETRE_MEDAILLON = 100;
+/** Diamètre du cœur du médaillon sur la cour : assez petit pour se poser à côté du goûter gardé. */
+export const DIAMETRE_MEDAILLON = 84;
 
 function rosette(r: number, dx = 0, dy = 0): P[] {
   const pts: P[] = [];
@@ -658,6 +656,20 @@ function rosette(r: number, dx = 0, dy = 0): P[] {
   return pts;
 }
 
+/**
+ * La place que prend le médaillon autour de son centre : la rosette, et la tête qui dépasse en haut.
+ * Sert à le poser sur la cour sans cacher son goûter.
+ */
+export function empriseMedaillon(diametre = DIAMETRE_MEDAILLON): {
+  gauche: number;
+  droite: number;
+  haut: number;
+  bas: number;
+} {
+  const r = diametre / 2;
+  return { gauche: -(r + 9), droite: r + 9, haut: -(r + 22), bas: r + 15 };
+}
+
 export class MedaillonSurveillant {
   readonly racine: Phaser.GameObjects.Container;
   private readonly tetes: Tetes;
@@ -667,30 +679,11 @@ export class MedaillonSurveillant {
     texture: string,
     rig: Rig,
     id: IdSurveillant,
-    nom: string,
     diametre = DIAMETRE_MEDAILLON,
   ) {
     const r = diametre / 2;
     const C = COULEURS_SURVEILLANT;
     this.racine = scene.add.container(0, 0);
-    // Les deux rubans qui pendent sous la rosette, comme une médaille de concours.
-    const rubans = scene.add.graphics();
-    for (const s of [-1, 1]) {
-      const x0 = s * r * 0.2;
-      const x1 = s * r * 0.72;
-      const bas = r * 1.45;
-      forme(
-        rubans,
-        [
-          { x: x0 - s * 10, y: r * 0.3 },
-          { x: x0 + s * 14, y: r * 0.3 },
-          { x: x1 + s * 12, y: bas },
-          { x: x1, y: bas - 10 },
-          { x: x1 - s * 12, y: bas + 2 },
-        ],
-        { remplissage: s < 0 ? C.ruban : C.rubanOmbre, trait: 4 },
-      );
-    }
     const fond = scene.add.graphics();
     forme(fond, rosette(r), { remplissage: C.feston, trait: 4, ombre: 6 });
     forme(fond, contourRond(0, 0, r - 2, 41, 0.02), { remplissage: C.coeur, trait: 4 });
@@ -708,45 +701,7 @@ export class MedaillonSurveillant {
     m.racine.setY(r * 0.32 - tete.pos[1] * echelle);
     m.pieces.jambeG.setVisible(false);
     m.pieces.jambeD.setVisible(false);
-    // Banderole du nom, par-dessus les rubans.
-    const banderole = scene.add.container(0, r + 8);
-    const t = scene.add
-      .text(0, 0, nom, {
-        fontFamily: POLICE,
-        fontSize: '15px',
-        fontStyle: '700',
-        color: COULEURS.texteSombre,
-      })
-      .setOrigin(0.5);
-    const l = t.width / 2 + 12;
-    const gb = scene.add.graphics();
-    for (const s of [-1, 1]) {
-      forme(
-        gb,
-        [
-          { x: s * (l - 4), y: -8 },
-          { x: s * (l + 12), y: -6 },
-          { x: s * (l + 6), y: 3 },
-          { x: s * (l + 12), y: 12 },
-          { x: s * (l - 4), y: 10 },
-        ],
-        { remplissage: C.rubanOmbre, trait: 3 },
-      );
-    }
-    forme(
-      gb,
-      [
-        { x: -l, y: -12 },
-        { x: 0, y: -15 },
-        { x: l, y: -12 },
-        { x: l, y: 11 },
-        { x: 0, y: 8 },
-        { x: -l, y: 11 },
-      ],
-      { remplissage: C.banderole, trait: 3 },
-    );
-    banderole.add([gb, t]);
-    this.racine.add([rubans, fond, m.racine, banderole]);
+    this.racine.add([fond, m.racine]);
     // Le corps est coupé au bord du cœur, libre au-dessus : la tête dépasse.
     const masque = masqueQuiSuit(scene, this.racine, (g) => {
       g.fillCircle(0, 0, r - 4);
@@ -754,7 +709,6 @@ export class MedaillonSurveillant {
     });
     for (const p of ['tronc', 'brasG', 'brasD', 'tete'] as const) m.pieces[p].setMask(masque);
     for (const x of Object.values(m.extras)) x?.setMask(masque);
-    this.racine.bringToTop(banderole);
     this.tetes = new Tetes(scene, m, this.racine, id, TICS[id], 1.2);
     // La vie : respiration, tête qui dodeline ; les tics par-dessus.
     const phase = Math.random() * 10;
@@ -768,7 +722,6 @@ export class MedaillonSurveillant {
         pose.tronc = Math.sin(s * 0.9) * 0.02;
       }
       this.tetes.maj(temps, pose);
-      this.racine.bringToTop(banderole);
     };
     maj(scene.time.now);
     scene.events.on(Phaser.Scenes.Events.UPDATE, maj);
