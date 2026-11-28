@@ -587,6 +587,7 @@ Demande de Clément : « Je commence à avoir un doute avec le design de mes ali
 - **DU.6 — Amis : retirer, et plus de 5.** La liste montre 4 amis par page, avec des flèches. Une croix à côté d'« Inviter » propose « Retirer X ? » (Oui / Non). Le retrait vaut dans les deux sens et efface les invitations en attente entre les deux ; rejouer ensemble les relie de nouveau (DR.12).
 - **DU.7 — Pseudos filtrés.** Les gros mots et insultes courants (français, anglais) sont refusés, même déguisés (accents, chiffres, lettres répétées, séparateurs). Les mots courts ne comptent que seuls (« Constance », « député », « Violette » passent). Filtre partagé par le téléphone et le serveur (`src/reseau/moderation.ts`).
 - **DU.8 — Anti-abus.** Le serveur refuse d'ouvrir une 6e partie qui attend encore un ami (sur 24 h) pour un même joueur.
+- **DU.9 — Pouvoirs en case de BD** (choix A de Clément : « peut-être que le plein écran n'est pas la bonne solution »). La vidéo d'un pouvoir ne couvre plus l'écran : elle joue dans une case de manga penchée (420×560, tête et buste), posée à côté de l'élève qui vient d'arriver (de l'autre côté s'il est sur un bord, au-dessus ou en dessous s'il est au milieu), sur la cour assombrie. Le titre arrive sous la case ; toucher n'importe où passe. Les goûters gardent leur case carrée sur fond manga.
 
 ## Tutoriel jouable (28/11)
 
